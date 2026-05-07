@@ -34,8 +34,15 @@ body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg);
 .main-area {
   display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden;
 }
-.sidebar-header { padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.sidebar-header { padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); text-align: center; }
 .logo { display: block; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+.sidebar-logo {
+  display: block;
+  width: 100%;
+  max-width: 140px;
+  height: auto;
+  margin: 0 auto 6px;
+}
 .subtitle { display: block; font-size: 11px; color: var(--sidebar-text); margin-top: 2px; opacity: 0.6; }
 
 .nav-links { list-style: none; padding: 12px 0; flex: 1; }
@@ -433,4 +440,483 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
   /* ── Alertas pedagógicas ── */
   .ped-alert-topic,
   .ped-alert-scores { min-width: 100%; }
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/*  Pantalla de login                                                        */
+/* ───────────────────────────────────────────────────────────────────────── */
+
+/* Modo login: oculta sidebar y topbar, deja el formulario en pantalla completa */
+body.login-mode .sidebar,
+body.login-mode #mobile-topbar,
+body.login-mode #desktop-topbar,
+body.login-mode #sidebar-backdrop {
+  display: none !important;
+}
+body.login-mode #app        { height: 100vh; }
+body.login-mode .main-area  { height: 100vh; }
+body.login-mode #page-content {
+  padding: 0;
+  max-width: none;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Variables locales del login (se pueden mover a :root cuando quieras) */
+:root {
+  --login-orange:       #ED7D31;
+  --login-orange-hover: #D96D24;
+  --login-right-bg:     #F1F2F4;
+}
+
+.login-screen {
+  display: grid;
+  grid-template-columns: minmax(360px, 440px) 1fr;
+  height: 100vh;
+  background: #fff;
+}
+
+/* ── Columna izquierda (formulario) ─────────────────────────────────────── */
+.login-left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #fff;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 340px;
+}
+
+.login-logo-wrap {
+  width: 168px;
+  height: 168px;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-logo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.login-title {
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 32px;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-field { display: flex; flex-direction: column; gap: 6px; }
+.login-field label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.login-input-group {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.login-input-group:focus-within {
+  border-color: var(--login-orange);
+  box-shadow: 0 0 0 2px rgba(237,125,49,0.15);
+}
+.login-input-group input {
+  flex: 1;
+  border: none;
+  padding: 11px 12px;
+  font-size: 14px;
+  background: transparent;
+  outline: none;
+  color: var(--text);
+  min-width: 0;
+}
+.login-input-icon {
+  width: 44px;
+  background: var(--login-orange);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.login-input-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.login-submit {
+  margin-top: 8px;
+  background: var(--login-orange);
+  color: #fff;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.login-submit:hover  { background: var(--login-orange-hover); }
+.login-submit:active { transform: translateY(1px); }
+.login-submit:disabled {
+  background: #f0a060;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-notice {
+  color: #b45309;
+  font-size: 13px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.login-error {
+  color: #dc2626;
+  font-size: 13px;
+  min-height: 18px;
+}
+
+/* ── Columna derecha (ilustración) ──────────────────────────────────────── */
+.login-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: var(--login-right-bg);
+}
+.login-illustration {
+  max-width: 100%;
+  max-height: 88vh;
+  object-fit: contain;
+  display: block;
+}
+
+/* ── Responsive: en mobile se oculta la columna derecha ─────────────────── */
+@media (max-width: 768px) {
+  .login-screen {
+    grid-template-columns: 1fr;
+  }
+  .login-right {
+    display: none;
+  }
+  .login-card {
+    max-width: 360px;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/*  Página: Mi Sesión                                                        */
+/* ───────────────────────────────────────────────────────────────────────── */
+
+.sesion-page {
+  max-width: 920px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Hero / Banner ──────────────────────────────────────────────────────── */
+.sesion-hero {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  isolation: isolate;
+}
+.sesion-hero-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #1e2535 0%, #2563c7 100%);
+  z-index: -1;
+}
+.sesion-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 85% 30%, rgba(255,255,255,0.12) 0%, transparent 45%),
+    radial-gradient(circle at 15% 90%, rgba(237,125,49,0.18) 0%, transparent 50%);
+}
+.sesion-hero-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 32px 36px;
+  color: #fff;
+}
+.sesion-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: 3px solid rgba(255,255,255,0.35);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.sesion-hero-info { flex: 1; min-width: 0; }
+.sesion-name {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  line-height: 1.2;
+  letter-spacing: -0.2px;
+}
+.sesion-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.sesion-rol-badge {
+  font-size: 12px !important;
+  padding: 4px 12px !important;
+  font-weight: 600;
+}
+.sesion-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: rgba(255,255,255,0.92);
+}
+.sesion-meta-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+}
+.sesion-meta-icon svg { width: 100%; height: 100%; }
+
+/* ── Grid de tarjetas ───────────────────────────────────────────────────── */
+.sesion-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ── Tarjeta base de sesión ─────────────────────────────────────────────── */
+.sesion-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 24px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sesion-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sesion-card-icon {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+.sesion-card-icon svg { width: 100%; height: 100%; }
+.sesion-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.1px;
+}
+
+/* ── Lista de información (filas con icono + label + valor) ─────────────── */
+.sesion-info-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sesion-info-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: start;
+}
+.sesion-info-icon {
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.sesion-info-icon svg { width: 100%; height: 100%; }
+.sesion-info-label {
+  grid-column: 2;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+.sesion-info-value {
+  grid-column: 2;
+  font-size: 14px;
+  color: var(--text);
+  margin: 0;
+  word-break: break-word;
+}
+.sesion-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: #f1f3f7;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+/* ── Bloque de asignaciones (secciones / materias) ──────────────────────── */
+.sesion-assign-block + .sesion-assign-block {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+.sesion-assign-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+.sesion-assign-label .sesion-meta-icon { color: var(--text-muted); }
+.sesion-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 2px;
+}
+.sesion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sesion-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.sesion-chip-blue {
+  background: #eaf2fb;
+  color: #1f4f8f;
+  border-color: #cfdff3;
+}
+.sesion-chip-green {
+  background: #e8f6ef;
+  color: #1d6e3e;
+  border-color: #c4e5d1;
+}
+.sesion-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Tarjeta de acciones (logout) ───────────────────────────────────────── */
+.sesion-actions-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--danger);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: var(--shadow);
+}
+.sesion-actions-info { flex: 1; min-width: 0; }
+.sesion-actions-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.sesion-actions-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.sesion-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 160px;
+  justify-content: center;
+}
+.sesion-logout-btn .sesion-meta-icon { width: 16px; height: 16px; }
+.sesion-logout-msg:not(:empty) { margin-top: 4px; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .sesion-grid { grid-template-columns: 1fr; }
+  .sesion-hero-content {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 24px;
+    gap: 16px;
+  }
+  .sesion-name { font-size: 20px; }
+  .sesion-actions-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .sesion-logout-btn { width: 100%; }
 }

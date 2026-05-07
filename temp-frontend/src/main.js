@@ -1,4 +1,6 @@
 import './style.css'
+import logoAtara  from './assets/images/logos/logo-atara-transparente.png'
+import fondoLogin from './assets/images/backgrounds/fondo login.svg'
 import { checkHealth, getAccessToken, getContextoUsuario, login, logout,
          clearAccessToken, clearRefreshToken, clearUserId } from './api.js'
 import { renderAniosLectivos }    from './pages/aniosLectivos.js'
@@ -68,6 +70,10 @@ let _currentUser = null  // { userId, nombre, apellidos, rol, ... }
 const content  = document.getElementById('page-content')
 const navLinks = document.getElementById('nav-links')
 
+// Logo del sidebar (importado desde assets, Vite lo resuelve con hash)
+const sidebarLogoEl = document.getElementById('sidebar-logo')
+if (sidebarLogoEl) sidebarLogoEl.src = logoAtara
+
 // ── Render del menú según rol ─────────────────────────────────────────────
 function renderNav(rol) {
   const sections = NAV_BY_ROL[rol] || NAV_BY_ROL.DOCENTE
@@ -133,29 +139,63 @@ function navigate(page, params = {}) {
 
 // ── Login ─────────────────────────────────────────────────────────────────
 function showLogin(notice = '') {
-  // Ocultar topbar de escritorio en la pantalla de login
+  // Ocultar topbar y sidebar (layout de pantalla completa para el login)
   document.getElementById('desktop-topbar').style.display = 'none'
+  document.body.classList.add('login-mode')
   updateTopbar(null)
   navLinks.innerHTML = ''
 
   content.innerHTML = `
-    <div style="max-width:360px;margin:60px auto">
-      <h2>Iniciar sesión</h2>
-      <div class="form-group"><label>Correo</label>
-        <input type="email" id="login-correo" value="admin@atara.mep.go.cr">
+    <div class="login-screen">
+      <div class="login-left">
+        <div class="login-card">
+          <div class="login-logo-wrap">
+            <img src="${logoAtara}" alt="ATARA" class="login-logo">
+          </div>
+          <h2 class="login-title">Inicia sesión en tu cuenta</h2>
+          <form class="login-form" id="login-form" autocomplete="on">
+            <div class="login-field">
+              <label for="login-correo">Correo electrónico</label>
+              <div class="login-input-group">
+                <input type="email" id="login-correo" placeholder="usuario@correo.com" value="admin@atara.mep.go.cr" autocomplete="username">
+                <span class="login-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="5" width="18" height="14" rx="2"/>
+                    <path d="M3 7l9 6 9-6"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <div class="login-field">
+              <label for="login-pass">Contraseña</label>
+              <div class="login-input-group">
+                <input type="password" id="login-pass" placeholder="Ingrese su contraseña" value="Admin1234!" autocomplete="current-password">
+                <span class="login-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 018 0v4"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            ${notice ? `<div class="login-notice">${notice}</div>` : ''}
+            <div id="login-error" class="login-error"></div>
+            <button type="submit" class="login-submit" id="login-btn">Ingresar</button>
+          </form>
+        </div>
       </div>
-      <div class="form-group"><label>Contraseña</label>
-        <input type="password" id="login-pass" value="Admin1234!">
+      <div class="login-right">
+        <img src="${fondoLogin}" alt="" class="login-illustration" aria-hidden="true">
       </div>
-      <button class="btn btn-primary" id="login-btn" style="width:100%;margin-top:8px">Entrar</button>
-      ${notice ? `<div style="margin-top:10px;color:#d97706;font-size:13px;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px 12px">${notice}</div>` : ''}
-      <div id="login-error" style="margin-top:10px;color:#dc2626;font-size:13px"></div>
     </div>
   `
-  const btn       = content.querySelector('#login-btn')
-  const errorDiv  = content.querySelector('#login-error')
 
-  async function doLogin() {
+  const form     = content.querySelector('#login-form')
+  const btn      = content.querySelector('#login-btn')
+  const errorDiv = content.querySelector('#login-error')
+
+  async function doLogin(ev) {
+    ev?.preventDefault()
     const correo = content.querySelector('#login-correo').value.trim()
     const pass   = content.querySelector('#login-pass').value
     if (!correo || !pass) { errorDiv.textContent = 'Ingrese correo y contraseña.'; return }
@@ -169,13 +209,11 @@ function showLogin(notice = '') {
     } catch (e) {
       errorDiv.textContent = e.message
       btn.disabled = false
-      btn.textContent = 'Entrar'
+      btn.textContent = 'Ingresar'
     }
   }
 
-  btn.addEventListener('click', doLogin)
-  content.querySelector('#login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
-  content.querySelector('#login-correo').addEventListener('keydown', e => { if (e.key === 'Enter') content.querySelector('#login-pass').focus() })
+  form.addEventListener('submit', doLogin)
 }
 
 // ── Post-login: cargar contexto y mostrar app ────────────────────────────
@@ -183,6 +221,7 @@ async function afterLogin() {
   const me = await getContextoUsuario()
   if (!me) return  // session-expired ya disparado por api.js
   _currentUser = me
+  document.body.classList.remove('login-mode')
   document.getElementById('desktop-topbar').style.display = ''
   renderNav(me.rol)
   updateTopbar(me)
@@ -208,6 +247,7 @@ async function bootstrap() {
       return
     }
     _currentUser = me
+    document.body.classList.remove('login-mode')
     document.getElementById('desktop-topbar').style.display = ''
     renderNav(me.rol)
     updateTopbar(me)

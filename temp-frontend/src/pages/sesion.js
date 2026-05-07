@@ -11,6 +11,17 @@ const ROL_BADGE = {
   COORDINADOR:  'badge-yellow',
 }
 
+// Iconos SVG inline (estilo Lucide, 20x20, stroke currentColor)
+const ICONS = {
+  user:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  mail:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>`,
+  shield:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 4v6c0 5-4 9-9 10-5-1-9-5-9-10V6l9-4z"/></svg>`,
+  hash:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/></svg>`,
+  layers:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg>`,
+  book:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2V4z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8V4z"/></svg>`,
+  logout:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>`,
+}
+
 export async function renderSesion(container) {
   container.innerHTML = '<p class="loading">Cargando sesión…</p>'
 
@@ -25,107 +36,117 @@ export async function renderSesion(container) {
     .join('')
     .slice(0, 2)
 
+  const hasSecciones = Array.isArray(me.seccionIds) && me.seccionIds.length > 0
+  const hasMaterias  = Array.isArray(me.materiaIds) && me.materiaIds.length > 0
+
   container.innerHTML = `
-    <h1 style="margin-bottom:24px">Mi Sesión</h1>
+    <div class="sesion-page">
 
-    <div class="sesion-grid" style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;max-width:760px">
-
-      <!-- Tarjeta de perfil -->
-      <div class="card" style="text-align:center;padding:32px 24px">
-        <div style="
-          width:80px;height:80px;border-radius:50%;
-          background:var(--accent);color:#fff;
-          display:flex;align-items:center;justify-content:center;
-          font-size:28px;font-weight:700;
-          margin:0 auto 16px;
-          box-shadow:0 4px 14px rgba(59,125,216,0.35)
-        ">${iniciales}</div>
-        <div style="font-size:17px;font-weight:700;margin-bottom:6px;line-height:1.3">
-          ${escHtml(me.nombre)} ${escHtml(me.apellidos)}
+      <!-- ═══ Hero / banner ═══ -->
+      <section class="sesion-hero">
+        <div class="sesion-hero-bg" aria-hidden="true"></div>
+        <div class="sesion-hero-content">
+          <div class="sesion-avatar">${iniciales}</div>
+          <div class="sesion-hero-info">
+            <h1 class="sesion-name">${escHtml(me.nombre)} ${escHtml(me.apellidos)}</h1>
+            <div class="sesion-meta">
+              <span class="badge ${rolBadge} sesion-rol-badge">${rolLabel}</span>
+              <span class="sesion-email">
+                <span class="sesion-meta-icon">${ICONS.mail}</span>
+                ${escHtml(me.correo)}
+              </span>
+            </div>
+          </div>
         </div>
-        <span class="badge ${rolBadge}" style="font-size:12px;padding:3px 12px">${rolLabel}</span>
-        <div style="margin-top:16px;font-size:12px;color:var(--text-muted)">${escHtml(me.correo)}</div>
+      </section>
+
+      <!-- ═══ Grid de tarjetas ═══ -->
+      <div class="sesion-grid">
+
+        <!-- Información personal -->
+        <article class="sesion-card">
+          <header class="sesion-card-head">
+            <span class="sesion-card-icon">${ICONS.user}</span>
+            <h2 class="sesion-card-title">Información personal</h2>
+          </header>
+          <dl class="sesion-info-list">
+            ${row(ICONS.user,   'Nombre completo', `${escHtml(me.nombre)} ${escHtml(me.apellidos)}`)}
+            ${row(ICONS.mail,   'Correo electrónico', escHtml(me.correo))}
+            ${row(ICONS.shield, 'Rol en el sistema',  `<span class="badge ${rolBadge}">${rolLabel}</span>`)}
+            ${row(ICONS.hash,   'ID de usuario',       `<code class="sesion-code">#${escHtml(me.userId ?? '—')}</code>`)}
+          </dl>
+        </article>
+
+        <!-- Asignaciones -->
+        <article class="sesion-card">
+          <header class="sesion-card-head">
+            <span class="sesion-card-icon">${ICONS.layers}</span>
+            <h2 class="sesion-card-title">Asignaciones</h2>
+          </header>
+
+          <div class="sesion-assign-block">
+            <div class="sesion-assign-label">
+              <span class="sesion-meta-icon">${ICONS.layers}</span>
+              Secciones
+              <span class="sesion-count">${hasSecciones ? me.seccionIds.length : 0}</span>
+            </div>
+            <div class="sesion-chips">
+              ${hasSecciones
+                ? me.seccionIds.map(id => `<span class="sesion-chip sesion-chip-blue">Sección ${escHtml(id)}</span>`).join('')
+                : `<span class="sesion-empty">Sin secciones asignadas</span>`}
+            </div>
+          </div>
+
+          <div class="sesion-assign-block">
+            <div class="sesion-assign-label">
+              <span class="sesion-meta-icon">${ICONS.book}</span>
+              Materias
+              <span class="sesion-count">${hasMaterias ? me.materiaIds.length : 0}</span>
+            </div>
+            <div class="sesion-chips">
+              ${hasMaterias
+                ? me.materiaIds.map(id => `<span class="sesion-chip sesion-chip-green">Materia ${escHtml(id)}</span>`).join('')
+                : `<span class="sesion-empty">Sin materias asignadas</span>`}
+            </div>
+          </div>
+        </article>
+
       </div>
 
-      <!-- Detalle de cuenta -->
-      <div style="display:flex;flex-direction:column;gap:16px">
-
-        <div class="card" style="padding:20px 24px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:14px">
-            Información de cuenta
-          </div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            ${fila('ID de usuario', String(me.userId ?? '—'))}
-            ${fila('Nombre completo', `${escHtml(me.nombre)} ${escHtml(me.apellidos)}`)}
-            ${fila('Correo electrónico', escHtml(me.correo))}
-            ${fila('Rol', `<span class="badge ${rolBadge}">${rolLabel}</span>`)}
-          </div>
+      <!-- ═══ Acciones ═══ -->
+      <section class="sesion-actions-card">
+        <div class="sesion-actions-info">
+          <div class="sesion-actions-title">Cerrar sesión</div>
+          <div class="sesion-actions-desc">Saldrás del sistema y deberás ingresar tus credenciales nuevamente.</div>
         </div>
+        <button class="btn btn-danger sesion-logout-btn" id="btn-logout">
+          <span class="sesion-meta-icon">${ICONS.logout}</span>
+          <span>Cerrar sesión</span>
+        </button>
+      </section>
 
-        ${me.seccionIds?.length ? `
-        <div class="card" style="padding:20px 24px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:14px">
-            Secciones asignadas
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${me.seccionIds.map(id =>
-              `<span class="badge badge-gray" style="font-size:12px">Sección ${id}</span>`
-            ).join('')}
-          </div>
-        </div>` : ''}
+      <div id="logout-msg" class="sesion-logout-msg"></div>
 
-        ${me.materiaIds?.length ? `
-        <div class="card" style="padding:20px 24px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:14px">
-            Materias asignadas
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${me.materiaIds.map(id =>
-              `<span class="badge badge-gray" style="font-size:12px">Materia ${id}</span>`
-            ).join('')}
-          </div>
-        </div>` : ''}
-
-        <div class="card" style="padding:20px 24px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:14px">
-            Acciones
-          </div>
-          <div id="logout-msg" style="margin-bottom:10px"></div>
-          <button class="btn btn-danger" id="btn-logout" style="min-width:160px">
-            Cerrar sesión
-          </button>
-        </div>
-
-      </div>
     </div>
-
-    <style>
-      @media (max-width: 600px) {
-        .sesion-grid { grid-template-columns: 1fr !important; }
-      }
-    </style>
   `
 
   container.querySelector('#btn-logout').addEventListener('click', async () => {
     const btn = container.querySelector('#btn-logout')
     const logoutMsg = container.querySelector('#logout-msg')
     btn.disabled = true
-    btn.textContent = 'Cerrando sesión…'
+    btn.querySelector('span:last-child').textContent = 'Cerrando sesión…'
     logoutMsg.innerHTML = '<div class="alert alert-info" style="font-size:13px">Cerrando tu sesión, espera un momento…</div>'
     await logout()
     window.dispatchEvent(new CustomEvent('atara:session-expired'))
   })
 }
 
-function fila(label, value) {
+function row(icon, label, value) {
   return `
-    <div style="display:flex;gap:12px;align-items:baseline">
-      <span style="
-        font-size:12px;font-weight:600;color:var(--text-muted);
-        text-transform:uppercase;letter-spacing:.04em;
-        min-width:140px;flex-shrink:0
-      ">${label}</span>
-      <span style="font-size:13px;color:var(--text)">${value}</span>
+    <div class="sesion-info-row">
+      <span class="sesion-info-icon">${icon}</span>
+      <dt class="sesion-info-label">${label}</dt>
+      <dd class="sesion-info-value">${value}</dd>
     </div>
   `
 }
