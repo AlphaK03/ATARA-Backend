@@ -1,4 +1,4 @@
-const BASE = '/api'
+const BASE = (import.meta.env.VITE_API_URL || '') + '/api'
 
 // ── Token management ──────────────────────────────────────────────────────
 export function getAccessToken()  { return localStorage.getItem('atara_token') }
@@ -72,7 +72,9 @@ async function request(method, path, body, isRetry = false) {
     const msg = json?.message || json?.error || `Error ${res.status}`
     throw new Error(msg)
   }
-  return json
+  // Si la respuesta está envuelta en ApiResponse {success, message, data}, extraer .data.
+  // Auth endpoints (login/refresh) no usan el wrapper, así que se devuelven tal cual.
+  return (json !== null && typeof json === 'object' && 'success' in json) ? json.data : json
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
