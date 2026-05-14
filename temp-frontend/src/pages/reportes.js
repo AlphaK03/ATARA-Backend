@@ -492,15 +492,33 @@ export async function renderReportes(container) {
     }
 
     const estSorted = [...promedios].sort((a, b) => parseFloat(a.promedioGlobal ?? 0) - parseFloat(b.promedioGlobal ?? 0))
-    makeChart('chart-estudiantes', 'bar', {
-      labels: estSorted.map(e => nombreCorto(e.estudianteNombreCompleto)),
-      datasets: [{
-        label: 'Promedio global',
-        data: estSorted.map(e => parseFloat(e.promedioGlobal ?? 0)),
-        backgroundColor: estSorted.map(e => colorFromVal(parseFloat(e.promedioGlobal))),
-        borderRadius: 4,
-      }],
-    }, { indexAxis: 'y', scales: { x: { min: 0, max: 5, ticks: { callback: v => SCALE_LABELS[v] ?? v }, grid: { color: '#f3f4f6' } }, y: { grid: { display: false } } } })
+    const estLabels = estSorted.map(e => nombreCorto(e.estudianteNombreCompleto))
+    const estData   = estSorted.map(e => parseFloat(e.promedioGlobal ?? 0))
+    const estCols   = estSorted.map(e => colorFromVal(parseFloat(e.promedioGlobal)))
+
+    if (chartType === 'radar') {
+      makeChart('chart-estudiantes', 'radar', {
+        labels: estLabels,
+        datasets: [{ label: 'Promedio global', data: estData, backgroundColor: 'rgba(59,130,246,0.1)', borderColor: '#3b82f6', pointBackgroundColor: estCols }],
+      }, { scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, callback: v => SCALE_LABELS[v] ?? v }, grid: { color: '#e5e7eb' } } } })
+    } else if (chartType === 'doughnut' || chartType === 'polarArea') {
+      makeChart('chart-estudiantes', chartType, {
+        labels: estLabels,
+        datasets: [{ data: estData, backgroundColor: estCols.map(c => c + 'cc'), borderWidth: 1 }],
+      }, chartType === 'polarArea'
+        ? { scales: { r: { min: 0, max: 5 } } }
+        : { plugins: { ...BASE_OPTS.plugins, legend: { position: 'right', labels: { font: { size: 10 } } } } })
+    } else if (chartType === 'line') {
+      makeChart('chart-estudiantes', 'line', {
+        labels: estLabels,
+        datasets: [{ label: 'Promedio global', data: estData, backgroundColor: 'rgba(59,130,246,0.1)', borderColor: '#3b82f6', pointBackgroundColor: estCols, fill: true, tension: 0.3 }],
+      }, { scales: { y: { min: 0, max: 5, ticks: { callback: v => SCALE_LABELS[v] ?? v }, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } } })
+    } else {
+      makeChart('chart-estudiantes', 'bar', {
+        labels: estLabels,
+        datasets: [{ label: 'Promedio global', data: estData, backgroundColor: estCols, borderRadius: 4 }],
+      }, { indexAxis: 'y', scales: { x: { min: 0, max: 5, ticks: { callback: v => SCALE_LABELS[v] ?? v }, grid: { color: '#f3f4f6' } }, y: { grid: { display: false } } } })
+    }
 
     const distData = [nAlta, nMedia, Math.max(0, ejes.length * totalEst - nAlta - nMedia)]
     const distLabels = ['Alta', 'Media', 'Sin alerta']
@@ -532,13 +550,43 @@ export async function renderReportes(container) {
       document.getElementById('chart-ranking').parentElement.innerHTML =
         '<p class="empty" style="padding:24px 0">No se detectaron alertas.</p>'
     } else {
-      makeChart('chart-ranking', 'bar', {
-        labels: rankSorted.map(e => e.nombre),
-        datasets: [
-          { label: 'Alertas altas', data: rankSorted.map(e => e.altas), backgroundColor: NIVEL_COLOR.ALTA + 'cc', borderRadius: 3 },
-          { label: 'Alertas medias', data: rankSorted.map(e => e.medias), backgroundColor: NIVEL_COLOR.MEDIA + 'cc', borderRadius: 3 },
-        ],
-      }, { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { stepSize: 1 }, stacked: true, grid: { color: '#f3f4f6' } }, y: { stacked: true, grid: { display: false } } }, plugins: { ...BASE_OPTS.plugins, legend: { position: 'top' } } })
+      const rankLabels = rankSorted.map(e => e.nombre)
+      const rankAltas  = rankSorted.map(e => e.altas)
+      const rankMedias = rankSorted.map(e => e.medias)
+      const rankTotal  = rankSorted.map(e => e.altas + e.medias)
+
+      if (chartType === 'radar') {
+        makeChart('chart-ranking', 'radar', {
+          labels: rankLabels,
+          datasets: [
+            { label: 'Alertas altas',  data: rankAltas,  backgroundColor: 'rgba(220,38,38,0.1)',  borderColor: NIVEL_COLOR.ALTA,  pointBackgroundColor: NIVEL_COLOR.ALTA  },
+            { label: 'Alertas medias', data: rankMedias, backgroundColor: 'rgba(217,119,6,0.1)', borderColor: NIVEL_COLOR.MEDIA, pointBackgroundColor: NIVEL_COLOR.MEDIA },
+          ],
+        }, { scales: { r: { ticks: { stepSize: 1 }, grid: { color: '#e5e7eb' } } } })
+      } else if (chartType === 'doughnut' || chartType === 'polarArea') {
+        makeChart('chart-ranking', chartType, {
+          labels: rankLabels,
+          datasets: [{ data: rankTotal, backgroundColor: rankSorted.map(() => NIVEL_COLOR.ALTA + 'cc'), borderWidth: 1 }],
+        }, chartType === 'polarArea'
+          ? {}
+          : { plugins: { ...BASE_OPTS.plugins, legend: { position: 'right', labels: { font: { size: 10 } } } } })
+      } else if (chartType === 'line') {
+        makeChart('chart-ranking', 'line', {
+          labels: rankLabels,
+          datasets: [
+            { label: 'Alertas altas',  data: rankAltas,  backgroundColor: 'rgba(220,38,38,0.1)',  borderColor: NIVEL_COLOR.ALTA,  fill: true, tension: 0.3 },
+            { label: 'Alertas medias', data: rankMedias, backgroundColor: 'rgba(217,119,6,0.1)', borderColor: NIVEL_COLOR.MEDIA, fill: true, tension: 0.3 },
+          ],
+        }, { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }, plugins: { ...BASE_OPTS.plugins, legend: { position: 'top' } } })
+      } else {
+        makeChart('chart-ranking', 'bar', {
+          labels: rankLabels,
+          datasets: [
+            { label: 'Alertas altas',  data: rankAltas,  backgroundColor: NIVEL_COLOR.ALTA  + 'cc', borderRadius: 3 },
+            { label: 'Alertas medias', data: rankMedias, backgroundColor: NIVEL_COLOR.MEDIA + 'cc', borderRadius: 3 },
+          ],
+        }, { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { stepSize: 1 }, stacked: true, grid: { color: '#f3f4f6' } }, y: { stacked: true, grid: { display: false } } }, plugins: { ...BASE_OPTS.plugins, legend: { position: 'top' } } })
+      }
     }
 
     const insights = generarInsights(ejes, tipoAvgs, promedios)
