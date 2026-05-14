@@ -369,7 +369,13 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 @media (max-width: 768px) {
 
   /* ── Layout principal ── */
-  #app { flex-direction: column; }
+  /* Eliminar la altura fija y el overflow:hidden para que el body pueda scrollear */
+  #app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
 
   /* Top bar visible en móvil */
   #mobile-topbar { display: flex; }
@@ -377,14 +383,20 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
   /* Desktop topbar oculto en móvil */
   #desktop-topbar { display: none; }
 
-  /* .main-area en móvil ocupa toda la pantalla */
-  .main-area { overflow: visible; }
+  /* .main-area fluye con el contenido en lugar de estar recortada */
+  .main-area {
+    overflow: visible;
+    height: auto;
+    flex: none;
+  }
 
   /* El contenido baja para dejar espacio al top bar fijo */
   .content {
     padding: 16px;
     padding-top: 68px; /* 52px topbar + 16px */
     max-width: 100%;
+    overflow: visible;
+    flex: none;
   }
 
   /* ── Sidebar deslizante ── */
