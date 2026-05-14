@@ -369,7 +369,12 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 @media (max-width: 768px) {
 
   /* ── Layout principal ── */
-  #app { flex-direction: column; }
+  #app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
 
   /* Top bar visible en móvil */
   #mobile-topbar { display: flex; }
@@ -385,6 +390,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
     padding: 16px;
     padding-top: 68px; /* 52px topbar + 16px */
     max-width: 100%;
+    overflow-y: visible;
   }
 
   /* ── Sidebar deslizante ── */
