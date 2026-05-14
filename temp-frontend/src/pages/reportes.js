@@ -19,6 +19,9 @@ import {
   getPromediosSeccionSaber,
   getAlertasTematicasSeccion,
 } from '../api.js'
+import { saveFilters, loadFilters } from '../utils/storage.js'
+
+const FILTER_KEY = 'reportes'
 
 const TIPO_COLORS = { 1: '#7c3aed', 2: '#0891b2', 3: '#d97706' }
 const NIVEL_COLOR = { ALTA: '#dc2626', MEDIA: '#d97706', SIN_ALERTA: '#16a34a' }
@@ -187,31 +190,57 @@ export async function renderReportes(container) {
     repoblarSecciones()
     selSeccion.disabled = false
 
+    const saved = loadFilters(FILTER_KEY)
     const activo = periodos.find(p => p.activo)
-    if (activo) selPeriodo.value = activo.id
+    if (saved.periodoId && periodos.find(p => String(p.id) === String(saved.periodoId))) {
+      selPeriodo.value = saved.periodoId
+    } else if (activo) {
+      selPeriodo.value = activo.id
+    }
+    if (saved.materiaId) selMateria.value = saved.materiaId
+    if (saved.centroId) {
+      selCentro.value = saved.centroId
+      repoblarSecciones()
+    }
+    if (saved.seccionId && secciones.find(s => String(s.id) === String(saved.seccionId))) {
+      selSeccion.value = saved.seccionId
+    }
     await cargar()
   } catch (e) {
     rptBody.innerHTML = `<div class="card" style="color:#dc2626">Error al cargar catalogos: ${e.message}</div>`
     return
   }
 
+  function persistFilters() {
+    saveFilters(FILTER_KEY, {
+      periodoId: selPeriodo.value,
+      materiaId: selMateria.value,
+      centroId:  selCentro.value,
+      seccionId: selSeccion.value,
+    })
+  }
+
   selPeriodo.addEventListener('change', async () => {
     resetFiltros('centro')
+    persistFilters()
     await cargar()
   })
 
   selMateria.addEventListener('change', () => {
+    persistFilters()
     aplicarFiltroMateria()
   })
 
   selCentro.addEventListener('change', async () => {
     resetFiltros('seccion')
     repoblarSecciones()
+    persistFilters()
     await cargar()
   })
 
   selSeccion.addEventListener('change', async () => {
     resetFiltros('estudiante')
+    persistFilters()
     await cargar()
   })
 

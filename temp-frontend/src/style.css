@@ -1058,3 +1058,151 @@ body.login-mode #page-content {
   }
   .sesion-logout-btn { width: 100%; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOASTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+#toast-container {
+  position: fixed;
+  bottom: 28px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 380px;
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.14);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  pointer-events: all;
+  cursor: default;
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.toast-in  { opacity: 1; transform: translateY(0) scale(1); }
+.toast-out { opacity: 0; transform: translateY(-6px) scale(0.97); }
+
+.toast-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.toast-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.toast-warning { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.toast-info    { background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
+
+.toast-icon { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; }
+.toast-icon svg { width: 100%; height: 100%; display: block; }
+.toast-msg  { flex: 1; }
+.toast-close {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: 17px; line-height: 1; color: inherit; opacity: 0.5;
+  flex-shrink: 0; align-self: flex-start; margin-top: -1px;
+}
+.toast-close:hover { opacity: 1; }
+
+@media (max-width: 768px) {
+  #toast-container {
+    bottom: 80px;
+    right: 12px;
+    left: 12px;
+    max-width: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SKELETON / SHIMMER
+   ═══════════════════════════════════════════════════════════════════════════ */
+@keyframes sk-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.sk {
+  display: block;
+  background: linear-gradient(90deg, #ececec 25%, #e0e0e0 50%, #ececec 75%);
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.4s ease infinite;
+  border-radius: 4px;
+}
+.sk-title { height: 22px; margin-bottom: 10px; }
+.sk-line  { height: 13px; margin-bottom: 8px; }
+.sk-cell  { height: 13px; flex: 1; }
+.sk-card  {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.sk-row {
+  display: flex;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sk-row:last-child { border-bottom: none; }
+.sk-page { animation: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BARRA INFERIOR DE NAVEGACIÓN (solo móvil)
+   ═══════════════════════════════════════════════════════════════════════════ */
+#mobile-bottom-nav {
+  display: none;
+}
+@media (max-width: 768px) {
+  #mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.07);
+    z-index: 150;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    align-items: stretch;
+  }
+  .mbn-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 6px 2px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+  }
+  .mbn-item svg {
+    width: 22px;
+    height: 22px;
+    transition: transform 0.15s;
+  }
+  .mbn-item.active {
+    color: var(--accent);
+  }
+  .mbn-item.active svg { transform: scale(1.1); }
+  .mbn-item:active svg { transform: scale(0.9); }
+
+  /* Compensar altura de la barra en el contenido */
+  .content {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}

@@ -16,6 +16,9 @@ import {
   getAlertasTematicasSeccion,
   generarAlertasTematicasSeccion,
 } from '../api.js'
+import { saveFilters, loadFilters } from '../utils/storage.js'
+
+const FILTER_KEY = 'alertasTempranas'
 
 const NIVEL = {
   ALTA:  { bg: '#fee2e2', color: '#dc2626', border: '#fca5a5', label: 'Riesgo alto',  dot: '#dc2626' },
@@ -332,8 +335,17 @@ export async function renderAlertasTempranas(container) {
       ).join('')
     selSeccion.disabled = false
 
+    const saved = loadFilters(FILTER_KEY)
     const activo = periodos.find(p => p.activo)
-    if (activo) { selPeriodo.value = activo.id; cargarAlertas() }
+    if (saved.periodoId && periodos.find(p => String(p.id) === String(saved.periodoId))) {
+      selPeriodo.value = saved.periodoId
+    } else if (activo) {
+      selPeriodo.value = activo.id
+    }
+    if (saved.seccionId && secciones.find(s => String(s.id) === String(saved.seccionId))) {
+      selSeccion.value = saved.seccionId
+    }
+    if (selPeriodo.value) cargarAlertas()
   } catch (e) {
     body.innerHTML = `<div class="card" style="color:#dc2626">Error al cargar: ${e.message}</div>`
     return
@@ -342,11 +354,13 @@ export async function renderAlertasTempranas(container) {
   // ── Eventos ───────────────────────────────────────────────────────────────
   selPeriodo.addEventListener('change', () => {
     nivelFiltro = ''; inputNombre.value = ''
+    saveFilters(FILTER_KEY, { periodoId: selPeriodo.value, seccionId: selSeccion.value })
     if (selPeriodo.value) cargarAlertas()
     else { alertas = []; renderLista(); resumenEl.style.display = 'none' }
   })
   selSeccion.addEventListener('change', () => {
     nivelFiltro = ''; inputNombre.value = ''
+    saveFilters(FILTER_KEY, { periodoId: selPeriodo.value, seccionId: selSeccion.value })
     if (selPeriodo.value) cargarAlertas()
   })
   inputNombre.addEventListener('input', renderLista)

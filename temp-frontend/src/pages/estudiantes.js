@@ -4,6 +4,7 @@ import {
   getAccessToken,
 } from '../api.js'
 import { showConfirm, backendMsg } from '../confirm.js'
+import { showToast } from '../utils/toast.js'
 
 const GENEROS        = ['MASCULINO', 'FEMENINO', 'OTRO']
 const ESTADOS        = ['ACTIVO', 'INACTIVO', 'GRADUADO', 'TRASLADADO']
@@ -219,13 +220,10 @@ export async function renderEstudiantes(container) {
           try {
             await deleteEstudiante(btn.dataset.id)
             if (!getAccessToken()) return  // sesión expirada → login mostrado automáticamente
-            listMsg.innerHTML = '<div class="alert alert-success">Estudiante eliminado correctamente.</div>'
+            showToast('Estudiante eliminado correctamente.', 'success')
             await loadList()
           } catch (err) {
-            listMsg.innerHTML = `
-              <div class="alert alert-error">
-                <strong>No se pudo eliminar.</strong> ${backendMsg(err)}
-              </div>`
+            showToast('No se pudo eliminar. ' + backendMsg(err), 'error')
             btn.disabled = false
           }
         })
@@ -249,7 +247,8 @@ export async function renderEstudiantes(container) {
     try {
       const body = Object.fromEntries([...fd.entries()].filter(([, v]) => v !== ''))
       await createEstudiante(body)
-      formMsg.innerHTML = '<div class="alert alert-success">Estudiante creado correctamente.</div>'
+      showToast('Estudiante creado correctamente.', 'success')
+      formMsg.innerHTML = ''
       e.target.reset()
       await loadList()
     } catch (err) {
@@ -270,7 +269,7 @@ export async function renderEstudiantes(container) {
       const updated = await updateEstudiante(editingId, body)
       if (!getAccessToken()) return  // sesión expirada → login mostrado automáticamente
       editOverlay.style.display = 'none'
-      listMsg.innerHTML = '<div class="alert alert-success">Estudiante actualizado correctamente.</div>'
+      showToast('Estudiante actualizado correctamente.', 'success')
       await loadList()
     } catch (err) {
       editMsg.innerHTML = `<div class="alert alert-error">${err.message}</div>`

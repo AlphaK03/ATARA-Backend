@@ -5,6 +5,7 @@ import {
   getContextoUsuario,
 } from '../api.js'
 import { showConfirm, openModal, backendMsg } from '../confirm.js'
+import { showToast } from '../utils/toast.js'
 
 export async function renderSecciones(container) {
   container.innerHTML = `
@@ -186,11 +187,10 @@ export async function renderSecciones(container) {
           // NOTE: Backend DELETE /api/secciones/{id} not yet implemented.
           await deleteSeccion(id)
           if (!getAccessToken()) return
-          listMsg.innerHTML = `<div class="alert alert-success">Sección "${nombre}" eliminada.</div>`
+          showToast(`Sección "${nombre}" eliminada.`, 'success')
           await loadSecciones()
         } catch (err) {
-          listMsg.innerHTML =
-            `<div class="alert alert-error"><strong>No se pudo eliminar.</strong> ${backendMsg(err)}</div>`
+          showToast('No se pudo eliminar. ' + backendMsg(err), 'error')
           btn.disabled = false
         }
       })
@@ -244,7 +244,7 @@ export async function renderSecciones(container) {
         await updateSeccion(s.id, body)
         if (!getAccessToken()) { modal.close(); return }
         modal.close()
-        listMsg.innerHTML = `<div class="alert alert-success">Sección "${nombre}" actualizada.</div>`
+        showToast(`Sección "${nombre}" actualizada.`, 'success')
         await loadSecciones()
       } catch (err) {
         modal.msgEl.innerHTML =
@@ -289,7 +289,7 @@ export async function renderSecciones(container) {
         })
         if (!getAccessToken()) { modal.close(); return }
         modal.close()
-        listMsg.innerHTML = `<div class="alert alert-success">Sección "${nombre}" creada.</div>`
+        showToast(`Sección "${nombre}" creada.`, 'success')
         await loadSecciones()
       } catch (err) {
         modal.msgEl.innerHTML = `<div class="alert alert-error">${err.message}</div>`
