@@ -403,11 +403,12 @@ export async function renderReportes(container) {
       </div>
 
       <div class="rpt-row">
+        ${chartType === 'bar' ? `
         <div class="card" style="margin:0">
           <h2 style="margin-top:0;font-size:14px">Promedio por estudiante</h2>
           <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Promedio global en el periodo</p>
           <div style="position:relative;height:260px"><canvas id="chart-estudiantes"></canvas></div>
-        </div>
+        </div>` : ''}
         <div class="card" style="margin:0">
           <h2 style="margin-top:0;font-size:14px">Distribucion de alertas</h2>
           <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Cantidad de ejes por nivel</p>
@@ -415,11 +416,12 @@ export async function renderReportes(container) {
         </div>
       </div>
 
+      ${chartType === 'bar' ? `
       <div class="card">
         <h2 style="margin-top:0;font-size:14px">Estudiantes con mas alertas</h2>
         <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Suma de alertas altas y medias</p>
         <div style="position:relative;height:${Math.max(160, totalEst * 32)}px"><canvas id="chart-ranking"></canvas></div>
-      </div>
+      </div>` : ''}
 
       <div class="card">
         <h2 style="margin-top:0;font-size:14px">Analisis automatico</h2>
@@ -491,32 +493,11 @@ export async function renderReportes(container) {
       }, { scales: SCALE_Y_1_5 })
     }
 
-    const estSorted = [...promedios].sort((a, b) => parseFloat(a.promedioGlobal ?? 0) - parseFloat(b.promedioGlobal ?? 0))
-    const estLabels = estSorted.map(e => nombreCorto(e.estudianteNombreCompleto))
-    const estData   = estSorted.map(e => parseFloat(e.promedioGlobal ?? 0))
-    const estCols   = estSorted.map(e => colorFromVal(parseFloat(e.promedioGlobal)))
-
-    if (chartType === 'radar') {
-      makeChart('chart-estudiantes', 'radar', {
-        labels: estLabels,
-        datasets: [{ label: 'Promedio global', data: estData, backgroundColor: 'rgba(59,130,246,0.1)', borderColor: '#3b82f6', pointBackgroundColor: estCols }],
-      }, { scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, callback: v => SCALE_LABELS[v] ?? v }, grid: { color: '#e5e7eb' } } } })
-    } else if (chartType === 'doughnut' || chartType === 'polarArea') {
-      makeChart('chart-estudiantes', chartType, {
-        labels: estLabels,
-        datasets: [{ data: estData, backgroundColor: estCols.map(c => c + 'cc'), borderWidth: 1 }],
-      }, chartType === 'polarArea'
-        ? { scales: { r: { min: 0, max: 5 } } }
-        : { plugins: { ...BASE_OPTS.plugins, legend: { position: 'right', labels: { font: { size: 10 } } } } })
-    } else if (chartType === 'line') {
-      makeChart('chart-estudiantes', 'line', {
-        labels: estLabels,
-        datasets: [{ label: 'Promedio global', data: estData, backgroundColor: 'rgba(59,130,246,0.1)', borderColor: '#3b82f6', pointBackgroundColor: estCols, fill: true, tension: 0.3 }],
-      }, { scales: { y: { min: 0, max: 5, ticks: { callback: v => SCALE_LABELS[v] ?? v }, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } } })
-    } else {
+    if (chartType === 'bar') {
+      const estSorted = [...promedios].sort((a, b) => parseFloat(a.promedioGlobal ?? 0) - parseFloat(b.promedioGlobal ?? 0))
       makeChart('chart-estudiantes', 'bar', {
-        labels: estLabels,
-        datasets: [{ label: 'Promedio global', data: estData, backgroundColor: estCols, borderRadius: 4 }],
+        labels: estSorted.map(e => nombreCorto(e.estudianteNombreCompleto)),
+        datasets: [{ label: 'Promedio global', data: estSorted.map(e => parseFloat(e.promedioGlobal ?? 0)), backgroundColor: estSorted.map(e => colorFromVal(parseFloat(e.promedioGlobal))), borderRadius: 4 }],
       }, { indexAxis: 'y', scales: { x: { min: 0, max: 5, ticks: { callback: v => SCALE_LABELS[v] ?? v }, grid: { color: '#f3f4f6' } }, y: { grid: { display: false } } } })
     }
 
@@ -541,49 +522,21 @@ export async function renderReportes(container) {
       }, chartType === 'polarArea' ? {} : { plugins: { ...BASE_OPTS.plugins, legend: { position: 'right' } } })
     }
 
-    const rankSorted = [...promedios]
-      .map(e => ({ nombre: nombreCorto(e.estudianteNombreCompleto), altas: e.totalAlertasAltas || 0, medias: e.totalAlertasMedias || 0 }))
-      .filter(e => e.altas + e.medias > 0)
-      .sort((a, b) => (b.altas + b.medias) - (a.altas + a.medias))
+    if (chartType === 'bar') {
+      const rankSorted = [...promedios]
+        .map(e => ({ nombre: nombreCorto(e.estudianteNombreCompleto), altas: e.totalAlertasAltas || 0, medias: e.totalAlertasMedias || 0 }))
+        .filter(e => e.altas + e.medias > 0)
+        .sort((a, b) => (b.altas + b.medias) - (a.altas + a.medias))
 
-    if (!rankSorted.length) {
-      document.getElementById('chart-ranking').parentElement.innerHTML =
-        '<p class="empty" style="padding:24px 0">No se detectaron alertas.</p>'
-    } else {
-      const rankLabels = rankSorted.map(e => e.nombre)
-      const rankAltas  = rankSorted.map(e => e.altas)
-      const rankMedias = rankSorted.map(e => e.medias)
-      const rankTotal  = rankSorted.map(e => e.altas + e.medias)
-
-      if (chartType === 'radar') {
-        makeChart('chart-ranking', 'radar', {
-          labels: rankLabels,
-          datasets: [
-            { label: 'Alertas altas',  data: rankAltas,  backgroundColor: 'rgba(220,38,38,0.1)',  borderColor: NIVEL_COLOR.ALTA,  pointBackgroundColor: NIVEL_COLOR.ALTA  },
-            { label: 'Alertas medias', data: rankMedias, backgroundColor: 'rgba(217,119,6,0.1)', borderColor: NIVEL_COLOR.MEDIA, pointBackgroundColor: NIVEL_COLOR.MEDIA },
-          ],
-        }, { scales: { r: { ticks: { stepSize: 1 }, grid: { color: '#e5e7eb' } } } })
-      } else if (chartType === 'doughnut' || chartType === 'polarArea') {
-        makeChart('chart-ranking', chartType, {
-          labels: rankLabels,
-          datasets: [{ data: rankTotal, backgroundColor: rankSorted.map(() => NIVEL_COLOR.ALTA + 'cc'), borderWidth: 1 }],
-        }, chartType === 'polarArea'
-          ? {}
-          : { plugins: { ...BASE_OPTS.plugins, legend: { position: 'right', labels: { font: { size: 10 } } } } })
-      } else if (chartType === 'line') {
-        makeChart('chart-ranking', 'line', {
-          labels: rankLabels,
-          datasets: [
-            { label: 'Alertas altas',  data: rankAltas,  backgroundColor: 'rgba(220,38,38,0.1)',  borderColor: NIVEL_COLOR.ALTA,  fill: true, tension: 0.3 },
-            { label: 'Alertas medias', data: rankMedias, backgroundColor: 'rgba(217,119,6,0.1)', borderColor: NIVEL_COLOR.MEDIA, fill: true, tension: 0.3 },
-          ],
-        }, { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }, plugins: { ...BASE_OPTS.plugins, legend: { position: 'top' } } })
+      if (!rankSorted.length) {
+        document.getElementById('chart-ranking').parentElement.innerHTML =
+          '<p class="empty" style="padding:24px 0">No se detectaron alertas.</p>'
       } else {
         makeChart('chart-ranking', 'bar', {
-          labels: rankLabels,
+          labels: rankSorted.map(e => e.nombre),
           datasets: [
-            { label: 'Alertas altas',  data: rankAltas,  backgroundColor: NIVEL_COLOR.ALTA  + 'cc', borderRadius: 3 },
-            { label: 'Alertas medias', data: rankMedias, backgroundColor: NIVEL_COLOR.MEDIA + 'cc', borderRadius: 3 },
+            { label: 'Alertas altas',  data: rankSorted.map(e => e.altas),  backgroundColor: NIVEL_COLOR.ALTA  + 'cc', borderRadius: 3 },
+            { label: 'Alertas medias', data: rankSorted.map(e => e.medias), backgroundColor: NIVEL_COLOR.MEDIA + 'cc', borderRadius: 3 },
           ],
         }, { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { stepSize: 1 }, stacked: true, grid: { color: '#f3f4f6' } }, y: { stacked: true, grid: { display: false } } }, plugins: { ...BASE_OPTS.plugins, legend: { position: 'top' } } })
       }
