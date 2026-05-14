@@ -140,7 +140,7 @@ export async function renderSecciones(container) {
                     <td data-label="Estudiantes" style="${vacia ? 'color:#dc2626;font-weight:600' : ''}">${s.totalEstudiantes}</td>
                     <td data-label="Capacidad">${s.capacidad ?? '—'}</td>
                     <td class="td-actions">
-                      <button class="btn-edit-sec" data-sec='${JSON.stringify(s)}'>Editar</button>
+                      ${esAdmin ? `<button class="btn-edit-sec" data-sec='${JSON.stringify(s)}'>Editar</button>` : ''}
                       ${esAdmin ? `<button class="btn-del-sec"
                         data-id="${s.id}" data-nombre="${s.nombre}">Eliminar</button>` : ''}
                     </td>
