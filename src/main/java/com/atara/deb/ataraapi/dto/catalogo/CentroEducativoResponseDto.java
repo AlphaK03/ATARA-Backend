@@ -11,4 +11,6 @@ public class CentroEducativoResponseDto {
     private String nombre;
     private String circuito;
     private String direccionRegional;
+    private String telefono;
+    private String correo;
 }

@@ -25,7 +25,13 @@ public class SeccionController {
         this.seccionService = seccionService;
     }
 
-    /** GET /api/secciones?anioLectivoId=1 — todas las secciones de un año lectivo. */
+    /**
+     * GET /api/secciones?anioLectivoId=1 — Lista las secciones del año lectivo
+     * filtradas según el rol del usuario autenticado:
+     *   - ADMIN: todas las secciones del año.
+     *   - DOCENTE: solo donde es titular o está asignado vía usuarios_secciones.
+     *   - Otros roles: 403.
+     */
     @GetMapping
     public ResponseEntity<List<SeccionResponseDto>> listar(
             @RequestParam Long anioLectivoId) {
@@ -38,14 +44,26 @@ public class SeccionController {
         return ResponseEntity.ok(seccionService.buscarPorId(id));
     }
 
-    /** GET /api/secciones/docente/{docenteId} — secciones asignadas a un docente. */
+    /**
+     * GET /api/secciones/docente/{docenteId} — secciones asignadas a un docente arbitrario.
+     * Solo ADMIN: usar para vistas administrativas. Un docente debe usar GET /api/secciones
+     * para ver únicamente las suyas (filtrado automático por su identidad).
+     */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/docente/{docenteId}")
     public ResponseEntity<List<SeccionResponseDto>> listarPorDocente(
             @PathVariable Long docenteId) {
         return ResponseEntity.ok(seccionService.listarPorDocente(docenteId));
     }
 
-    /** POST /api/secciones — crear una nueva sección. */
+    /**
+     * POST /api/secciones — crea una nueva sección.
+     * Permitido a ADMIN y DOCENTE. Si lo crea un DOCENTE:
+     *   - Él queda como titular automáticamente (el campo docenteId del DTO se ignora).
+     *   - Se autoincluye en usuarios_secciones junto a los docentesAdicionalesIds.
+     * En la misma transacción se crean las matrículas ACTIVAS para los estudiantesIds.
+     */
+    @PreAuthorize("hasAnyRole('ADMIN','DOCENTE')")
     @PostMapping
     public ResponseEntity<SeccionResponseDto> crear(@Valid @RequestBody SeccionRequestDto dto) {
         SeccionResponseDto creada = seccionService.crearSeccion(dto);
@@ -80,7 +98,11 @@ public class SeccionController {
         return ResponseEntity.ok(seccionService.actualizarSeccion(id, dto));
     }
 
-    /** DELETE /api/secciones/{id} — elimina la sección y sus matrículas y evaluaciones. Solo ADMIN. */
+    /**
+     * DELETE /api/secciones/{id} — elimina la sección y sus matrículas y evaluaciones.
+     * Solo ADMIN. Por política del proyecto el rol DOCENTE NO puede eliminar secciones:
+     * se conservan como histórico permanente.
+     */
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {

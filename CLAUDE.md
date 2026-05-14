@@ -108,14 +108,18 @@ com.atara.deb.ataraapi/
 | | POST | `/api/alertas-tematicas/generar/seccion/{seccionId}/periodo/{periodoId}` |
 | | GET | `/api/alertas-tematicas/estudiante/{estudianteId}/periodo/{periodoId}` |
 | | GET | `/api/alertas-tematicas/seccion/{seccionId}/periodo/{periodoId}` |
-| SeccionController | GET | `/api/secciones?anioLectivoId=` |
-| | GET | `/api/secciones/docente/{docenteId}` |
-| | POST | `/api/secciones` |
+| SeccionController | GET | `/api/secciones?anioLectivoId=` (filtrado por rol) |
+| | GET | `/api/secciones/docente/{docenteId}` (solo ADMIN) |
+| | POST | `/api/secciones` (ADMIN/DOCENTE) |
 | | PUT | `/api/secciones/{id}` |
-| | DELETE | `/api/secciones/{id}` |
+| | DELETE | `/api/secciones/{id}` (solo ADMIN) |
 | | GET | `/api/secciones/catalogos/niveles` |
 | | GET | `/api/secciones/catalogos/centros` |
 | | GET | `/api/secciones/catalogos/docentes` |
+| CentroEducativoController | GET | `/api/admin/centros` (solo ADMIN) |
+| | GET | `/api/admin/centros/{id}` (solo ADMIN) |
+| | POST | `/api/admin/centros` (solo ADMIN) |
+| | PUT | `/api/admin/centros/{id}` (solo ADMIN) |
 | PeriodoController | POST | `/api/periodos` |
 | | GET | `/api/periodos?anioLectivoId=` |
 | | GET | `/api/periodos/activo?anioLectivoId=` |
@@ -144,6 +148,15 @@ These features are planned by the design rules below but **not yet implemented**
 - **Activar periodo**: `PUT /api/periodos/{id}/activar` desactiva todos los periodos del mismo año y activa el seleccionado.
 - **Crear sección**: `POST /api/secciones` con `SeccionRequestDto`. Catálogos de soporte: `GET /api/secciones/catalogos/niveles`, `/centros`, `/docentes`. Requiere `NivelRepository` y `CentroEducativoRepository`.
 - **Recalificación de evaluaciones por saber**: `PUT /api/evaluaciones-saber/{id}` reemplaza los detalles (scores) de una evaluación existente limpiando con `orphanRemoval` y re-insertando. El wizard del frontend muestra primero una pantalla de selección de saberes con alertas pre-marcadas, luego pre-rellena los valores anteriores.
+
+## Features added (as of 2026-05-14)
+
+- **CRUD de Centros Educativos (ADMIN)**: Nuevo `CentroEducativoController` bajo `/api/admin/centros` con operaciones GET (lista y por id), POST y PUT, todas protegidas con `@PreAuthorize("hasRole('ADMIN')")`. **No se expone DELETE** por política: los centros se conservan como histórico permanente para preservar la integridad referencial de secciones y matrículas. El servicio valida la unicidad del nombre (insensible a mayúsculas) y devuelve 400 ante duplicados.
+- **Visibilidad de secciones por rol**: `GET /api/secciones?anioLectivoId=` ahora filtra según el rol del usuario autenticado, leído del `SecurityContext` mediante `UsuarioPrincipal`. ADMIN ve todas las secciones del año lectivo. DOCENTE solo ve aquellas donde es titular (`secciones.docente_id`) o aparece en `usuarios_secciones`. Cualquier otro rol recibe 403 (`AccesoDenegadoException`). Se usa una consulta nativa combinada en `SeccionRepository.findByAnioLectivoIdAndAccesibleParaUsuario`.
+- **`GET /api/secciones/docente/{docenteId}` restringido a ADMIN**: Antes cualquier docente podía consultar las secciones de otro pasando un id distinto en la URL. Ahora está protegido con `@PreAuthorize("hasRole('ADMIN')")`. Para que un docente vea sus propias secciones debe usar `GET /api/secciones` (filtrado automático por su identidad).
+- **Crear sección con co-docentes y estudiantes en una sola operación**: `SeccionRequestDto` se extendió con dos listas opcionales: `docentesAdicionalesIds[]` y `estudiantesIds[]`. `POST /api/secciones` ahora acepta los roles ADMIN y DOCENTE (`@PreAuthorize("hasAnyRole('ADMIN','DOCENTE')")`). Si el creador es DOCENTE: queda automáticamente como titular y se autoincluye en `usuarios_secciones`; el campo `docenteId` del DTO se ignora para este rol. Los `docentesAdicionalesIds` se insertan en `usuarios_secciones`. Los `estudiantesIds` generan `Matricula` ACTIVAS en el año lectivo de la sección dentro de la misma transacción, respetando la regla "un estudiante una matrícula por año".
+- **Nuevo `UsuarioSeccionRepository`**: La tabla intermedia `usuarios_secciones` ya existía como entidad JPA pero sin repositorio. Se añadió con métodos `findBySeccionId`, `findByUsuarioId`, `existsByUsuarioIdAndSeccionId` y `deleteAllBySeccionId`. El método de borrado se integra al flujo de eliminación de sección (ADMIN) para evitar dejar referencias colgantes.
+- **Política de no-eliminación de secciones por DOCENTE**: El docente NO tiene endpoint para eliminar secciones. Las secciones permanecen como histórico permanente. Solo ADMIN puede invocar `DELETE /api/secciones/{id}`. Esta decisión se documentó tanto aquí como en los comentarios del controller y servicio.
 
 ---
 
