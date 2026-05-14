@@ -99,7 +99,7 @@ export async function renderEstudiantes(container) {
       </div>
       <div id="list-msg"></div>
       <div class="table-wrap">
-        <table>
+        <table class="responsive-table">
           <thead>
             <tr>
               <th>ID</th><th>Identificación</th><th>Nombre completo</th>
@@ -112,11 +112,9 @@ export async function renderEstudiantes(container) {
     </div>
 
     <!-- Edit modal -->
-    <div id="edit-overlay"
-      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);
-             z-index:100;align-items:center;justify-content:center;">
-      <div style="background:#fff;border-radius:10px;padding:28px;width:640px;
-                  max-width:95vw;max-height:90vh;overflow-y:auto;">
+    <div id="edit-overlay" class="atara-overlay"
+      style="display:none;z-index:100;">
+      <div class="atara-box atara-modal-box inline-edit-box">
         <h2 style="margin-bottom:4px">Editar estudiante</h2>
         <p style="font-size:12px;color:#6b7280;margin:0 0 16px">
           El campo <strong>Estado</strong> permite cambiar la situación del estudiante sin eliminarlo.
@@ -166,19 +164,14 @@ export async function renderEstudiantes(container) {
         const nombre = `${s.nombre} ${s.apellido1} ${s.apellido2 || ''}`.trim()
         return `
           <tr>
-            <td>${s.id}</td>
-            <td>${s.identificacion}</td>
-            <td>${nombre}</td>
-            <td>${s.nombreAcudiente || '—'}</td>
-            <td>${estadoBadge(s.estado)}</td>
-            <td style="white-space:nowrap;display:flex;gap:6px;align-items:center">
-              <button class="btn btn-sm btn-secondary edit-btn" data-id="${s.id}">
-                Editar
-              </button>
-              <button class="btn-danger delete-btn"
-                data-id="${s.id}" data-nombre="${nombre}">
-                Eliminar
-              </button>
+            <td data-label="ID">${s.id}</td>
+            <td data-label="Identificación">${s.identificacion}</td>
+            <td data-label="Nombre">${nombre}</td>
+            <td data-label="Acudiente">${s.nombreAcudiente || '—'}</td>
+            <td data-label="Estado">${estadoBadge(s.estado)}</td>
+            <td class="td-actions">
+              <button class="btn btn-sm btn-secondary edit-btn" data-id="${s.id}">Editar</button>
+              <button class="btn-danger delete-btn" data-id="${s.id}" data-nombre="${nombre}">Eliminar</button>
             </td>
           </tr>
         `

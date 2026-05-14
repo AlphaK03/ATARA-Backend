@@ -118,7 +118,7 @@ export async function renderSecciones(container) {
             🏫 ${centro}
           </h3>
           <div class="table-wrap">
-            <table class="sec-table">
+            <table class="sec-table responsive-table">
               <thead>
                 <tr>
                   <th>Nombre</th><th>Grado</th><th>Docente</th>
@@ -133,12 +133,12 @@ export async function renderSecciones(container) {
                     : ''
                   return `
                   <tr style="${rowStyle}">
-                    <td><strong>${s.nombre}</strong>${vacia ? ' <span style="font-size:11px;color:#dc2626;font-weight:600">VACÍA</span>' : ''}</td>
-                    <td>${s.nivelGrado ? s.nivelGrado + '°' : '—'}</td>
-                    <td>${s.docenteNombreCompleto || '<span style="color:#9ca3af">Sin asignar</span>'}</td>
-                    <td style="${vacia ? 'color:#dc2626;font-weight:600' : ''}">${s.totalEstudiantes}</td>
-                    <td>${s.capacidad ?? '—'}</td>
-                    <td style="white-space:nowrap;display:flex;gap:6px">
+                    <td data-label="Nombre"><strong>${s.nombre}</strong>${vacia ? ' <span style="font-size:11px;color:#dc2626;font-weight:600">VACÍA</span>' : ''}</td>
+                    <td data-label="Grado">${s.nivelGrado ? s.nivelGrado + '°' : '—'}</td>
+                    <td data-label="Docente">${s.docenteNombreCompleto || '<span style="color:#9ca3af">Sin asignar</span>'}</td>
+                    <td data-label="Estudiantes" style="${vacia ? 'color:#dc2626;font-weight:600' : ''}">${s.totalEstudiantes}</td>
+                    <td data-label="Capacidad">${s.capacidad ?? '—'}</td>
+                    <td class="td-actions">
                       <button class="btn-edit-sec" data-sec='${JSON.stringify(s)}'>Editar</button>
                       ${esAdmin ? `<button class="btn-del-sec"
                         data-id="${s.id}" data-nombre="${s.nombre}">Eliminar</button>` : ''}

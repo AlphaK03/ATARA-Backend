@@ -8,24 +8,22 @@
 export function showConfirm({ title, message, confirmText = 'Eliminar', danger = true }) {
   return new Promise(resolve => {
     const ov = document.createElement('div')
-    ov.style.cssText =
-      'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:900;' +
-      'display:flex;align-items:center;justify-content:center;padding:16px'
+    ov.className = 'atara-overlay'
+    ov.style.zIndex = '900'
     ov.innerHTML = `
-      <div style="background:#fff;border-radius:12px;padding:28px;width:440px;max-width:100%;
-                  box-shadow:0 25px 60px rgba(0,0,0,.3)">
+      <div class="atara-box atara-confirm-box">
         <h3 style="margin:0 0 10px;font-size:17px;color:#111">${title}</h3>
         <div style="font-size:13px;color:#374151;line-height:1.75;margin-bottom:24px">${message}</div>
-        <div style="display:flex;gap:10px;justify-content:flex-end">
+        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
           <button id="dlg-cancel"
-            style="padding:8px 18px;border-radius:7px;border:1px solid #d1d5db;
-                   background:#fff;font-size:13px;cursor:pointer;font-weight:500">
+            style="padding:10px 20px;border-radius:7px;border:1px solid #d1d5db;
+                   background:#fff;font-size:14px;cursor:pointer;font-weight:500;flex:1;min-width:100px">
             Cancelar
           </button>
           <button id="dlg-ok"
-            style="padding:8px 20px;border-radius:7px;border:none;
+            style="padding:10px 20px;border-radius:7px;border:none;
                    background:${danger ? '#dc2626' : '#2563eb'};
-                   color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+                   color:#fff;font-size:14px;font-weight:600;cursor:pointer;flex:1;min-width:100px">
             ${confirmText}
           </button>
         </div>
@@ -47,22 +45,20 @@ export function showConfirm({ title, message, confirmText = 'Eliminar', danger =
  */
 export function openModal({ title, body = '', saveText = 'Guardar' }) {
   const ov = document.createElement('div')
-  ov.style.cssText =
-    'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:800;' +
-    'display:flex;align-items:center;justify-content:center;padding:16px'
+  ov.className = 'atara-overlay'
+  ov.style.zIndex = '800'
   ov.innerHTML = `
-    <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:100%;
-                max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.3)">
+    <div class="atara-box atara-modal-box">
       <h3 id="modal-title" style="margin:0 0 20px;font-size:17px;color:#111">${title}</h3>
       <div id="modal-body">${body}</div>
       <div id="modal-msg" style="margin-top:12px"></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px">
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px;flex-wrap:wrap">
         <button id="modal-cancel"
-          style="padding:8px 18px;border-radius:7px;border:1px solid #d1d5db;
-                 background:#fff;font-size:13px;cursor:pointer;font-weight:500">
+          style="padding:10px 20px;border-radius:7px;border:1px solid #d1d5db;
+                 background:#fff;font-size:14px;cursor:pointer;font-weight:500;flex:1;min-width:100px">
           Cancelar
         </button>
-        <button id="modal-save" class="btn btn-primary">${saveText}</button>
+        <button id="modal-save" class="btn btn-primary" style="flex:1;min-width:100px">${saveText}</button>
       </div>
     </div>
   `

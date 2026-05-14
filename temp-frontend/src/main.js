@@ -303,11 +303,13 @@ const hamburger = document.getElementById('hamburger')
 function closeSidebar() {
   sidebar.classList.remove('open')
   backdrop.classList.remove('visible')
+  hamburger?.classList.remove('open')
 }
 
 hamburger?.addEventListener('click', () => {
   const isOpen = sidebar.classList.toggle('open')
   backdrop.classList.toggle('visible', isOpen)
+  hamburger.classList.toggle('open', isOpen)
 })
 backdrop.addEventListener('click', closeSidebar)
 
