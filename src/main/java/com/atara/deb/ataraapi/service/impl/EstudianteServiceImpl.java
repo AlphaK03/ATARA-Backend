@@ -72,30 +72,36 @@ public class EstudianteServiceImpl implements EstudianteService {
         return estudianteRepository.findByIdentificacion(identificacion);
     }
 
+    /**
+     * Lista global de estudiantes para los catálogos del frontend (wizard de
+     * sección, búsqueda de estudiantes para matricular, etc).
+     *
+     * <p>Se eliminó el filtro previo "solo estudiantes de mis secciones" para
+     * el rol DOCENTE porque rompía el caso de uso del wizard: un docente que
+     * crea su primera sección, o que quiere matricular alumnos huérfanos (sin
+     * sección), no veía a nadie y la búsqueda llegaba vacía.
+     *
+     * <p>El control de acceso fino se preserva en {@link #buscarPorId(Long)},
+     * que sigue invocando {@code verificarAccesoAlEstudiante} — un docente no
+     * puede abrir el detalle ni editar a un estudiante fuera de su alcance,
+     * pero sí puede verlo en el catálogo para matricularlo.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<Estudiante> listarTodos() {
-        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
-        if (contexto.esAdmin()) {
-            return estudianteRepository.findAll();
-        }
-        if (contexto.seccionIds().isEmpty()) {
-            return List.of();
-        }
-        return estudianteRepository.findBySeccionIds(contexto.seccionIds());
+        // Antes filtraba por contexto.seccionIds() para DOCENTE; ahora devuelve todos.
+        return estudianteRepository.findAll();
     }
 
+    /**
+     * Igual que {@link #listarTodos()}: se relaja el filtro por sección para
+     * que el catálogo del wizard funcione cuando el frontend pasa
+     * {@code ?estado=ACTIVO}.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<Estudiante> listarPorEstado(EstadoEstudiante estado) {
-        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
-        if (contexto.esAdmin()) {
-            return estudianteRepository.findByEstado(estado);
-        }
-        // Para docentes: filtrar por sus secciones y luego por estado
-        return estudianteRepository.findBySeccionIds(contexto.seccionIds()).stream()
-            .filter(e -> e.getEstado() == estado)
-            .toList();
+        return estudianteRepository.findByEstado(estado);
     }
 
     @Override
