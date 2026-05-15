@@ -50,16 +50,29 @@ export function studentCardHtml(e, action) {
   if (edad != null)     meta.push(`${edad} años`)
   if (e.genero)         meta.push(generoLabel(e.genero))
 
+  // Badge de estado si no es ACTIVO (para que el usuario vea por qué un
+  // estudiante puede estar visible pero no es ideal matricularlo).
+  let estadoBadge = ''
+  if (e.estado && e.estado !== 'ACTIVO') {
+    const colors = {
+      INACTIVO:   'background:#fef3c7;color:#92400e;border-color:#fcd34d',
+      TRASLADADO: 'background:#fee2e2;color:#991b1b;border-color:#fca5a5',
+    }
+    const style = colors[e.estado] || 'background:#f3f4f6;color:#374151;border-color:#d1d5db'
+    estadoBadge = `<span style="${style};border:1px solid;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:600;text-transform:uppercase">${escHtml(e.estado)}</span>`
+  }
+
   const actionBtn = action === 'add'
     ? `<button class="student-action" title="Agregar a la sección">+</button>`
     : `<button class="student-action remove" title="Quitar de la sección">×</button>`
   const genderClass = e.genero ? `gender-${e.genero}` : ''
+  const dimmed = (e.estado && e.estado !== 'ACTIVO') ? 'opacity:.75' : ''
 
   return `
-    <li class="student-card" data-id="${e.id}" title="Doble clic para ${action === 'add' ? 'agregar' : 'quitar'}">
+    <li class="student-card" data-id="${e.id}" style="${dimmed}" title="Doble clic para ${action === 'add' ? 'agregar' : 'quitar'}">
       <div class="student-avatar ${genderClass}">${escHtml(initials)}</div>
       <div class="student-info">
-        <div class="student-name">${escHtml(nombre)}</div>
+        <div class="student-name">${escHtml(nombre)}${estadoBadge}</div>
         <div class="student-meta">${meta.join(' · ')}</div>
       </div>
       ${actionBtn}
@@ -151,6 +164,12 @@ export function seccionWizardHtml(
       </p>
 
       <div class="student-picker">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px;font-size:12px;color:#64748b">
+          <span id="sf-est-total">cargando…</span>
+          <button type="button" id="sf-est-reload" class="btn btn-sm btn-secondary"
+                  title="Recargar lista desde el servidor"
+                  style="padding:3px 10px;font-size:11px">↻ Recargar</button>
+        </div>
         <div class="picker-search">
           <input id="sf-est-search" type="text"
                  placeholder="🔎 Buscar por nombre o cédula… (ej: 2018-1099)" />

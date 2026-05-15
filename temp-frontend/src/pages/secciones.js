@@ -65,7 +65,7 @@ export async function renderSecciones(container) {
       getDocentes(),
       getAnioLectivoActivo().catch(() => null),
       getContextoUsuario().catch(() => null),
-      getEstudiantes('ACTIVO').catch(() => []),
+      getEstudiantes().catch(() => []),
     ])
     userCtx = ctx
     esAdmin   = ctx?.rol === 'ADMIN'
@@ -187,12 +187,12 @@ export async function renderSecciones(container) {
       capacidad: seccion.capacidad ?? '',
     } : {}
 
-    // Refrescar listas vivas antes de abrir el wizard. Sin esto, si el usuario
-    // creó un estudiante o docente desde otra página, el wizard usaría
-    // catalogos.* en memoria (cargado al entrar a Secciones) y no lo vería.
+    // Refrescar listas vivas antes de abrir el wizard. Pedimos TODOS los
+    // estudiantes (sin filtro de estado) para no esconder ninguno por error
+    // de configuración. La UI distingue visualmente los inactivos.
     try {
       const [estudiantesFrescos, docentesFrescos] = await Promise.all([
-        getEstudiantes('ACTIVO').catch(() => null),
+        getEstudiantes().catch(() => null),
         getDocentes().catch(() => null),
       ])
       if (Array.isArray(estudiantesFrescos)) catalogos.estudiantes = estudiantesFrescos
@@ -254,12 +254,14 @@ export async function renderSecciones(container) {
       const colB = $('#sf-est-seleccionados')
       const cntA = $('#sf-est-disp-count')
       const cntB = $('#sf-est-sel-count')
+      const totalEl = $('#sf-est-total')
       const q = (query || '').trim().toLowerCase()
       const matchQuery = e => {
         if (!q) return true
         const fullName = `${e.nombre || ''} ${e.apellido1 || ''} ${e.apellido2 || ''}`.toLowerCase()
         return fullName.includes(q) || (e.identificacion || '').toLowerCase().includes(q)
       }
+      const totalSistema = catalogos.estudiantes.length
       const disponibles = catalogos.estudiantes
         .filter(e => !estudiantesAgregados.includes(e.id))
         .filter(matchQuery)
@@ -269,10 +271,19 @@ export async function renderSecciones(container) {
 
       cntA.textContent = String(disponibles.length)
       cntB.textContent = String(seleccionados.length)
+      if (totalEl) totalEl.textContent = `${totalSistema} estudiante${totalSistema !== 1 ? 's' : ''} en el sistema`
 
+      let emptyMsg
+      if (totalSistema === 0) {
+        emptyMsg = `<li class="picker-empty" style="color:#dc2626">⚠ No se cargó ningún estudiante del servidor.<br><span style="font-size:11px;color:#94a3b8">Verifica que existan registros en la página "Estudiantes" o pulsa "↻ Recargar".</span></li>`
+      } else if (q) {
+        emptyMsg = `<li class="picker-empty">Sin coincidencias para "${escHtml(q)}".</li>`
+      } else {
+        emptyMsg = `<li class="picker-empty">Todos los estudiantes ya están seleccionados.</li>`
+      }
       colA.innerHTML = disponibles.length
         ? disponibles.slice(0, 200).map(e => studentCardHtml(e, 'add')).join('')
-        : `<li class="picker-empty">${q ? 'Sin coincidencias.' : 'No hay estudiantes disponibles.'}</li>`
+        : emptyMsg
       colB.innerHTML = seleccionados.length
         ? seleccionados.map(e => studentCardHtml(e, 'remove')).join('')
         : `<li class="picker-empty">No has seleccionado estudiantes.</li>`
@@ -303,6 +314,27 @@ export async function renderSecciones(container) {
     }
 
     $('#sf-est-search').addEventListener('input', e => renderPicker(e.target.value))
+    const btnReload = $('#sf-est-reload')
+    if (btnReload) {
+      btnReload.addEventListener('click', async () => {
+        btnReload.disabled = true
+        const original = btnReload.textContent
+        btnReload.textContent = '…'
+        try {
+          const fresh = await getEstudiantes()
+          if (Array.isArray(fresh)) {
+            catalogos.estudiantes = fresh
+            renderPicker($('#sf-est-search').value)
+            showToast(`Lista actualizada: ${fresh.length} estudiantes.`, 'success')
+          }
+        } catch (err) {
+          showToast('No se pudo recargar: ' + err.message, 'error')
+        } finally {
+          btnReload.disabled = false
+          btnReload.textContent = original
+        }
+      })
+    }
     $('#btn-add-docente').addEventListener('click', () => {
       const id = Number($('#sf-docente-add').value)
       if (!id) return
