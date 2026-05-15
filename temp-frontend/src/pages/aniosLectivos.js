@@ -20,7 +20,7 @@ export async function renderAniosLectivos(container) {
         <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;
                     padding:10px 14px;margin-bottom:16px;font-size:13px;color:#0369a1;
                     display:flex;align-items:flex-start;gap:8px">
-          <span style="font-size:16px;flex-shrink:0">ℹ️</span>
+          <span style="display:inline-flex;width:16px;height:16px;flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
           <span>
             Al crear el año lectivo el sistema genera automáticamente los
             <strong>3 trimestres</strong>.
@@ -371,7 +371,8 @@ export async function renderAniosLectivos(container) {
           message: `
             <p>Esta acción eliminará permanentemente el periodo.</p>
             <p style="margin-top:8px;color:#d97706">
-              ⚠️ Todas las <strong>evaluaciones</strong> y <strong>alertas</strong>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline;vertical-align:-2px;margin-right:3px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Todas las <strong>evaluaciones</strong> y <strong>alertas</strong>
               registradas en este periodo también se eliminarán.
             </p>
             <p style="margin-top:8px;font-size:12px;color:#6b7280">

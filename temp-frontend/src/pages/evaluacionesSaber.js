@@ -486,7 +486,7 @@ export function renderEvaluacionesSaber(container) {
       }).join('')
 
       const accionLabel = isCompleto
-        ? `<div style="position:absolute;bottom:10px;right:12px;font-size:11px;color:#16a34a;font-weight:600">✏️ Recalificar</div>`
+        ? `<div style="position:absolute;bottom:10px;right:12px;font-size:11px;color:#16a34a;font-weight:600;display:inline-flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Recalificar</div>`
         : `<div style="position:absolute;bottom:10px;right:12px;font-size:11px;color:${borderColor};font-weight:600">Evaluar →</div>`
 
       return `
@@ -569,7 +569,7 @@ export function renderEvaluacionesSaber(container) {
       wizOverlay.style.display = 'flex'
     } else {
       // Editar: todos los saberes seleccionados, ir directo al wizard
-      wizModoLabel.textContent = '✏️ Recalificación'
+      wizModoLabel.textContent = 'Recalificación'
       wizModoLabel.style.color = '#d97706'
       const matId = wizMateria?.id
       wizPendientes = tiposSaber
@@ -603,7 +603,7 @@ export function renderEvaluacionesSaber(container) {
         promedio = (sum / ev.detalles.length).toFixed(1)
       }
       const nivelAlerta = promedio !== null
-        ? (promedio <= 2.0 ? '🔴 Alerta alta' : promedio <= 3.0 ? '🟡 Alerta media' : '🟢 Sin alerta')
+        ? (promedio <= 2.0 ? 'Alerta alta' : promedio <= 3.0 ? 'Alerta media' : 'Sin alerta')
         : '—'
       return { tipo: t, ev, promedio, nivelAlerta }
     })
@@ -729,7 +729,7 @@ export function renderEvaluacionesSaber(container) {
           background:${active ? 'var(--primary)' : done ? '#dcfce7' : yaEval ? '#fef3c7' : '#f3f4f6'};
           color:${active ? '#fff' : done ? '#16a34a' : yaEval ? '#d97706' : '#9ca3af'};
           border:1px solid ${active ? 'var(--primary)' : done ? '#86efac' : yaEval ? '#fcd34d' : '#e5e7eb'};
-        ">${done ? '✓ ' : (i + 1) + '. '}${t.nombre}${yaEval && !done && !active ? ' ✏️' : ''}</div>
+        ">${done ? '✓ ' : (i + 1) + '. '}${t.nombre}${yaEval && !done && !active ? ' (editar)' : ''}</div>
         ${i < wizPendientes.length - 1 ? '<div style="display:flex;align-items:center;color:#d1d5db;font-size:12px">›</div>' : ''}
       `
     }).join('')
@@ -741,8 +741,9 @@ export function renderEvaluacionesSaber(container) {
     const isEdit = wizModo === 'editar' && resp.evalId != null
 
     wizBody.innerHTML = `
-      ${isEdit ? `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 14px;font-size:12px;color:#92400e;margin-bottom:16px">
-        ⚠️ Los valores anteriores serán reemplazados al guardar este saber.
+      ${isEdit ? `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 14px;font-size:12px;color:#92400e;margin-bottom:16px;display:flex;align-items:flex-start;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>Los valores anteriores serán reemplazados al guardar este saber.</span>
       </div>` : ''}
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
         <div class="form-group" style="min-width:160px;margin-bottom:0">
