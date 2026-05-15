@@ -19,6 +19,31 @@ const GENEROS = [
 const ESTADOS        = ['ACTIVO', 'INACTIVO', 'TRASLADADO']
 const FILTER_ESTADOS = ['', ...ESTADOS]
 
+/**
+ * Normaliza el payload antes de enviarlo al backend. Actúa como red de
+ * seguridad por si un bundle viejo (caché del navegador) o un select mal
+ * configurado mandó valores incompatibles con los enums del backend.
+ * Si el valor ya es M/F/O lo deja igual; si por error llega "MASCULINO" lo
+ * mapea a "M", etc.
+ */
+function normalizarEstudiantePayload(body) {
+  const generoMap = {
+    M: 'M', F: 'F', O: 'O',
+    MASCULINO: 'M', FEMENINO: 'F', OTRO: 'O',
+    MASC: 'M', FEM: 'F',
+  }
+  if (body.genero) {
+    const norm = generoMap[String(body.genero).toUpperCase()]
+    if (norm) body.genero = norm
+    else delete body.genero  // valor desconocido → mejor no enviarlo
+  }
+  // GRADUADO no existe en el backend; lo descartamos para no romper.
+  if (body.estado && !ESTADOS.includes(body.estado)) {
+    delete body.estado
+  }
+  return body
+}
+
 function estadoBadge(estado) {
   const map = { ACTIVO: 'badge-green', INACTIVO: 'badge-red', GRADUADO: 'badge-blue', TRASLADADO: 'badge-yellow' }
   return `<span class="badge ${map[estado] || 'badge-gray'}">${estado || '—'}</span>`
@@ -255,7 +280,9 @@ export async function renderEstudiantes(container) {
     const btn = e.target.querySelector('button[type=submit]')
     btn.disabled = true
     try {
-      const body = Object.fromEntries([...fd.entries()].filter(([, v]) => v !== ''))
+      const body = normalizarEstudiantePayload(
+        Object.fromEntries([...fd.entries()].filter(([, v]) => v !== ''))
+      )
       await createEstudiante(body)
       showToast('Estudiante creado correctamente.', 'success')
       formMsg.innerHTML = ''
@@ -275,7 +302,9 @@ export async function renderEstudiantes(container) {
     saveBtn.disabled = true
     const fd = new FormData(editForm)
     try {
-      const body = Object.fromEntries([...fd.entries()].filter(([, v]) => v !== ''))
+      const body = normalizarEstudiantePayload(
+        Object.fromEntries([...fd.entries()].filter(([, v]) => v !== ''))
+      )
       const updated = await updateEstudiante(editingId, body)
       if (!getAccessToken()) return  // sesión expirada → login mostrado automáticamente
       editOverlay.style.display = 'none'
