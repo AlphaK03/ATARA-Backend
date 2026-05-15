@@ -273,6 +273,39 @@ public class SeccionServiceImpl implements SeccionService {
 
     @Override
     @Transactional
+    public void eliminarComoDocente(Long id) {
+        Usuario actual = usuarioActual();
+        if (!ROL_DOCENTE.equalsIgnoreCase(actual.getRol().getNombre())) {
+            throw new AccesoDenegadoException(
+                    "Solo el rol DOCENTE puede usar este flujo de eliminación.");
+        }
+
+        Seccion seccion = seccionRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Sección no encontrada con id: " + id));
+
+        // Solo el docente titular puede eliminar.
+        if (seccion.getDocente() == null
+                || !seccion.getDocente().getId().equals(actual.getId())) {
+            throw new AccesoDenegadoException(
+                    "No es titular de esta sección — no puede eliminarla.");
+        }
+
+        // Para preservar el histórico, no se borra si tiene datos asociados.
+        if (matriculaRepository.existsBySeccionId(id)
+                || evaluacionRepository.existsBySeccionId(id)
+                || evaluacionSaberRepository.existsBySeccionId(id)) {
+            throw new IllegalArgumentException(
+                    "La sección tiene matrículas o evaluaciones asociadas y no puede eliminarse. "
+                            + "Solo un administrador puede borrarla con su historial completo.");
+        }
+
+        // Limpia las asignaciones M:N (no son histórico) y borra la sección.
+        usuarioSeccionRepository.deleteAllBySeccionId(id);
+        seccionRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
     public void eliminar(Long id) {
         if (!seccionRepository.existsById(id)) {
             throw new NoSuchElementException("Sección no encontrada con id: " + id);

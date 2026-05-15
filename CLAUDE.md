@@ -112,7 +112,8 @@ com.atara.deb.ataraapi/
 | | GET | `/api/secciones/docente/{docenteId}` (solo ADMIN) |
 | | POST | `/api/secciones` (ADMIN/DOCENTE) |
 | | PUT | `/api/secciones/{id}` |
-| | DELETE | `/api/secciones/{id}` (solo ADMIN) |
+| | DELETE | `/api/secciones/{id}` (solo ADMIN, cascada total) |
+| | DELETE | `/api/secciones/{id}/docente` (solo DOCENTE titular, sin datos asociados) |
 | | GET | `/api/secciones/catalogos/niveles` |
 | | GET | `/api/secciones/catalogos/centros` |
 | | GET | `/api/secciones/catalogos/docentes` |
@@ -156,7 +157,7 @@ These features are planned by the design rules below but **not yet implemented**
 - **`GET /api/secciones/docente/{docenteId}` restringido a ADMIN**: Antes cualquier docente podía consultar las secciones de otro pasando un id distinto en la URL. Ahora está protegido con `@PreAuthorize("hasRole('ADMIN')")`. Para que un docente vea sus propias secciones debe usar `GET /api/secciones` (filtrado automático por su identidad).
 - **Crear sección con co-docentes y estudiantes en una sola operación**: `SeccionRequestDto` se extendió con dos listas opcionales: `docentesAdicionalesIds[]` y `estudiantesIds[]`. `POST /api/secciones` ahora acepta los roles ADMIN y DOCENTE (`@PreAuthorize("hasAnyRole('ADMIN','DOCENTE')")`). Si el creador es DOCENTE: queda automáticamente como titular y se autoincluye en `usuarios_secciones`; el campo `docenteId` del DTO se ignora para este rol. Los `docentesAdicionalesIds` se insertan en `usuarios_secciones`. Los `estudiantesIds` generan `Matricula` ACTIVAS en el año lectivo de la sección dentro de la misma transacción, respetando la regla "un estudiante una matrícula por año".
 - **Nuevo `UsuarioSeccionRepository`**: La tabla intermedia `usuarios_secciones` ya existía como entidad JPA pero sin repositorio. Se añadió con métodos `findBySeccionId`, `findByUsuarioId`, `existsByUsuarioIdAndSeccionId` y `deleteAllBySeccionId`. El método de borrado se integra al flujo de eliminación de sección (ADMIN) para evitar dejar referencias colgantes.
-- **Política de no-eliminación de secciones por DOCENTE**: El docente NO tiene endpoint para eliminar secciones. Las secciones permanecen como histórico permanente. Solo ADMIN puede invocar `DELETE /api/secciones/{id}`. Esta decisión se documentó tanto aquí como en los comentarios del controller y servicio.
+- **Eliminación segura de secciones por DOCENTE titular**: Nuevo endpoint `DELETE /api/secciones/{id}/docente` (`@PreAuthorize("hasRole('DOCENTE')")`) que solo el titular (`secciones.docente_id = id usuario`) puede invocar. La operación rechaza con 400 si la sección tiene matrículas, evaluaciones o evaluaciones por saber asociadas — esto preserva el histórico. Si hay datos, solo ADMIN puede borrar con cascada vía `DELETE /api/secciones/{id}`. El método `SeccionServiceImpl.eliminarComoDocente` valida titularidad y dependencias antes de borrar las asignaciones M:N y la sección.
 
 ---
 

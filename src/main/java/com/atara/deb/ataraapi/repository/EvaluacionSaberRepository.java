@@ -18,6 +18,8 @@ public interface EvaluacionSaberRepository extends JpaRepository<EvaluacionSaber
 
     List<EvaluacionSaber> findBySeccionIdAndPeriodoId(Long seccionId, Long periodoId);
 
+    boolean existsBySeccionId(Long seccionId);
+
     List<EvaluacionSaber> findByEstudianteIdAndPeriodoIdAndTipoSaberId(
         Long estudianteId, Long periodoId, Integer tipoSaberId);
 

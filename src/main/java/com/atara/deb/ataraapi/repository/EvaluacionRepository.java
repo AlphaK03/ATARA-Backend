@@ -18,6 +18,8 @@ public interface EvaluacionRepository extends JpaRepository<Evaluacion, Long> {
 
     List<Evaluacion> findBySeccionId(Long seccionId);
 
+    boolean existsBySeccionId(Long seccionId);
+
     // Bulk deletes — DB ON DELETE CASCADE handles detalle_evaluacion rows
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM Evaluacion e WHERE e.estudiante.id = :estudianteId")

@@ -229,6 +229,16 @@ export const createUsuario  = (data)       => request('POST',   '/admin/usuarios
 export const updateUsuario  = (id, data)   => request('PUT',    `/admin/usuarios/${id}`, data)
 export const deleteUsuario  = (id)         => request('DELETE', `/admin/usuarios/${id}`)
 
+// ── Admin: Centros Educativos ─────────────────────────────────────────────
+// Solo ADMIN. Sin DELETE: los centros se conservan como histórico.
+export const getCentrosAdmin     = ()           => request('GET',  '/admin/centros')
+export const getCentroAdmin      = (id)         => request('GET',  `/admin/centros/${id}`)
+export const createCentroAdmin   = (data)       => request('POST', '/admin/centros', data)
+export const updateCentroAdmin   = (id, data)   => request('PUT',  `/admin/centros/${id}`, data)
+
+// ── Secciones (eliminación segura por DOCENTE titular) ────────────────────
+export const deleteSeccionDocente = (id) => request('DELETE', `/secciones/${id}/docente`)
+
 // ── Admin CRUD (backend endpoints not yet implemented) ────────────────────
 // Each stub will throw until the corresponding backend endpoint is created.
 // TODO: Backend needs DELETE /api/estudiantes/{id}

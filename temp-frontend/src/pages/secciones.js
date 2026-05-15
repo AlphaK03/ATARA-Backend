@@ -2,7 +2,7 @@ import {
   getAniosLectivos, getAnioLectivoActivo,
   getSecciones, createSeccion, updateSeccion, deleteSeccion,
   getNiveles, getCentros, getDocentes, getAccessToken,
-  getContextoUsuario,
+  getContextoUsuario, getEstudiantes,
 } from '../api.js'
 import { showConfirm, openModal, backendMsg } from '../confirm.js'
 import { showToast } from '../utils/toast.js'
@@ -52,23 +52,29 @@ export async function renderSecciones(container) {
   const listMsg   = container.querySelector('#list-msg')
   const secBody   = container.querySelector('#secciones-body')
 
-  // Load catalogs in parallel; needed for create/edit forms
-  let catalogos = { niveles: [], centros: [], docentes: [] }
+  // Catálogos compartidos por todos los formularios
+  let catalogos = { niveles: [], centros: [], docentes: [], estudiantes: [] }
   let anioActivo = null
   let esAdmin = false
+  let esDocente = false
+  let userCtx = null
 
   try {
-    const [anios, niveles, centros, docentes, activo, ctx] = await Promise.all([
+    const [anios, niveles, centros, docentes, activo, ctx, estudiantes] = await Promise.all([
       getAniosLectivos(),
       getNiveles(),
       getCentros(),
       getDocentes(),
       getAnioLectivoActivo().catch(() => null),
       getContextoUsuario().catch(() => null),
+      getEstudiantes('ACTIVO').catch(() => []),
     ])
-    esAdmin = ctx?.rol === 'ADMIN'
-    if (esAdmin) container.querySelector('#btn-nueva-seccion').style.display = ''
-    catalogos = { niveles, centros, docentes }
+    userCtx   = ctx
+    esAdmin   = ctx?.rol === 'ADMIN'
+    esDocente = ctx?.rol === 'DOCENTE'
+    // Botón "Nueva sección" visible para ADMIN y DOCENTE
+    if (esAdmin || esDocente) container.querySelector('#btn-nueva-seccion').style.display = ''
+    catalogos = { niveles, centros, docentes, estudiantes: estudiantes ?? [] }
     anioActivo = activo
 
     selAnio.innerHTML = anios.map(a =>
@@ -185,7 +191,6 @@ export async function renderSecciones(container) {
         if (!ok) return
         btn.disabled = true
         try {
-          // NOTE: Backend DELETE /api/secciones/{id} not yet implemented.
           await deleteSeccion(id)
           if (!getAccessToken()) return
           showToast(`Sección "${nombre}" eliminada.`, 'success')
@@ -241,7 +246,6 @@ export async function renderSecciones(container) {
       }
 
       try {
-        // NOTE: Backend PUT /api/secciones/{id} not yet implemented.
         await updateSeccion(s.id, body)
         if (!getAccessToken()) { modal.close(); return }
         modal.close()
@@ -255,24 +259,145 @@ export async function renderSecciones(container) {
     })
   }
 
-  // ── Nueva sección button ───────────────────────────────────────────────────
+  // ── Nueva sección button (wizard con co-docentes y estudiantes) ───────────
   container.querySelector('#btn-nueva-seccion').addEventListener('click', () => {
     const anioId = Number(selAnio.value)
     if (!anioId) {
       listMsg.innerHTML = '<div class="alert alert-error">Selecciona un año lectivo primero.</div>'
       return
     }
+
+    // Estado local del wizard
+    const docentesAgregados = []    // ids de co-docentes seleccionados
+    const estudiantesAgregados = [] // ids de estudiantes seleccionados
+
     const modal = openModal({
       title: 'Nueva sección',
-      body: seccionFormHtml({}, catalogos),
+      body: seccionWizardHtml(catalogos, { esDocente, esAdmin }),
       saveText: 'Crear sección',
     })
+
+    const $ = sel => modal.bodyEl.querySelector(sel)
+
+    function renderDocentesAgregados() {
+      const ul = $('#sf-docentes-agregados')
+      if (!docentesAgregados.length) {
+        ul.innerHTML = '<li class="empty-chip">— Sin docentes adicionales —</li>'
+        return
+      }
+      ul.innerHTML = docentesAgregados.map(id => {
+        const d = catalogos.docentes.find(x => x.id === id)
+        if (!d) return ''
+        return `<li class="chip">${escHtml(d.nombreCompleto)}
+          <button type="button" class="chip-x" data-id="${id}" title="Quitar">×</button>
+        </li>`
+      }).join('')
+      ul.querySelectorAll('.chip-x').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.dataset.id)
+          const idx = docentesAgregados.indexOf(id)
+          if (idx !== -1) docentesAgregados.splice(idx, 1)
+          renderDocentesAgregados()
+          renderDocenteSugerencias()
+        })
+      })
+    }
+
+    function renderDocenteSugerencias() {
+      const sel = $('#sf-docente-add')
+      const opts = catalogos.docentes
+        .filter(d => d.id !== userCtx?.userId)
+        .filter(d => !docentesAgregados.includes(d.id))
+      sel.innerHTML = `<option value="">— Seleccionar docente —</option>` +
+        opts.map(d => `<option value="${d.id}">${escHtml(d.nombreCompleto)} (${escHtml(d.correo)})</option>`).join('')
+    }
+
+    function renderEstudiantesAgregados() {
+      const ul = $('#sf-estudiantes-agregados')
+      const cnt = $('#sf-estudiantes-count')
+      cnt.textContent = String(estudiantesAgregados.length)
+      if (!estudiantesAgregados.length) {
+        ul.innerHTML = '<li class="empty-chip">— Sin estudiantes agregados —</li>'
+        return
+      }
+      ul.innerHTML = estudiantesAgregados.map(id => {
+        const e = catalogos.estudiantes.find(x => x.id === id)
+        if (!e) return ''
+        const nom = `${e.nombre || ''} ${e.apellidos || ''}`.trim()
+        const ced = e.cedula ? ` <span class="muted">(${escHtml(e.cedula)})</span>` : ''
+        return `<li class="chip">${escHtml(nom)}${ced}
+          <button type="button" class="chip-x" data-id="${id}" title="Quitar">×</button>
+        </li>`
+      }).join('')
+      ul.querySelectorAll('.chip-x').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.dataset.id)
+          const idx = estudiantesAgregados.indexOf(id)
+          if (idx !== -1) estudiantesAgregados.splice(idx, 1)
+          renderEstudiantesAgregados()
+          renderEstudianteResultados($('#sf-est-search').value)
+        })
+      })
+    }
+
+    function renderEstudianteResultados(query) {
+      const ul = $('#sf-est-resultados')
+      const q = (query || '').trim().toLowerCase()
+      let pool = catalogos.estudiantes.filter(e => !estudiantesAgregados.includes(e.id))
+      if (q) {
+        pool = pool.filter(e =>
+          (`${e.nombre || ''} ${e.apellidos || ''}`).toLowerCase().includes(q) ||
+          (e.cedula || '').toLowerCase().includes(q)
+        )
+      }
+      pool = pool.slice(0, 30)
+      if (!pool.length) {
+        ul.innerHTML = '<li class="empty-chip">' +
+          (q ? 'Sin coincidencias.' : 'Comienza a escribir o haz clic en + para agregar.') + '</li>'
+        return
+      }
+      ul.innerHTML = pool.map(e => {
+        const nom = `${e.nombre || ''} ${e.apellidos || ''}`.trim()
+        const ced = e.cedula ? ` <span class="muted">${escHtml(e.cedula)}</span>` : ''
+        return `<li class="result-row">
+          <span>${escHtml(nom)}${ced}</span>
+          <button type="button" class="chip-add" data-id="${e.id}" title="Agregar">+</button>
+        </li>`
+      }).join('')
+      ul.querySelectorAll('.chip-add').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.dataset.id)
+          if (!estudiantesAgregados.includes(id)) estudiantesAgregados.push(id)
+          renderEstudiantesAgregados()
+          renderEstudianteResultados($('#sf-est-search').value)
+        })
+      })
+    }
+
+    // Wire eventos del wizard
+    $('#sf-est-search').addEventListener('input', e => renderEstudianteResultados(e.target.value))
+    $('#btn-add-docente').addEventListener('click', () => {
+      const id = Number($('#sf-docente-add').value)
+      if (!id) return
+      if (!docentesAgregados.includes(id)) docentesAgregados.push(id)
+      renderDocentesAgregados()
+      renderDocenteSugerencias()
+    })
+
+    // Render inicial
+    renderDocentesAgregados()
+    renderDocenteSugerencias()
+    renderEstudiantesAgregados()
+    renderEstudianteResultados('')
+
     modal.saveBtn.addEventListener('click', async () => {
-      const nombre    = modal.bodyEl.querySelector('#sf-nombre').value.trim()
-      const nivelId   = Number(modal.bodyEl.querySelector('#sf-nivel').value)
-      const centroId  = Number(modal.bodyEl.querySelector('#sf-centro').value)
-      const docenteId = modal.bodyEl.querySelector('#sf-docente').value
-      const capacidad = modal.bodyEl.querySelector('#sf-capacidad').value
+      const nombre    = $('#sf-nombre').value.trim()
+      const nivelId   = Number($('#sf-nivel').value)
+      const centroId  = Number($('#sf-centro').value)
+      const capacidad = $('#sf-capacidad').value
+      // El selector de titular solo existe para ADMIN
+      const docenteSel = $('#sf-docente')
+      const docenteId  = docenteSel ? docenteSel.value : ''
 
       if (!nombre || !nivelId || !centroId) {
         modal.msgEl.innerHTML =
@@ -285,12 +410,17 @@ export async function renderSecciones(container) {
         await createSeccion({
           nombre, nivelId, centroId,
           anioLectivoId: anioId,
-          ...(docenteId ? { docenteId: Number(docenteId) } : {}),
-          ...(capacidad  ? { capacidad: Number(capacidad) } : {}),
+          ...(esAdmin && docenteId ? { docenteId: Number(docenteId) } : {}),
+          ...(capacidad ? { capacidad: Number(capacidad) } : {}),
+          ...(docentesAgregados.length    ? { docentesAdicionalesIds: docentesAgregados } : {}),
+          ...(estudiantesAgregados.length ? { estudiantesIds: estudiantesAgregados } : {}),
         })
         if (!getAccessToken()) { modal.close(); return }
         modal.close()
-        showToast(`Sección "${nombre}" creada.`, 'success')
+        const detalle = estudiantesAgregados.length
+          ? ` con ${estudiantesAgregados.length} estudiante${estudiantesAgregados.length !== 1 ? 's' : ''}`
+          : ''
+        showToast(`Sección "${nombre}" creada${detalle}.`, 'success')
         await loadSecciones()
       } catch (err) {
         modal.msgEl.innerHTML = `<div class="alert alert-error">${err.message}</div>`
@@ -300,7 +430,118 @@ export async function renderSecciones(container) {
   })
 }
 
-// ── Sección form HTML (shared for create and edit) ─────────────────────────
+// ── Wizard de "Nueva sección" con co-docentes y estudiantes ───────────────
+function seccionWizardHtml({ niveles = [], centros = [], docentes = [] } = {}, { esDocente, esAdmin } = {}) {
+  return `
+    <style>
+      .wizard-section { margin-top:18px;padding-top:14px;border-top:1px dashed #d1d5db }
+      .wizard-section h4 { margin:0 0 10px;font-size:13px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.04em }
+      .chip-list { list-style:none;padding:0;margin:6px 0 0;display:flex;flex-wrap:wrap;gap:6px }
+      .chip-list .chip {
+        display:inline-flex;align-items:center;gap:6px;
+        background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;
+        padding:4px 8px;border-radius:14px;font-size:12px;font-weight:500;
+      }
+      .chip-list .chip .muted { color:#64748b;font-weight:400 }
+      .chip-list .chip-x {
+        background:none;border:none;color:#0369a1;cursor:pointer;
+        font-size:14px;line-height:1;padding:0;font-weight:700
+      }
+      .chip-list .chip-x:hover { color:#dc2626 }
+      .chip-list .empty-chip { color:#9ca3af;font-size:12px;font-style:italic;list-style:none }
+      .result-list { list-style:none;padding:0;margin:6px 0 0;
+        max-height:160px;overflow-y:auto;
+        border:1px solid #e5e7eb;border-radius:6px;background:#fff }
+      .result-list .result-row {
+        display:flex;justify-content:space-between;align-items:center;
+        padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px
+      }
+      .result-list .result-row:last-child { border-bottom:none }
+      .result-list .result-row .muted { color:#64748b;font-size:11px;margin-left:4px }
+      .result-list .chip-add {
+        background:#22c55e;color:#fff;border:none;
+        width:22px;height:22px;border-radius:50%;
+        font-size:14px;font-weight:700;cursor:pointer;line-height:1
+      }
+      .result-list .chip-add:hover { background:#16a34a }
+      .row-add { display:flex;gap:6px;align-items:center }
+      .row-add select, .row-add input { flex:1 }
+    </style>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nombre (letra/grupo) *</label>
+        <input id="sf-nombre" placeholder="Ej: A, B, 7-1…" maxlength="10" required />
+      </div>
+      <div class="form-group">
+        <label>Nivel / Grado *</label>
+        <select id="sf-nivel">
+          <option value="">— Seleccione —</option>
+          ${niveles.map(n =>
+            `<option value="${n.id}">${n.numeroGrado}° — ${escHtml(n.nombre)}</option>`
+          ).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Centro educativo *</label>
+        <select id="sf-centro">
+          <option value="">— Seleccione —</option>
+          ${centros.map(c =>
+            `<option value="${c.id}">${escHtml(c.nombre)}</option>`
+          ).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Capacidad <span style="color:#9ca3af">(opcional)</span></label>
+        <input id="sf-capacidad" type="number" min="1" max="99" placeholder="Nº máx. estudiantes" />
+      </div>
+      ${esAdmin ? `
+        <div class="form-group" style="grid-column: 1 / -1">
+          <label>Docente titular <span style="color:#9ca3af">(opcional)</span></label>
+          <select id="sf-docente">
+            <option value="">— Sin asignar —</option>
+            ${docentes.map(d =>
+              `<option value="${d.id}">${escHtml(d.nombreCompleto)}</option>`
+            ).join('')}
+          </select>
+        </div>` : `
+        <div class="form-group" style="grid-column: 1 / -1">
+          <div class="alert alert-info" style="margin:0;font-size:12.5px">
+            Quedarás registrado automáticamente como <strong>docente titular</strong> de esta sección.
+          </div>
+        </div>`}
+    </div>
+
+    <!-- Bloque: Docentes adicionales (co-docentes) -->
+    <div class="wizard-section">
+      <h4>Docentes adicionales (co-docentes)</h4>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 8px">
+        Otros docentes que también podrán acceder a esta sección. Opcional.
+      </p>
+      <div class="row-add">
+        <select id="sf-docente-add"><option value="">— Seleccionar docente —</option></select>
+        <button type="button" id="btn-add-docente" class="btn btn-sm btn-secondary">+ Agregar</button>
+      </div>
+      <ul id="sf-docentes-agregados" class="chip-list"></ul>
+    </div>
+
+    <!-- Bloque: Estudiantes -->
+    <div class="wizard-section">
+      <h4>Estudiantes a matricular (<span id="sf-estudiantes-count">0</span>)</h4>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 8px">
+        Busca por nombre o cédula y haz clic en <strong>+</strong> para agregar uno a uno.
+        Cada estudiante quedará matriculado en esta sección al guardar.
+      </p>
+      <input id="sf-est-search" type="text" placeholder="Buscar estudiante…"
+             style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border);font-size:13px" />
+      <ul id="sf-est-resultados" class="result-list"></ul>
+      <div style="margin-top:10px;font-size:12px;color:#374151;font-weight:600">Agregados:</div>
+      <ul id="sf-estudiantes-agregados" class="chip-list"></ul>
+    </div>
+  `
+}
+
+// ── Sección form HTML (compartido para edición) ───────────────────────────
 function seccionFormHtml(v = {}, { niveles = [], centros = [], docentes = [] } = {}) {
   return `
     <div class="form-grid">
@@ -314,7 +555,7 @@ function seccionFormHtml(v = {}, { niveles = [], centros = [], docentes = [] } =
         <select id="sf-nivel">
           <option value="">— Seleccione —</option>
           ${niveles.map(n =>
-            `<option value="${n.id}" ${v.nivelId === n.id ? 'selected' : ''}>${n.numeroGrado}° — ${n.nombre}</option>`
+            `<option value="${n.id}" ${v.nivelId === n.id ? 'selected' : ''}>${n.numeroGrado}° — ${escHtml(n.nombre)}</option>`
           ).join('')}
         </select>
       </div>
@@ -323,7 +564,7 @@ function seccionFormHtml(v = {}, { niveles = [], centros = [], docentes = [] } =
         <select id="sf-centro">
           <option value="">— Seleccione —</option>
           ${centros.map(c =>
-            `<option value="${c.id}" ${v.centroId === c.id ? 'selected' : ''}>${c.nombre}</option>`
+            `<option value="${c.id}" ${v.centroId === c.id ? 'selected' : ''}>${escHtml(c.nombre)}</option>`
           ).join('')}
         </select>
       </div>
@@ -332,7 +573,7 @@ function seccionFormHtml(v = {}, { niveles = [], centros = [], docentes = [] } =
         <select id="sf-docente">
           <option value="">— Sin asignar —</option>
           ${docentes.map(d =>
-            `<option value="${d.id}" ${v.docenteId === d.id ? 'selected' : ''}>${d.nombreCompleto}</option>`
+            `<option value="${d.id}" ${v.docenteId === d.id ? 'selected' : ''}>${escHtml(d.nombreCompleto)}</option>`
           ).join('')}
         </select>
       </div>
@@ -343,4 +584,12 @@ function seccionFormHtml(v = {}, { niveles = [], centros = [], docentes = [] } =
       </div>
     </div>
   `
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }

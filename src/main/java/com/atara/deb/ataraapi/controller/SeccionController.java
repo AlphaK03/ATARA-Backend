@@ -99,14 +99,26 @@ public class SeccionController {
     }
 
     /**
-     * DELETE /api/secciones/{id} — elimina la sección y sus matrículas y evaluaciones.
-     * Solo ADMIN. Por política del proyecto el rol DOCENTE NO puede eliminar secciones:
-     * se conservan como histórico permanente.
+     * DELETE /api/secciones/{id} — elimina la sección y sus matrículas y evaluaciones
+     * en cascada. Solo ADMIN: borrado físico completo, incluso con historial.
      */
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         seccionService.eliminar(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * DELETE /api/secciones/{id}/docente — eliminación segura para el docente titular.
+     * Solo el docente registrado como titular en {@code secciones.docente_id} puede invocarlo.
+     * Si la sección ya tiene matrículas o evaluaciones, se rechaza con 400 para preservar
+     * el histórico — en ese caso solo un ADMIN puede borrarla.
+     */
+    @PreAuthorize("hasRole('DOCENTE')")
+    @DeleteMapping("/{id}/docente")
+    public ResponseEntity<Void> eliminarComoDocente(@PathVariable Long id) {
+        seccionService.eliminarComoDocente(id);
         return ResponseEntity.noContent().build();
     }
 }

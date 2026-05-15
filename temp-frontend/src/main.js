@@ -17,6 +17,7 @@ import { renderImportarPiad }     from './pages/importarPiad.js'
 import { renderSecciones }        from './pages/secciones.js'
 import { renderSesion }           from './pages/sesion.js'
 import { renderAdmin }            from './pages/admin.js'
+import { renderCentros }          from './pages/centros.js'
 
 const pages = {
   aniosLectivos:    renderAniosLectivos,
@@ -32,13 +33,15 @@ const pages = {
   reportes:         renderReportes,
   sesion:           renderSesion,
   admin:            renderAdmin,
+  centros:          renderCentros,
 }
 
 // ── Definición de menú por rol ────────────────────────────────────────────
 const NAV_BY_ROL = {
   ADMIN: [
     { section: 'Administración', items: [
-      { page: 'admin', label: 'Gestión de usuarios' },
+      { page: 'admin',   label: 'Gestión de usuarios' },
+      { page: 'centros', label: 'Centros educativos' },
     ]},
     { section: 'Gestión', items: [
       { page: 'aniosLectivos', label: 'Años Lectivos' },
@@ -61,7 +64,7 @@ const NAV_BY_ROL = {
 NAV_BY_ROL.COORDINADOR = NAV_BY_ROL.DOCENTE
 
 // Páginas a las que solo puede acceder ADMIN
-const ADMIN_ONLY_PAGES = new Set(['admin', 'aniosLectivos', 'estudiantes', 'importarPiad'])
+const ADMIN_ONLY_PAGES = new Set(['admin', 'centros', 'aniosLectivos', 'estudiantes', 'importarPiad'])
 
 const DEFAULT_PAGE = { ADMIN: 'admin', DOCENTE: 'secciones', COORDINADOR: 'secciones' }
 

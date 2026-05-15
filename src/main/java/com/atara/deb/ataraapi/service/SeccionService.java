@@ -21,4 +21,14 @@ public interface SeccionService {
     List<UsuarioDocenteResponseDto> listarDocentes();
 
     void eliminar(Long id);
+
+    /**
+     * Eliminación de una sección por parte del usuario DOCENTE autenticado.
+     * Reglas:
+     *   - Solo el docente titular (secciones.docente_id = id del usuario) puede borrar.
+     *   - La sección NO debe tener matrículas, evaluaciones ni evaluaciones por saber.
+     *   - Si tiene cualquiera de esas dependencias se lanza IllegalArgumentException
+     *     (mapeada a 400/409 — preserva los datos históricos).
+     */
+    void eliminarComoDocente(Long id);
 }

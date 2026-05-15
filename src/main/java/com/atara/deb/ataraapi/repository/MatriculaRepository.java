@@ -26,6 +26,9 @@ public interface MatriculaRepository extends JpaRepository<Matricula, Long> {
     /** True si el estudiante tiene matrícula en alguna de las secciones indicadas. */
     boolean existsByEstudianteIdAndSeccionIdIn(Long estudianteId, java.util.Collection<Long> seccionIds);
 
+    /** True si la sección tiene al menos una matrícula (cualquier estado). */
+    boolean existsBySeccionId(Long seccionId);
+
     /** Número de matrículas activas en una sección. */
     int countBySeccionIdAndEstado(Long seccionId, EstadoMatricula estado);
 
