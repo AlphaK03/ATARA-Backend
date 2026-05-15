@@ -370,7 +370,3 @@ function seccionRowHtml(s, esAdmin, esDocente, userCtx) {
       </td>
     </tr>`
 }
-">Eliminar</button>` : ''}
-      </td>
-    </tr>`
-}
