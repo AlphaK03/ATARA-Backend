@@ -6,8 +6,17 @@ import {
 import { showConfirm, backendMsg } from '../confirm.js'
 import { showToast } from '../utils/toast.js'
 
-const GENEROS        = ['MASCULINO', 'FEMENINO', 'OTRO']
-const ESTADOS        = ['ACTIVO', 'INACTIVO', 'GRADUADO', 'TRASLADADO']
+// IMPORTANTE: el value debe coincidir con el enum del backend (Genero: M, F, O)
+// y con la CHECK constraint de la BD (genero IN ('M','F','O')).
+// El label es lo que ve el usuario; el value es lo que se envía al servidor.
+const GENEROS = [
+  { value: 'M', label: 'MASCULINO' },
+  { value: 'F', label: 'FEMENINO'  },
+  { value: 'O', label: 'OTRO'      },
+]
+// Estados permitidos por el enum EstadoEstudiante y la CHECK constraint de la BD.
+// GRADUADO no existe en el backend — no agregar sin migración Flyway.
+const ESTADOS        = ['ACTIVO', 'INACTIVO', 'TRASLADADO']
 const FILTER_ESTADOS = ['', ...ESTADOS]
 
 function estadoBadge(estado) {
@@ -42,7 +51,7 @@ function studentFormHtml(s = {}, includeEstado = false) {
         <label>Género</label>
         <select name="genero">
           <option value="">— Sin especificar —</option>
-          ${GENEROS.map(g => `<option value="${g}" ${s.genero === g ? 'selected' : ''}>${g}</option>`).join('')}
+          ${GENEROS.map(g => `<option value="${g.value}" ${s.genero === g.value ? 'selected' : ''}>${g.label}</option>`).join('')}
         </select>
       </div>
       ${includeEstado ? `

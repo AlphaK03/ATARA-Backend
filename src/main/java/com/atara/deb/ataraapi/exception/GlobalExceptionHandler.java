@@ -1,8 +1,10 @@
 package com.atara.deb.ataraapi.exception;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import com.atara.deb.ataraapi.exception.AccesoDenegadoException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -64,6 +66,40 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         return buildResponse(HttpStatus.BAD_REQUEST, mensaje, req);
+    }
+
+    /**
+     * Errores al leer el body del request — JSON mal formado, fecha inválida,
+     * o un valor que no encaja con un enum (ej. "MASCULINO" para un enum {M,F,O}).
+     * Antes caían en el handler genérico de RuntimeException y devolvían 500;
+     * ahora devuelven 400 con un mensaje útil que indica el campo problemático.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleNotReadable(
+            HttpMessageNotReadableException ex, HttpServletRequest req) {
+        Throwable cause = ex.getCause();
+        if (cause instanceof InvalidFormatException ife) {
+            String campo = ife.getPath().isEmpty()
+                    ? "(desconocido)"
+                    : ife.getPath().get(ife.getPath().size() - 1).getFieldName();
+            String tipo = ife.getTargetType() != null
+                    ? ife.getTargetType().getSimpleName()
+                    : "tipo esperado";
+            String valor = String.valueOf(ife.getValue());
+            String permitidos = "";
+            if (ife.getTargetType() != null && ife.getTargetType().isEnum()) {
+                Object[] consts = ife.getTargetType().getEnumConstants();
+                if (consts != null) {
+                    permitidos = " — valores permitidos: " + java.util.Arrays.toString(consts);
+                }
+            }
+            String mensaje = "Valor inválido para el campo '" + campo + "': '"
+                    + valor + "' no es un " + tipo + " válido" + permitidos + ".";
+            return buildResponse(HttpStatus.BAD_REQUEST, mensaje, req);
+        }
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "El cuerpo de la petición no se pudo procesar: " + ex.getMostSpecificCause().getMessage(),
+                req);
     }
 
     // -------------------------------------------------------------------------
