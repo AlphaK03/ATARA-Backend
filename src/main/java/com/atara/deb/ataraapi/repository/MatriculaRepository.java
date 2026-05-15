@@ -32,6 +32,10 @@ public interface MatriculaRepository extends JpaRepository<Matricula, Long> {
     /** Número de matrículas activas en una sección. */
     int countBySeccionIdAndEstado(Long seccionId, EstadoMatricula estado);
 
+    /** Matrículas en una sección filtradas por estado, con FETCH del estudiante para evitar N+1. */
+    @Query("SELECT m FROM Matricula m JOIN FETCH m.estudiante WHERE m.seccion.id = :seccionId AND m.estado = :estado")
+    List<Matricula> findBySeccionIdAndEstado(@Param("seccionId") Long seccionId, @Param("estado") EstadoMatricula estado);
+
     List<Matricula> findByEstudianteIdAndEstado(Long estudianteId, EstadoMatricula estado);
 
     @Modifying(clearAutomatically = true)

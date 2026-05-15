@@ -249,26 +249,152 @@ public class SeccionServiceImpl implements SeccionService {
     @Override
     @Transactional
     public SeccionResponseDto actualizarSeccion(Long id, SeccionRequestDto dto) {
+        Usuario actual = usuarioActual();
+        String rol = actual.getRol().getNombre();
+        boolean esAdmin   = ROL_ADMIN.equalsIgnoreCase(rol);
+        boolean esDocente = ROL_DOCENTE.equalsIgnoreCase(rol);
+
+        if (!esAdmin && !esDocente) {
+            throw new AccesoDenegadoException(
+                    "El rol " + rol + " no tiene permitido editar secciones.");
+        }
+
         Seccion seccion = seccionRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Sección no encontrada con id: " + id));
+
+        // Si el editor es DOCENTE: debe ser el titular registrado.
+        if (esDocente) {
+            if (seccion.getDocente() == null
+                    || !seccion.getDocente().getId().equals(actual.getId())) {
+                throw new AccesoDenegadoException(
+                        "Solo el docente titular puede editar esta sección.");
+            }
+        }
+
         Nivel nivel = nivelRepository.findById(dto.getNivelId())
                 .orElseThrow(() -> new NoSuchElementException("Nivel no encontrado: " + dto.getNivelId()));
         CentroEducativo centro = centroRepository.findById(dto.getCentroId())
                 .orElseThrow(() -> new NoSuchElementException("Centro educativo no encontrado: " + dto.getCentroId()));
 
-        Usuario docente = null;
-        if (dto.getDocenteId() != null) {
-            docente = usuarioRepository.findById(dto.getDocenteId())
-                    .orElseThrow(() -> new NoSuchElementException("Docente no encontrado: " + dto.getDocenteId()));
+        // Cambio de titular: solo ADMIN. El DOCENTE no puede reasignar.
+        if (esAdmin) {
+            Usuario titular = null;
+            if (dto.getDocenteId() != null) {
+                titular = usuarioRepository.findById(dto.getDocenteId())
+                        .orElseThrow(() -> new NoSuchElementException(
+                                "Docente no encontrado: " + dto.getDocenteId()));
+            }
+            seccion.setDocente(titular);
         }
 
         seccion.setNombre(dto.getNombre());
         seccion.setNivel(nivel);
         seccion.setCentro(centro);
-        seccion.setDocente(docente);
         seccion.setCapacidad(dto.getCapacidad());
 
-        return toDto(seccionRepository.save(seccion));
+        Seccion guardada = seccionRepository.save(seccion);
+
+        // ── Sincronizar co-docentes (solo si la lista viene en el DTO) ───────
+        if (dto.getDocentesAdicionalesIds() != null) {
+            sincronizarCoDocentes(guardada, dto.getDocentesAdicionalesIds(), actual, esDocente);
+        }
+
+        // ── Sincronizar matrículas de estudiantes (solo si la lista viene) ──
+        if (dto.getEstudiantesIds() != null) {
+            sincronizarEstudiantes(guardada, dto.getEstudiantesIds());
+        }
+
+        return toDto(guardada);
+    }
+
+    /**
+     * Compara la lista de co-docentes deseada contra los que ya están en
+     * usuarios_secciones para esta sección y aplica el delta:
+     *   - Inserta los nuevos.
+     *   - Borra los que ya no aparecen.
+     * Si el creador es DOCENTE, su propia asignación se preserva siempre
+     * (no permitimos que se quite a sí mismo por error).
+     */
+    private void sincronizarCoDocentes(Seccion seccion, List<Long> deseadosIds,
+                                       Usuario actual, boolean esDocente) {
+        Set<Long> deseados = new HashSet<>(deseadosIds);
+        if (esDocente) {
+            // El titular siempre permanece como co-docente registrado.
+            deseados.add(actual.getId());
+        }
+
+        List<UsuarioSeccion> actuales = usuarioSeccionRepository.findBySeccionId(seccion.getId());
+        Set<Long> actualesIds = actuales.stream()
+                .map(us -> us.getUsuario().getId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        // Insertar los nuevos
+        for (Long id : deseados) {
+            if (!actualesIds.contains(id)) {
+                Usuario u = usuarioRepository.findById(id)
+                        .orElseThrow(() -> new NoSuchElementException(
+                                "Docente no encontrado: " + id));
+                usuarioSeccionRepository.save(UsuarioSeccion.builder()
+                        .usuario(u).seccion(seccion).build());
+            }
+        }
+        // Borrar los que sobran
+        for (UsuarioSeccion us : actuales) {
+            if (!deseados.contains(us.getUsuario().getId())) {
+                usuarioSeccionRepository.delete(us);
+            }
+        }
+    }
+
+    /**
+     * Compara la lista deseada de estudiantes contra las matrículas ACTIVAS
+     * actuales de la sección y aplica el delta:
+     *   - Matricula a los nuevos (rechaza si ya tienen matrícula en otra sección del mismo año).
+     *   - Elimina la matrícula de los que se quitan.
+     * Las evaluaciones quedan intactas (están ligadas a estudiante+periodo, no a matrícula).
+     */
+    private void sincronizarEstudiantes(Seccion seccion, List<Long> deseadosIds) {
+        Set<Long> deseados = new HashSet<>(deseadosIds);
+        AnioLectivo anioLectivo = seccion.getAnioLectivo();
+
+        List<Matricula> actuales = matriculaRepository
+                .findBySeccionIdAndEstado(seccion.getId(), EstadoMatricula.ACTIVO);
+        Set<Long> actualesIds = actuales.stream()
+                .map(m -> m.getEstudiante().getId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        // Matricular nuevos
+        for (Long estudianteId : deseados) {
+            if (actualesIds.contains(estudianteId)) continue;
+
+            Estudiante estudiante = estudianteRepository.findById(estudianteId)
+                    .orElseThrow(() -> new NoSuchElementException(
+                            "Estudiante no encontrado: " + estudianteId));
+
+            if (matriculaRepository.existsByEstudianteIdAndAnioLectivoId(
+                    estudianteId, anioLectivo.getId())) {
+                throw new IllegalArgumentException(
+                        "El estudiante con id " + estudianteId
+                                + " ya tiene una matrícula registrada para el año lectivo "
+                                + anioLectivo.getAnio() + ".");
+            }
+
+            Matricula nueva = Matricula.builder()
+                    .estudiante(estudiante)
+                    .seccion(seccion)
+                    .anioLectivo(anioLectivo)
+                    .estado(EstadoMatricula.ACTIVO)
+                    .fechaMatricula(LocalDate.now())
+                    .build();
+            matriculaRepository.save(nueva);
+        }
+
+        // Quitar los que ya no se desean
+        for (Matricula m : actuales) {
+            if (!deseados.contains(m.getEstudiante().getId())) {
+                matriculaRepository.delete(m);
+            }
+        }
     }
 
     @Override
@@ -330,9 +456,12 @@ public class SeccionServiceImpl implements SeccionService {
                 .nombre(s.getNombre())
                 .anioLectivoId(s.getAnioLectivo().getId())
                 .anioLectivoAnio(s.getAnioLectivo().getAnio())
+                .nivelId(s.getNivel().getId())
                 .nivelNombre(s.getNivel().getNombre())
                 .nivelGrado(s.getNivel().getNumeroGrado())
+                .centroId(s.getCentro().getId())
                 .centroNombre(s.getCentro().getNombre())
+                .docenteId(docente != null ? docente.getId() : null)
                 .docenteNombreCompleto(docenteNombre)
                 .capacidad(s.getCapacidad())
                 .totalEstudiantes(matriculaRepository.countBySeccionIdAndEstado(s.getId(), EstadoMatricula.ACTIVO))
