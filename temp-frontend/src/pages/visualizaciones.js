@@ -96,7 +96,7 @@ export async function renderVisualizaciones(container, params = {}) {
     secciones = await filtrarSeccionesPropias(seccionesRaw)
 
     selPeriodo.innerHTML = '<option value="">— Seleccione un periodo —</option>' +
-      periodos.map(p => `<option value="${p.id}">${p.nombre}${p.activo ? ' ★' : ''}</option>`).join('')
+      periodos.map(p => `<option value="${p.id}">${p.nombre}${p.activo ? ' (activo)' : ''}</option>`).join('')
     selPeriodo.disabled = false
 
     // Si hay un periodo activo, preseleccionarlo
@@ -164,7 +164,7 @@ export async function renderVisualizaciones(container, params = {}) {
     const periodo = periodos.find(p => p.id === periodoId)
     const seccion = secciones.find(s => s.id === seccionId)
 
-    body.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ Cargando datos…</div>`
+    body.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted)">Cargando datos…</div>`
     searchInput.disabled = true
 
     try {
@@ -243,7 +243,7 @@ export async function renderVisualizaciones(container, params = {}) {
       if (!columnas.length) {
         body.innerHTML = `
           <div class="card" style="text-align:center;padding:48px 20px">
-            <div style="font-size:48px;margin-bottom:12px">📊</div>
+            <div style="width:44px;height:44px;margin:0 auto 14px;opacity:.35"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></div>
             <h3 style="margin:0 0 8px">Sin evaluaciones por saber</h3>
             <p style="color:var(--text-muted);margin:0">
               No hay evaluaciones registradas para <strong>${seccion?.nombre}</strong>
@@ -342,8 +342,8 @@ export async function renderVisualizaciones(container, params = {}) {
 
           const gC = colorFromValue(global !== undefined ? parseFloat(global) : null)
           const alertaBadges = [
-            alertas.altas  > 0 ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap">${alertas.altas}🔴</span>` : '',
-            alertas.medias > 0 ? `<span style="background:#fef3c7;color:#d97706;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap">${alertas.medias}🟡</span>` : '',
+            alertas.altas  > 0 ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#dc2626;display:inline-block"></span>${alertas.altas}</span>` : '',
+            alertas.medias > 0 ? `<span style="background:#fef3c7;color:#d97706;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span>${alertas.medias}</span>` : '',
           ].filter(Boolean).join(' ')
 
           return `

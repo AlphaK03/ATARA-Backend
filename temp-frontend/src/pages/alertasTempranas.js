@@ -25,13 +25,31 @@ const NIVEL = {
   MEDIA: { bg: '#fef9c3', color: '#ca8a04', border: '#fde047', label: 'Riesgo medio', dot: '#f59e0b' },
 }
 
+const _SVG = {
+  book:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2V4z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8V4z"/></svg>`,
+  cog:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></svg>`,
+  heart:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+  clipboard:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>`,
+  refresh:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  chart:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>`,
+  users:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  alertCircle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  warning:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  search:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  checkCircle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+}
+
+const _ico  = (name, size = 14) => `<span style="display:inline-flex;width:${size}px;height:${size}px;flex-shrink:0">${_SVG[name]}</span>`
+const _dot  = (color, size = 8)  => `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${color};flex-shrink:0"></span>`
+const _spin = () => `<span style="display:inline-block;width:28px;height:28px;border:3px solid #e5e7eb;border-top-color:#3b7dd8;border-radius:50%;animation:spin 0.65s linear infinite"></span>`
+
 const TIPO_META = {
-  'Saber Conceptual':    { icon: '🧠', short: 'Conceptual',    color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
-  'Saber Procedimental': { icon: '⚙️', short: 'Procedimental', color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
-  'Saber Actitudinal':   { icon: '🌱', short: 'Actitudinal',   color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  'Saber Conceptual':    { icon: 'book',      short: 'Conceptual',    color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
+  'Saber Procedimental': { icon: 'cog',       short: 'Procedimental', color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
+  'Saber Actitudinal':   { icon: 'heart',     short: 'Actitudinal',   color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
 }
 function tipoMeta(n) {
-  return TIPO_META[n] || { icon: '📋', short: n, color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' }
+  return TIPO_META[n] || { icon: 'clipboard', short: n, color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' }
 }
 
 // ─── render principal ─────────────────────────────────────────────────────────
@@ -60,7 +78,7 @@ export async function renderAlertasTempranas(container) {
             style="width:100%">
         </div>
         <button class="btn btn-secondary btn-sm" id="f-clear" style="height:36px" disabled>Limpiar</button>
-        <button class="btn btn-primary   btn-sm" id="btn-generar" style="height:36px" disabled>🔄 Regenerar</button>
+        <button class="btn btn-primary   btn-sm" id="btn-generar" style="height:36px" disabled>${_ico('refresh',13)} Regenerar</button>
       </div>
     </div>
 
@@ -106,7 +124,7 @@ export async function renderAlertasTempranas(container) {
         </div>
         <div id="det-body" style="padding:0 22px 6px;overflow-y:auto;flex:1"></div>
         <div style="padding:14px 22px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-          <button id="det-viz" class="btn btn-secondary btn-sm">📊 Ver mapa de calor</button>
+          <button id="det-viz" class="btn btn-secondary btn-sm">${_ico('chart',13)} Ver mapa de calor</button>
           <button id="det-close2" class="btn btn-primary btn-sm">Cerrar</button>
         </div>
       </div>
@@ -247,6 +265,9 @@ export async function renderAlertasTempranas(container) {
 
       /* Chips de nivel activo */
       .at-nivel-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         padding: 5px 14px;
         border-radius: 20px;
         font-size: 12px;
@@ -326,7 +347,7 @@ export async function renderAlertasTempranas(container) {
     const sinEdFisica = allMaterias.filter(m => m.clave !== 'EDUCACION_FISICA')
     materiasList = await filtrarMateriasPropias(sinEdFisica)
     selPeriodo.innerHTML = '<option value="">— Seleccione un periodo —</option>' +
-      periodos.map(p => `<option value="${p.id}">${p.nombre}${p.activo ? ' ★' : ''}</option>`).join('')
+      periodos.map(p => `<option value="${p.id}">${p.nombre}${p.activo ? ' (activo)' : ''}</option>`).join('')
     selPeriodo.disabled = false
 
     selSeccion.innerHTML = '<option value="">Todas las secciones</option>' +
@@ -372,7 +393,7 @@ export async function renderAlertasTempranas(container) {
     const seccionId = Number(selSeccion.value) || null
     const periodoId = Number(selPeriodo.value)
     if (!periodoId) return
-    btnGenerar.disabled = true; btnGenerar.textContent = '⏳ Generando…'
+    btnGenerar.disabled = true; btnGenerar.innerHTML = 'Generando…'
     try {
       if (seccionId) {
         alertas = (await generarAlertasTematicasSeccion(seccionId, periodoId))
@@ -389,7 +410,7 @@ export async function renderAlertasTempranas(container) {
       }
       actualizarResumen(); renderNivelTabs(); renderMateriaTabs(); renderLista()
     } catch (e) { alert(`Error al regenerar: ${e.message}`) }
-    finally { btnGenerar.disabled = false; btnGenerar.textContent = '🔄 Regenerar' }
+    finally { btnGenerar.disabled = false; btnGenerar.innerHTML = `${_ico('refresh',13)} Regenerar` }
   })
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -404,8 +425,8 @@ export async function renderAlertasTempranas(container) {
     const seccionId = Number(selSeccion.value) || null
     if (!periodoId) return
     body.innerHTML = `
-      <div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
-        <div style="font-size:32px;margin-bottom:8px">⏳</div>
+      <div class="loading-center">
+        ${_spin()}
         <div>Cargando alertas…</div>
       </div>`
     setControles(false)
@@ -438,17 +459,17 @@ export async function renderAlertasTempranas(container) {
 
     resumenEl.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:20px'
     resumenEl.innerHTML = [
-      { val: nEst,   sub: 'estudiantes con alertas', icon: '👥', col: '#4f46e5', bg: '#eef2ff', border: '#c7d2fe' },
-      { val: nEstA,  sub: 'estudiantes en riesgo alto', icon: '🚨', col: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
-      { val: nAlta,  sub: 'alertas altas',           icon: '🔴', col: '#dc2626', bg: '#fff1f2', border: '#fecdd3' },
-      { val: nMedia, sub: 'alertas medias',           icon: '🟡', col: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+      { val: nEst,   sub: 'con alertas',       icon: 'users',       col: '#4f46e5', bg: '#eef2ff', border: '#c7d2fe' },
+      { val: nEstA,  sub: 'en riesgo alto',    icon: 'alertCircle', col: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+      { val: nAlta,  sub: 'alertas altas',     icon: 'alertCircle', col: '#dc2626', bg: '#fff1f2', border: '#fecdd3' },
+      { val: nMedia, sub: 'alertas medias',    icon: 'warning',     col: '#b45309', bg: '#fffbeb', border: '#fde68a' },
     ].map(({ val, sub, icon, col, bg, border }) => `
-      <div style="
-        padding:14px 16px;border-radius:12px;
-        background:${bg};border:1px solid ${border};
-      ">
+      <div style="padding:14px 16px;border-radius:8px;background:${bg};border:1px solid ${border}">
         <div style="font-size:28px;font-weight:900;color:${col};line-height:1">${val}</div>
-        <div style="font-size:11px;color:${col};font-weight:600;margin-top:4px;opacity:.85">${icon} ${sub}</div>
+        <div style="font-size:11px;color:${col};font-weight:600;margin-top:6px;display:flex;align-items:center;gap:5px">
+          <span style="display:inline-flex;width:13px;height:13px;flex-shrink:0">${_SVG[icon]}</span>
+          ${sub}
+        </div>
       </div>`).join('')
   }
 
@@ -478,8 +499,8 @@ export async function renderAlertasTempranas(container) {
   function renderNivelTabs() {
     nivelTabs.innerHTML = [
       { val: '', label: 'Todos' },
-      { val: 'ALTA',  label: '🔴 Alto' },
-      { val: 'MEDIA', label: '🟡 Medio' },
+      { val: 'ALTA',  label: `${_dot('#dc2626',8)} Alto` },
+      { val: 'MEDIA', label: `${_dot('#f59e0b',8)} Medio` },
     ].map(({ val, label }) => {
       const active = nivelFiltro === val
       const styles = val === 'ALTA'
@@ -528,11 +549,11 @@ export async function renderAlertasTempranas(container) {
     if (!sorted.length) {
       body.innerHTML = alertas.length
         ? `<div class="card" style="text-align:center;padding:40px;color:var(--text-muted)">
-            <div style="font-size:28px;margin-bottom:8px">🔍</div>
+            <div style="width:36px;height:36px;margin:0 auto 12px;opacity:.4">${_SVG.search}</div>
             <div style="font-weight:600">No hay resultados con los filtros aplicados</div>
            </div>`
         : `<div class="card" style="text-align:center;padding:50px 20px;color:var(--text-muted)">
-            <div style="font-size:40px;margin-bottom:10px">✅</div>
+            <div style="width:44px;height:44px;margin:0 auto 12px;color:#16a34a">${_SVG.checkCircle}</div>
             <div style="font-size:16px;font-weight:700;margin-bottom:6px;color:#374151">Sin alertas registradas</div>
             <div style="font-size:13px">
               No hay alertas para este periodo.<br>
@@ -574,17 +595,19 @@ export async function renderAlertasTempranas(container) {
       const col = g.alta > 0 ? '#dc2626' : '#f59e0b'
       return `
         <div class="at-saber-row">
-          <span class="at-saber-dot" style="background:${m.color};opacity:.7"></span>
-          <span class="at-saber-label" style="font-size:11px">${m.icon} ${g.label}</span>
-          <span class="at-saber-count" style="background:${col}18;color:${col}">
-            ${g.alta ? `🔴${g.alta}` : ''}${g.alta && g.media ? ' ' : ''}${g.media ? `🟡${g.media}` : ''}
+          <span style="display:inline-flex;width:13px;height:13px;flex-shrink:0;color:${m.color}">${_SVG[m.icon]}</span>
+          <span class="at-saber-label" style="font-size:11px">${g.label}</span>
+          <span class="at-saber-count" style="background:${col}18;color:${col};display:inline-flex;align-items:center;gap:4px">
+            ${g.alta  ? `${_dot('#dc2626',6)}${g.alta}`  : ''}
+            ${g.alta && g.media ? ' ' : ''}
+            ${g.media ? `${_dot('#f59e0b',6)}${g.media}` : ''}
           </span>
         </div>`
     }).join('')
 
     const badgeTxt = tieneAlta
-      ? `<span>🚨</span> Riesgo alto`
-      : `<span>⚠️</span> Riesgo medio`
+      ? `${_ico('alertCircle',12)} Riesgo alto`
+      : `${_ico('warning',12)} Riesgo medio`
 
     // initials avatar
     const parts = est.nombre.trim().split(' ')
@@ -609,8 +632,8 @@ export async function renderAlertasTempranas(container) {
         <div style="margin-bottom:4px">${saberRows}</div>
 
         <div style="display:flex;gap:6px;margin-top:12px;margin-bottom:2px">
-          ${nAlta  ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:#fee2e2;color:#dc2626">🔴 ${nAlta} alta${nAlta!==1?'s':''}</span>` : ''}
-          ${nMedia ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:#fef3c7;color:#b45309">🟡 ${nMedia} media${nMedia!==1?'s':''}</span>` : ''}
+          ${nAlta  ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:#fee2e2;color:#dc2626;display:inline-flex;align-items:center;gap:4px">${_dot('#dc2626',6)}${nAlta} alta${nAlta!==1?'s':''}</span>` : ''}
+          ${nMedia ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:#fef3c7;color:#b45309;display:inline-flex;align-items:center;gap:4px">${_dot('#f59e0b',6)}${nMedia} media${nMedia!==1?'s':''}</span>` : ''}
         </div>
 
         <button class="at-btn-detail" data-det-est="${est.id}">
@@ -628,7 +651,9 @@ export async function renderAlertasTempranas(container) {
 
     detNombre.textContent = est.nombre
     detBadge.className = `at-risk-badge ${tieneAlta ? 'alta' : 'media'}`
-    detBadge.innerHTML = tieneAlta ? '🚨 Riesgo alto' : '⚠️ Riesgo medio'
+    detBadge.innerHTML = tieneAlta
+      ? `${_ico('alertCircle',13)} Riesgo alto`
+      : `${_ico('warning',13)} Riesgo medio`
     detMeta.innerHTML = [
       nAlta  ? `<strong style="color:#dc2626">${nAlta} alerta${nAlta!==1?'s':''} alta${nAlta!==1?'s':''}</strong>` : '',
       nMedia ? `<strong style="color:#b45309">${nMedia} alerta${nMedia!==1?'s':''} media${nMedia!==1?'s':''}</strong>` : '',
@@ -659,8 +684,8 @@ export async function renderAlertasTempranas(container) {
                 <div class="det-bar-fill" style="width:${pct}%;background:${nv.color || '#9ca3af'}"></div>
               </div>
               <div class="det-score" style="color:${nv.color || '#6b7280'}">${Number(a.promedio).toFixed(1)}</div>
-              <div class="det-nivel-pill" style="background:${nv.bg};color:${nv.color};border:1px solid ${nv.border}">
-                ${a.nivelAlerta === 'ALTA' ? '🔴 Alta' : '🟡 Media'}
+              <div class="det-nivel-pill" style="background:${nv.bg};color:${nv.color};border:1px solid ${nv.border};display:inline-flex;align-items:center;gap:4px">
+                ${a.nivelAlerta === 'ALTA' ? `${_dot('#dc2626',7)} Alta` : `${_dot('#f59e0b',7)} Media`}
               </div>
             </div>`
         }).join('')
@@ -668,7 +693,7 @@ export async function renderAlertasTempranas(container) {
       return `
         <div class="det-tipo-block">
           <div class="det-tipo-header" style="background:${m.bg};color:${m.color}">
-            <span style="font-size:18px">${m.icon}</span>
+            <span style="display:inline-flex;width:16px;height:16px;flex-shrink:0">${_SVG[m.icon]}</span>
             <span>${entry.label}</span>
             <span style="font-size:11px;font-weight:400;color:${m.color};opacity:.7;margin-left:4px">
               ${lista.length} alerta${lista.length!==1?'s':''}

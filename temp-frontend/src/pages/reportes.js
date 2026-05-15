@@ -129,7 +129,7 @@ export async function renderReportes(container) {
 
     <div id="rpt-body">
       <div style="text-align:center;padding:60px;color:var(--text-muted)">
-        ⏳ Cargando datos...
+        Cargando datos...
       </div>
     </div>
 
@@ -335,7 +335,7 @@ export async function renderReportes(container) {
       return
     }
 
-    rptBody.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-muted)">⏳ Calculando reportes...</div>`
+    rptBody.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-muted)">Calculando reportes...</div>`
     destroyAll()
 
     try {
@@ -577,7 +577,7 @@ export async function renderReportes(container) {
       ? '<p class="empty" style="padding:12px 0">No se generaron conclusiones con los datos actuales.</p>'
       : insights.map(i => `
           <div style="display:flex;gap:14px;padding:12px 16px;border-radius:8px;background:#f8f9fb;border:1px solid var(--border);margin-bottom:10px">
-            <div style="font-size:20px;flex-shrink:0;padding-top:2px">${i.icon}</div>
+            <div style="display:inline-flex;width:20px;height:20px;flex-shrink:0;margin-top:2px;color:${i.color || 'var(--text-muted)'}">${i.icon}</div>
             <div>
               <div style="font-size:13px;font-weight:700;margin-bottom:4px">${i.title}</div>
               <div style="font-size:13px;color:#374151;line-height:1.6">${i.text}</div>
@@ -588,7 +588,7 @@ export async function renderReportes(container) {
   function vacioHtml(msg = 'No hay evaluaciones registradas para los filtros seleccionados.') {
     return `
       <div class="card" style="text-align:center;padding:48px 20px;color:var(--text-muted)">
-        <div style="font-size:40px;margin-bottom:10px">📊</div>
+        <div style="width:40px;height:40px;margin:0 auto 12px;opacity:.35"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></div>
         <div style="font-size:15px;font-weight:600;margin-bottom:4px">Sin datos</div>
         <div style="font-size:13px">${msg}</div>
       </div>`
@@ -660,7 +660,8 @@ export async function renderReportes(container) {
       const peor = conData.reduce((a, b) => (a.avg < b.avg ? a : b))
       if (peor.avg <= 3.0) {
         ins.push({
-          icon: '📉',
+          icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`,
+          color: '#dc2626',
           title: 'Eje con mayor debilidad colectiva',
           text: `El eje <strong>${peor.nombre}</strong> (${peor.tipoNombre.replace('Saber ', '')}) tiene el promedio mas bajo: <strong>${peor.avg.toFixed(2)}</strong>/5.`,
         })
@@ -674,7 +675,8 @@ export async function renderReportes(container) {
       const dif = max.avg - min.avg
       if (dif >= 0.8) {
         ins.push({
-          icon: '⚖️',
+          icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+          color: '#7c3aed',
           title: 'Desequilibrio entre tipos de saber',
           text: `Brecha de <strong>${dif.toFixed(2)} pts</strong> entre <strong>${max.nombre.replace('Saber ', '')}</strong> (${max.avg.toFixed(2)}) y <strong>${min.nombre.replace('Saber ', '')}</strong> (${min.avg.toFixed(2)}).`,
         })
@@ -684,7 +686,8 @@ export async function renderReportes(container) {
     const masRiesgo = [...promedios].sort((a, b) => (b.totalAlertasAltas || 0) - (a.totalAlertasAltas || 0))[0]
     if (masRiesgo && (masRiesgo.totalAlertasAltas || 0) > 0) {
       ins.push({
-        icon: '🚨',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+        color: '#dc2626',
         title: 'Estudiante con mayor riesgo',
         text: `<strong>${masRiesgo.estudianteNombreCompleto}</strong> - ${masRiesgo.totalAlertasAltas} alerta${masRiesgo.totalAlertasAltas !== 1 ? 's' : ''} alta${masRiesgo.totalAlertasAltas !== 1 ? 's' : ''} · promedio ${parseFloat(masRiesgo.promedioGlobal).toFixed(2)}/5.`,
       })
@@ -693,7 +696,8 @@ export async function renderReportes(container) {
     const gp = parseFloat(promGlobal(promedios))
     if (!isNaN(gp) && gp > 3.5) {
       ins.push({
-        icon: '🌟',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+        color: '#16a34a',
         title: 'Desempeño general satisfactorio',
         text: `Promedio global <strong>${gp.toFixed(2)}/5</strong> - por encima del nivel Intermedio.`,
       })

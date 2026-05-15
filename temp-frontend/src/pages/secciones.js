@@ -97,7 +97,7 @@ export async function renderSecciones(container) {
       if (!secciones.length) {
         secBody.innerHTML = `
           <div style="text-align:center;padding:40px 20px;color:var(--text-muted)">
-            <div style="font-size:32px;margin-bottom:8px">🏫</div>
+            <div style="width:36px;height:36px;margin:0 auto 12px;opacity:.4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
             <p>No hay secciones para este año lectivo.</p>
           </div>`
         return
@@ -116,7 +116,7 @@ export async function renderSecciones(container) {
           <h3 style="font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;
                      letter-spacing:.05em;margin:0 0 10px;padding-bottom:6px;
                      border-bottom:1px solid #e5e7eb">
-            🏫 ${centro}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="display:inline;vertical-align:-2px;margin-right:5px"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>${centro}
           </h3>
           <div class="table-wrap">
             <table class="sec-table responsive-table">
@@ -175,7 +175,8 @@ export async function renderSecciones(container) {
           message: `
             <p>Esta acción es <strong>permanente</strong>.</p>
             <p style="margin-top:8px;color:#d97706">
-              ⚠️ Se eliminarán también todas las <strong>matrículas</strong>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline;vertical-align:-2px;margin-right:3px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Se eliminarán también todas las <strong>matrículas</strong>
               de los estudiantes en esta sección, así como evaluaciones y alertas asociadas.
             </p>
           `,

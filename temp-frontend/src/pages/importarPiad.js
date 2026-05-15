@@ -90,7 +90,7 @@ export async function renderImportarPiad(container) {
         padding:10px 14px;margin-bottom:16px;font-size:12px;color:#92400e;
         display:flex;align-items:flex-start;gap:8px
       ">
-        <span style="font-size:16px;flex-shrink:0">ℹ️</span>
+        <span style="display:inline-flex;width:16px;height:16px;flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
         <span>
           <strong>Campos ignorados del PDF:</strong> Tipo de adecuación y Fecha de matrícula —
           no tienen columna en la base de datos actual. El nivel y grupo aparecen como referencia pero no se guardan en el estudiante.
@@ -257,7 +257,7 @@ export async function renderImportarPiad(container) {
       return
     }
     archivoSeleccionado = file
-    dropLabel.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(0)} KB)`
+    dropLabel.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline;vertical-align:-2px;margin-right:4px"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>${file.name} (${(file.size / 1024).toFixed(0)} KB)`
     dropZone.classList.add('has-file')
     uploadMsg.innerHTML = ''
     btnExtraer.disabled = false
@@ -311,7 +311,7 @@ export async function renderImportarPiad(container) {
     if (!anioActivo?.id) { nsError.textContent = 'No se pudo obtener el año lectivo activo.'; return }
 
     btnCrear.disabled = true
-    btnCrear.textContent = '⏳ Creando…'
+    btnCrear.textContent = 'Creando…'
 
     try {
       const payload = {
@@ -422,7 +422,7 @@ export async function renderImportarPiad(container) {
     }
 
     btnGuardar.disabled = true
-    btnGuardar.textContent = '⏳ Guardando…'
+    btnGuardar.textContent = 'Guardando…'
     saveResult.innerHTML = ''
 
     let ok = 0, errores = []
@@ -450,15 +450,16 @@ export async function renderImportarPiad(container) {
     if (errores.length === 0) {
       saveResult.innerHTML = `
         <div class="alert alert-success">
-          ✅ ${ok} estudiante${ok !== 1 ? 's' : ''} guardado${ok !== 1 ? 's' : ''} y matriculado${ok !== 1 ? 's' : ''} correctamente.
+          ${ok} estudiante${ok !== 1 ? 's' : ''} guardado${ok !== 1 ? 's' : ''} y matriculado${ok !== 1 ? 's' : ''} correctamente.
         </div>`
     } else {
       saveResult.innerHTML = `
         <div class="alert alert-success" style="margin-bottom:8px">
-          ✅ ${ok} estudiante${ok !== 1 ? 's' : ''} guardado${ok !== 1 ? 's' : ''} correctamente.
+          ${ok} estudiante${ok !== 1 ? 's' : ''} guardado${ok !== 1 ? 's' : ''} correctamente.
         </div>
         <div class="alert alert-error">
-          ⚠️ ${errores.length} error${errores.length !== 1 ? 'es' : ''}:<br>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline;vertical-align:-2px;margin-right:3px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          ${errores.length} error${errores.length !== 1 ? 'es' : ''}:<br>
           ${errores.map(e => `• ${e}`).join('<br>')}
         </div>`
     }
