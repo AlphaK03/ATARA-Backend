@@ -1,6 +1,7 @@
 package com.atara.deb.ataraapi.controller;
 
 import com.atara.deb.ataraapi.dto.catalogo.CentroEducativoResponseDto;
+import com.atara.deb.ataraapi.dto.catalogo.EstudianteCatalogoDto;
 import com.atara.deb.ataraapi.dto.catalogo.NivelResponseDto;
 import com.atara.deb.ataraapi.dto.seccion.SeccionRequestDto;
 import com.atara.deb.ataraapi.dto.seccion.SeccionResponseDto;
@@ -88,6 +89,33 @@ public class SeccionController {
     @GetMapping("/catalogos/docentes")
     public ResponseEntity<List<UsuarioDocenteResponseDto>> listarDocentes() {
         return ResponseEntity.ok(seccionService.listarDocentes());
+    }
+
+    /**
+     * GET /api/secciones/catalogos/estudiantes — estudiantes ACTIVOS candidatos
+     * para el wizard de creación / edición de secciones.
+     *
+     * <p>El endpoint general {@code GET /api/estudiantes} filtra por las secciones
+     * del docente autenticado, lo que dejaba la búsqueda vacía en este flujo
+     * (un docente que crea su primera sección o que quiere matricular alumnos
+     * que aún no son suyos no veía a nadie). Este catálogo no aplica ese filtro.
+     *
+     * <p>Parámetros:
+     * <ul>
+     *   <li>{@code anioLectivoId} (opcional): si viene, excluye los estudiantes
+     *       que ya tienen matrícula registrada en ese año lectivo.</li>
+     *   <li>{@code seccionId} (opcional): solo se usa junto con anioLectivoId.
+     *       En el wizard de edición re-incluye los matriculados en esa sección
+     *       para que aparezcan pre-seleccionados.</li>
+     * </ul>
+     */
+    @PreAuthorize("hasAnyRole('ADMIN','DOCENTE')")
+    @GetMapping("/catalogos/estudiantes")
+    public ResponseEntity<List<EstudianteCatalogoDto>> listarEstudiantesDisponibles(
+            @RequestParam(required = false) Long anioLectivoId,
+            @RequestParam(required = false) Long seccionId) {
+        return ResponseEntity.ok(
+                seccionService.listarEstudiantesDisponibles(anioLectivoId, seccionId));
     }
 
     /** PUT /api/secciones/{id} — actualiza los datos de una sección. */

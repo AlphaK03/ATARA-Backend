@@ -1,6 +1,7 @@
 package com.atara.deb.ataraapi.service;
 
 import com.atara.deb.ataraapi.dto.catalogo.CentroEducativoResponseDto;
+import com.atara.deb.ataraapi.dto.catalogo.EstudianteCatalogoDto;
 import com.atara.deb.ataraapi.dto.catalogo.NivelResponseDto;
 import com.atara.deb.ataraapi.dto.seccion.SeccionRequestDto;
 import com.atara.deb.ataraapi.dto.seccion.SeccionResponseDto;
@@ -19,6 +20,21 @@ public interface SeccionService {
     List<NivelResponseDto> listarNiveles();
     List<CentroEducativoResponseDto> listarCentros();
     List<UsuarioDocenteResponseDto> listarDocentes();
+
+    /**
+     * Catálogo de estudiantes candidatos para matricular en el wizard de sección.
+     * Ambos roles ADMIN y DOCENTE necesitan ver el catálogo completo (no filtrado
+     * por sus secciones), porque al crear una sección nueva nadie está aún
+     * matriculado con el docente y con el filtro habitual la lista llegaba vacía.
+     *
+     * @param anioLectivoId si se indica, excluye los estudiantes que ya tengan
+     *                      matrícula registrada en ese año (regla de negocio:
+     *                      una matrícula por estudiante por año).
+     * @param seccionId     opcional. En el wizard de edición re-incluye los
+     *                      estudiantes ya matriculados en esta sección, para que
+     *                      sigan apareciendo seleccionados.
+     */
+    List<EstudianteCatalogoDto> listarEstudiantesDisponibles(Long anioLectivoId, Long seccionId);
 
     void eliminar(Long id);
 

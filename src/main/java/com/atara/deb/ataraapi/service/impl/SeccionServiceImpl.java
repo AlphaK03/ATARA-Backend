@@ -1,12 +1,14 @@
 package com.atara.deb.ataraapi.service.impl;
 
 import com.atara.deb.ataraapi.dto.catalogo.CentroEducativoResponseDto;
+import com.atara.deb.ataraapi.dto.catalogo.EstudianteCatalogoDto;
 import com.atara.deb.ataraapi.dto.catalogo.NivelResponseDto;
 import com.atara.deb.ataraapi.dto.seccion.SeccionRequestDto;
 import com.atara.deb.ataraapi.dto.seccion.SeccionResponseDto;
 import com.atara.deb.ataraapi.dto.usuario.UsuarioDocenteResponseDto;
 import com.atara.deb.ataraapi.exception.AccesoDenegadoException;
 import com.atara.deb.ataraapi.model.*;
+import com.atara.deb.ataraapi.model.enums.EstadoEstudiante;
 import com.atara.deb.ataraapi.model.enums.EstadoMatricula;
 import com.atara.deb.ataraapi.model.enums.EstadoUsuario;
 import com.atara.deb.ataraapi.repository.*;
@@ -244,6 +246,52 @@ public class SeccionServiceImpl implements SeccionService {
                         .correo(u.getCorreo())
                         .build())
                 .toList();
+    }
+
+    /**
+     * Devuelve el catálogo de estudiantes ACTIVOS que el wizard de sección
+     * puede mostrar. Resuelve el bug donde un DOCENTE veía la lista vacía:
+     * el endpoint usual /api/estudiantes filtra por las secciones del docente
+     * (correcto para alertas/evaluaciones), pero al crear una sección nueva
+     * todavía no hay matrículas con él y la búsqueda no encontraba a nadie.
+     *
+     * - Sin {@code anioLectivoId}: lista todos los activos.
+     * - Con {@code anioLectivoId}: excluye los que ya tienen matrícula en ese año.
+     * - Con {@code seccionId} además: re-incluye los matriculados en esa sección
+     *   (caso edición — deben aparecer pre-seleccionados).
+     */
+    @Override
+    public List<EstudianteCatalogoDto> listarEstudiantesDisponibles(Long anioLectivoId,
+                                                                    Long seccionId) {
+        // El acceso ya está restringido a ADMIN/DOCENTE en el controller.
+        List<Estudiante> estudiantes;
+        if (anioLectivoId == null) {
+            estudiantes = estudianteRepository
+                    .findByEstadoOrderByApellido1AscApellido2AscNombreAsc(EstadoEstudiante.ACTIVO);
+        } else {
+            // Si no se pasa seccionId pasamos -1 para que el OR del query no incluya nada extra
+            // (no existe sección con id negativo, por lo que el segundo EXISTS siempre es falso).
+            Long seccionIdExcluida = (seccionId != null) ? seccionId : -1L;
+            estudiantes = estudianteRepository.findDisponiblesParaMatricula(
+                    EstadoEstudiante.ACTIVO, anioLectivoId, seccionIdExcluida);
+        }
+
+        return estudiantes.stream()
+                .map(e -> EstudianteCatalogoDto.builder()
+                        .id(e.getId())
+                        .identificacion(e.getIdentificacion())
+                        .nombreCompleto(buildNombreCompleto(e))
+                        .estado(e.getEstado() != null ? e.getEstado().name() : null)
+                        .build())
+                .toList();
+    }
+
+    private String buildNombreCompleto(Estudiante e) {
+        StringBuilder sb = new StringBuilder();
+        if (e.getNombre() != null) sb.append(e.getNombre());
+        if (e.getApellido1() != null) sb.append(' ').append(e.getApellido1());
+        if (e.getApellido2() != null) sb.append(' ').append(e.getApellido2());
+        return sb.toString().trim();
     }
 
     @Override
