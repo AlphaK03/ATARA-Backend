@@ -283,8 +283,14 @@ export async function renderEstudiantes(container) {
       const body = normalizarEstudiantePayload(
         Object.fromEntries([...fd.entries()].filter(([, v]) => v !== ''))
       )
-      await createEstudiante(body)
-      showToast('Estudiante creado correctamente.', 'success')
+      const creado = await createEstudiante(body)
+      // request() devuelve null si la sesión expiró silenciosamente (401);
+      // el helper redirige al login, pero aquí evitamos el falso positivo.
+      if (!creado || !creado.id) {
+        if (!getAccessToken()) return
+        throw new Error('La respuesta del servidor no incluyó el estudiante creado.')
+      }
+      showToast(`Estudiante creado correctamente (ID #${creado.id}).`, 'success')
       formMsg.innerHTML = ''
       e.target.reset()
       await loadList()

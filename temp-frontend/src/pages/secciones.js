@@ -187,6 +187,18 @@ export async function renderSecciones(container) {
       capacidad: seccion.capacidad ?? '',
     } : {}
 
+    // Refrescar listas vivas antes de abrir el wizard. Sin esto, si el usuario
+    // creó un estudiante o docente desde otra página, el wizard usaría
+    // catalogos.* en memoria (cargado al entrar a Secciones) y no lo vería.
+    try {
+      const [estudiantesFrescos, docentesFrescos] = await Promise.all([
+        getEstudiantes('ACTIVO').catch(() => null),
+        getDocentes().catch(() => null),
+      ])
+      if (Array.isArray(estudiantesFrescos)) catalogos.estudiantes = estudiantesFrescos
+      if (Array.isArray(docentesFrescos))    catalogos.docentes    = docentesFrescos
+    } catch { /* si falla, seguimos con los catalogos en memoria */ }
+
     if (esEdicion) {
       try {
         const matriculas = await getMatriculasBySeccion(seccion.id)
