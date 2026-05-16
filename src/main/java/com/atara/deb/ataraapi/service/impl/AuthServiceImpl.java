@@ -1,5 +1,6 @@
 package com.atara.deb.ataraapi.service.impl;
 
+import com.atara.deb.ataraapi.dto.auth.CambiarPasswordRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginResponseDto;
 import com.atara.deb.ataraapi.dto.auth.LogoutRequestDto;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final TokenRefreshRepository tokenRefreshRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${jwt.refresh-expiration-days}")
     private long refreshExpirationDays;
@@ -43,11 +46,13 @@ public class AuthServiceImpl implements AuthService {
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            JwtService jwtService,
                            TokenRefreshRepository tokenRefreshRepository,
-                           UsuarioRepository usuarioRepository) {
+                           UsuarioRepository usuarioRepository,
+                           PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.tokenRefreshRepository = tokenRefreshRepository;
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -163,6 +168,33 @@ public class AuthServiceImpl implements AuthService {
         response.setMateriaIds(usuarioRepository.findMateriaIdsByUsuarioId(usuario.getId()));
         response.setCentroIds(usuarioRepository.findCentroIdsByUsuarioId(usuario.getId()));
         return response;
+    }
+
+    /**
+     * Cambia la contraseña del usuario autenticado. Requiere la contraseña actual
+     * (no se permite cambiar a ciegas con solo tener el JWT). La nueva se persiste
+     * con BCrypt. No se revocan sus refresh tokens — la sesión actual sigue válida;
+     * si en el futuro se quiere forzar re-login, basta con borrar sus
+     * {@code TokenRefresh}.
+     */
+    @Override
+    public void cambiarPassword(Authentication authentication, CambiarPasswordRequestDto request) {
+        UsuarioPrincipal principal = (UsuarioPrincipal) authentication.getPrincipal();
+        Usuario usuario = principal.getUsuario();
+
+        // No usar BadCredentialsException: ese tipo se mapea a 401 en
+        // GlobalExceptionHandler, y api.js auto-desloguea al usuario en 401.
+        // Si solo se equivocaron tipeando la contraseña actual, no queremos
+        // expulsarlos de la sesión. 400 con mensaje específico es la respuesta correcta.
+        if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
+            throw new IllegalArgumentException("La contraseña actual no es correcta.");
+        }
+        if (passwordEncoder.matches(request.getPasswordNueva(), usuario.getPassword())) {
+            throw new IllegalArgumentException("La nueva contraseña no puede ser igual a la actual.");
+        }
+
+        usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
+        usuarioRepository.save(usuario);
     }
 
     // -------------------------------------------------------------------------

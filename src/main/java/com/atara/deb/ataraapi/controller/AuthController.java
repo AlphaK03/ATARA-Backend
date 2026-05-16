@@ -1,5 +1,6 @@
 package com.atara.deb.ataraapi.controller;
 
+import com.atara.deb.ataraapi.dto.auth.CambiarPasswordRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginResponseDto;
 import com.atara.deb.ataraapi.dto.auth.LogoutRequestDto;
@@ -69,5 +70,19 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<MeResponseDto> me(Authentication authentication) {
         return ResponseEntity.ok(authService.me(authentication));
+    }
+
+    /**
+     * POST /api/auth/cambiar-password
+     * Permite al usuario autenticado cambiar su propia contraseña proporcionando
+     * la contraseña actual y la nueva. No se acepta id en el body — el usuario
+     * afectado es siempre el del JWT.
+     */
+    @PostMapping("/cambiar-password")
+    public ResponseEntity<Void> cambiarPassword(
+            Authentication authentication,
+            @Valid @RequestBody CambiarPasswordRequestDto request) {
+        authService.cambiarPassword(authentication, request);
+        return ResponseEntity.noContent().build();
     }
 }

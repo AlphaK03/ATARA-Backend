@@ -100,6 +100,14 @@ export async function logout() {
 
 export const getMe = () => request('GET', '/auth/me')
 
+/**
+ * Cambia la contraseña del usuario autenticado. Requiere la actual.
+ * Backend devuelve 204 (request → null). Lanza con mensaje específico
+ * si la contraseña actual no coincide.
+ */
+export const cambiarPassword = (passwordActual, passwordNueva) =>
+  request('POST', '/auth/cambiar-password', { passwordActual, passwordNueva })
+
 // ── Contexto del usuario autenticado (cacheado por sesión) ────────────────
 // Devuelve { userId, correo, nombre, apellidos, rol, seccionIds, materiaIds }
 // rol === 'DOCENTE' → seccionIds/materiaIds contienen sus asignaciones

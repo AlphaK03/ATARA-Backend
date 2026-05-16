@@ -1,5 +1,6 @@
 package com.atara.deb.ataraapi.service;
 
+import com.atara.deb.ataraapi.dto.auth.CambiarPasswordRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginResponseDto;
 import com.atara.deb.ataraapi.dto.auth.LogoutRequestDto;
@@ -18,4 +19,6 @@ public interface AuthService {
     void logout(LogoutRequestDto request);
 
     MeResponseDto me(Authentication authentication);
+
+    void cambiarPassword(Authentication authentication, CambiarPasswordRequestDto request);
 }

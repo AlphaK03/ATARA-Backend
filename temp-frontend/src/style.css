@@ -618,7 +618,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 body.login-mode .sidebar,
 body.login-mode #mobile-topbar,
 body.login-mode #desktop-topbar,
-body.login-mode #sidebar-backdrop {
+body.login-mode #sidebar-backdrop,
+body.login-mode #mobile-bottom-nav {
   display: none !important;
 }
 body.login-mode #app        { height: 100vh; }
