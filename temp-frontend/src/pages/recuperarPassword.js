@@ -19,7 +19,7 @@ export function renderRecuperarPassword(container, emailHint) {
           </div>
           <h2 class="login-title" id="rec-title">Recuperar contraseña</h2>
           <p style="font-size:13px;color:#6b7280;margin:6px 0 16px;text-align:center" id="rec-subtitle">
-            Te enviaremos un código de 6 dígitos a tu correo.
+            Te enviaremos un código de 4 dígitos a tu correo.
           </p>
 
           <!-- PASO 1: pedir correo -->
@@ -38,10 +38,10 @@ export function renderRecuperarPassword(container, emailHint) {
           <!-- PASO 2: código + nueva contraseña (oculto al inicio) -->
           <form id="rec-form-2" class="login-form" style="display:none" autocomplete="off">
             <div class="login-field">
-              <label for="rec-codigo">Código (6 dígitos)</label>
+              <label for="rec-codigo">Código (4 dígitos)</label>
               <div class="login-input-group">
-                <input type="text" id="rec-codigo" inputmode="numeric" pattern="[0-9]{6}"
-                       maxlength="6" placeholder="000000" style="letter-spacing:8px;text-align:center;font-size:20px;font-family:monospace">
+                <input type="text" id="rec-codigo" inputmode="numeric" pattern="[0-9]{4}"
+                       maxlength="4" placeholder="0000" style="letter-spacing:14px;text-align:center;font-size:26px;font-family:monospace;font-weight:700">
               </div>
             </div>
             <div class="login-field">
@@ -110,7 +110,7 @@ export function renderRecuperarPassword(container, emailHint) {
       form1.style.display = 'none'
       form2.style.display = ''
       title.textContent = 'Revisa tu correo'
-      subt.innerHTML = `Si <strong>${escHtml(correo)}</strong> está registrado, recibirás un código en los próximos minutos. El código expira en 15 minutos.`
+      subt.innerHTML = `Si <strong>${escHtml(correo)}</strong> está registrado, recibirás un código de 4 dígitos en los próximos minutos. Expira en 15 minutos y se invalida tras 5 intentos fallidos.`
       codigoI.focus()
     } catch (e) {
       err1.textContent = e.message
@@ -146,9 +146,9 @@ export function renderRecuperarPassword(container, emailHint) {
     const codigo = codigoI.value.trim()
     const nueva  = nuevaI.value
     const conf   = confI.value
-    if (!/^[0-9]{6}$/.test(codigo)) {
+    if (!/^[0-9]{4}$/.test(codigo)) {
       err2.style.color = '#dc2626'
-      err2.textContent = 'El código debe tener 6 dígitos.'
+      err2.textContent = 'El código debe tener 4 dígitos.'
       return
     }
     if (nueva.length < 8) {

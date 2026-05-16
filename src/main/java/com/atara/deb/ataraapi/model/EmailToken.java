@@ -48,6 +48,15 @@ public class EmailToken {
     @Column(name = "usado_en")
     private OffsetDateTime usadoEn;
 
+    /**
+     * Validaciones fallidas. Para RESET_PASSWORD, tras 5 fallos el token
+     * se invalida (se marca como usado) para limitar el brute-force del
+     * código corto. Ver V15.
+     */
+    @Builder.Default
+    @Column(name = "intentos", nullable = false)
+    private Integer intentos = 0;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 }

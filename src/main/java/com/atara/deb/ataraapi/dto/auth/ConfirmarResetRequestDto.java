@@ -11,7 +11,7 @@ public class ConfirmarResetRequestDto {
     private String correo;
 
     @NotBlank(message = "El código es obligatorio")
-    @Size(min = 6, max = 6, message = "El código debe tener 6 dígitos")
+    @Size(min = 4, max = 4, message = "El código debe tener 4 dígitos")
     private String codigo;
 
     @NotBlank(message = "La nueva contraseña es obligatoria")

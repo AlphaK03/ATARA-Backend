@@ -77,11 +77,12 @@ public class EmailServiceImpl implements EmailService {
               <p>Solicitaste restablecer tu contraseña en ATARA. Usa el siguiente código en la pantalla de recuperación:</p>
               <p style="text-align:center;margin:28px 0">
                 <span style="display:inline-block;background:#eff6ff;border:2px dashed #0369a1;color:#0369a1;
-                             font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:32px;font-weight:700;
-                             letter-spacing:8px;padding:18px 32px;border-radius:10px">%s</span>
+                             font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:40px;font-weight:700;
+                             letter-spacing:12px;padding:18px 36px;border-radius:10px">%s</span>
               </p>
               <p style="font-size:13px;color:#6b7280">
                 El código vence en <strong>%d minutos</strong> y solo puede usarse una vez.
+                Después de 5 intentos fallidos se invalida automáticamente.
               </p>
               <p style="font-size:12px;color:#9ca3af;margin-top:32px">
                 Si tú no solicitaste este cambio, puedes ignorar este correo — tu contraseña actual seguirá funcionando.

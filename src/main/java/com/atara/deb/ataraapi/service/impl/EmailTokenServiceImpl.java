@@ -27,6 +27,14 @@ public class EmailTokenServiceImpl implements EmailTokenService {
 
     private static final SecureRandom RNG = new SecureRandom();
 
+    /**
+     * Máximo de intentos fallidos por código de reset antes de invalidarlo.
+     * Con códigos de 4 dígitos (10.000 combinaciones), 5 intentos = 0.05%
+     * de probabilidad de acertar adivinando, comparable a un código de 6
+     * dígitos sin contador.
+     */
+    private static final int MAX_INTENTOS_RESET = 5;
+
     private final EmailTokenRepository emailTokenRepository;
     private final UsuarioRepository usuarioRepository;
     private final EmailService emailService;
@@ -101,7 +109,7 @@ public class EmailTokenServiceImpl implements EmailTokenService {
     public void emitirYEnviarCodigoReset(Usuario usuario) {
         emailTokenRepository.invalidarPendientes(usuario.getId(), TipoEmailToken.RESET_PASSWORD);
 
-        String codigo = generarCodigo6Digitos();
+        String codigo = generarCodigo4Digitos();
         EmailToken token = EmailToken.builder()
                 .usuario(usuario)
                 .tipo(TipoEmailToken.RESET_PASSWORD)
@@ -124,24 +132,60 @@ public class EmailTokenServiceImpl implements EmailTokenService {
             throw new IllegalArgumentException("Datos inválidos para restablecer la contraseña.");
         }
         Usuario usuario = usuarioRepository.findByCorreo(correo.trim().toLowerCase())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "El código no es válido o ya expiró."));
+                .orElse(null);
 
+        // Si el correo no existe, devolvemos el mismo mensaje genérico que cuando
+        // el código es incorrecto — así un atacante no puede usar este endpoint
+        // para descubrir si un correo está registrado.
+        if (usuario == null) {
+            throw new IllegalArgumentException("El código no es válido o ya expiró.");
+        }
+
+        // Buscamos el código por su hash. Si el atacante adivina un código que
+        // pertenece a OTRO usuario, el filtro por usuario.id hace que falle igual.
         EmailToken token = emailTokenRepository.findByTokenHash(sha256(codigo.trim()))
                 .filter(t -> t.getTipo() == TipoEmailToken.RESET_PASSWORD)
                 .filter(t -> t.getUsuario().getId().equals(usuario.getId()))
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "El código no es válido o ya expiró."));
+                .orElse(null);
+
+        if (token == null) {
+            // Código incorrecto: registramos el intento en el token activo más reciente
+            // del usuario para que cuente contra el límite. Así un atacante no puede
+            // hacer brute-force ilimitado solo porque cada intento "no encuentra el token".
+            registrarIntentoFallidoEnTokenActivo(usuario);
+            throw new IllegalArgumentException("El código no es válido o ya expiró.");
+        }
 
         validarTokenVigente(token,
                 "El código ya fue utilizado. Solicita uno nuevo.",
                 "El código expiró. Solicita uno nuevo.");
 
+        // Código correcto → reset y marcar usado
         usuario.setPassword(passwordEncoder.encode(nuevaPassword));
         usuarioRepository.save(usuario);
 
         token.setUsadoEn(OffsetDateTime.now());
         emailTokenRepository.save(token);
+    }
+
+    /**
+     * Cuando alguien envía un código que no matchea ningún token, igual queremos
+     * que cuente como intento fallido contra el código activo del usuario (si
+     * tiene uno). De lo contrario el contador de intentos sería trivial de
+     * evadir: probar 10.000 códigos al azar y solo los aciertos consumirían
+     * intentos. Así cada POST cuenta.
+     */
+    private void registrarIntentoFallidoEnTokenActivo(Usuario usuario) {
+        emailTokenRepository
+                .findFirstByUsuarioIdAndTipoAndUsadoEnIsNullAndExpiraEnAfterOrderByIdDesc(
+                        usuario.getId(), TipoEmailToken.RESET_PASSWORD, OffsetDateTime.now())
+                .ifPresent(activo -> {
+                    activo.setIntentos(activo.getIntentos() + 1);
+                    if (activo.getIntentos() >= MAX_INTENTOS_RESET) {
+                        activo.setUsadoEn(OffsetDateTime.now());
+                    }
+                    emailTokenRepository.save(activo);
+                });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -162,9 +206,10 @@ public class EmailTokenServiceImpl implements EmailTokenService {
         return base + "/#verificar?token=" + URLEncoder.encode(rawToken, StandardCharsets.UTF_8);
     }
 
-    private String generarCodigo6Digitos() {
-        // Rango [100000, 999999] — siempre 6 dígitos
-        int n = 100_000 + RNG.nextInt(900_000);
+    private String generarCodigo4Digitos() {
+        // Rango [1000, 9999] — siempre 4 dígitos (no empieza con 0 para que la
+        // longitud sea consistente y el "letter-spacing" del input quede parejo)
+        int n = 1_000 + RNG.nextInt(9_000);
         return String.valueOf(n);
     }
 
