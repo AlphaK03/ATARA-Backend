@@ -1,8 +1,12 @@
-import { getUsuarios, createUsuario, updateUsuario, deleteUsuario, getMaterias } from '../api.js'
+import { getUsuarios, createUsuario, updateUsuario, deleteUsuario, getMaterias, getUserId } from '../api.js'
 
 const ROL_BADGE  = { ADMIN: 'badge-blue', DOCENTE: 'badge-green', COORDINADOR: 'badge-yellow' }
 const ESTADO_BADGE = { ACTIVO: 'badge-green', INACTIVO: 'badge-red' }
 const ROL_LABEL  = { ADMIN: 'Administrador', DOCENTE: 'Docente', COORDINADOR: 'Coordinador' }
+
+// Sembrado en V2__sample_data.sql. Cuenta intocable por seguridad: nadie puede
+// eliminarla y su rol/estado nunca cambian (validado también en backend).
+const SUPERADMIN_ID = 1
 
 let _usuarios = []
 let _materias = []
@@ -135,6 +139,7 @@ export async function renderAdmin(container) {
   const fRol       = container.querySelector('#f-rol')
 
   let editingId = null  // null = crear, número = editar
+  const currentUserId = Number(getUserId())  // del JWT, para reglas de auto-protección
 
   // ── cargar usuarios ────────────────────────────────────────────────────────
   async function cargarUsuarios() {
@@ -205,21 +210,38 @@ export async function renderAdmin(container) {
       tbody.innerHTML = `<tr><td colspan="6" class="empty">Sin resultados.</td></tr>`
       return
     }
-    tbody.innerHTML = lista.map((u, i) => `
+    tbody.innerHTML = lista.map((u, i) => {
+      const esSuper   = u.id === SUPERADMIN_ID
+      const esYoMismo = u.id === currentUserId
+      // Editar: bloqueado solo al superadmin si el caller no es él mismo
+      const puedeEditar  = !esSuper || esYoMismo
+      // Eliminar: nunca al superadmin ni a uno mismo
+      const puedeEliminar = !esSuper && !esYoMismo
+      const tagSuper = esSuper
+        ? '<span class="badge badge-blue" style="margin-left:6px;font-size:10px" title="Cuenta protegida del sistema">★ Principal</span>'
+        : ''
+      const tagYo = esYoMismo
+        ? '<span class="badge badge-gray" style="margin-left:6px;font-size:10px">Tú</span>'
+        : ''
+      return `
       <tr>
         <td style="color:var(--text-muted);width:36px">${i + 1}</td>
         <td>
-          <div style="font-weight:600">${escHtml(u.nombre)} ${escHtml(u.apellidos)}</div>
+          <div style="font-weight:600">${escHtml(u.nombre)} ${escHtml(u.apellidos)}${tagSuper}${tagYo}</div>
         </td>
         <td style="color:var(--text-muted)">${escHtml(u.correo)}</td>
         <td><span class="badge ${ROL_BADGE[u.rol] ?? 'badge-gray'}">${ROL_LABEL[u.rol] ?? u.rol}</span></td>
         <td><span class="badge ${ESTADO_BADGE[u.estado] ?? 'badge-gray'}">${u.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}</span></td>
         <td style="text-align:center">
-          <button class="btn btn-sm btn-secondary btn-edit" data-id="${u.id}" title="Editar">Editar</button>
-          <button class="btn btn-sm btn-danger btn-del" data-id="${u.id}" title="Eliminar" style="margin-left:4px">×</button>
+          ${puedeEditar
+            ? `<button class="btn btn-sm btn-secondary btn-edit" data-id="${u.id}" title="Editar">Editar</button>`
+            : `<button class="btn btn-sm btn-secondary" disabled title="Cuenta protegida — solo el administrador principal puede editarse a sí mismo">Editar</button>`}
+          ${puedeEliminar
+            ? `<button class="btn btn-sm btn-danger btn-del" data-id="${u.id}" title="Eliminar" style="margin-left:4px">×</button>`
+            : `<button class="btn btn-sm btn-danger" disabled title="${esSuper ? 'El administrador principal no se puede eliminar' : 'No puedes eliminar tu propia cuenta'}" style="margin-left:4px">×</button>`}
         </td>
       </tr>
-    `).join('')
+    `}).join('')
 
     tbody.querySelectorAll('.btn-edit').forEach(btn => {
       btn.addEventListener('click', () => abrirEditar(Number(btn.dataset.id)))
@@ -248,6 +270,11 @@ export async function renderAdmin(container) {
     hintPwd.style.display = 'none'
     lblPwd.innerHTML = 'Contraseña <span style="color:#dc2626">*</span>'
     container.querySelector('#f-password').placeholder = 'Mínimo 8 caracteres'
+    // Reset por si el último abrirEditar deshabilitó rol/estado (superadmin/self)
+    const fRolEl = container.querySelector('#f-rol')
+    const fEstadoEl = container.querySelector('#f-estado')
+    fRolEl.disabled = false; fRolEl.title = ''
+    fEstadoEl.disabled = false; fEstadoEl.title = ''
     // Sin marcar específicamente nada → pintarMaterias() las marca todas
     pintarMaterias(null)
     toggleGrupoMaterias()
@@ -273,6 +300,28 @@ export async function renderAdmin(container) {
     hintPwd.style.display = ''
     lblPwd.innerHTML = 'Contraseña'
     formError.textContent = ''
+
+    // Reglas de auto-protección: rol y estado nunca cambian en
+    //   - el superadmin (cuenta de instalación, intocable)
+    //   - el propio usuario logueado (anti lock-out)
+    // Backend valida lo mismo (AdminServiceImpl). Aquí solo deshabilitamos
+    // los inputs y dejamos un aviso para que el admin sepa por qué.
+    const esSuper   = id === SUPERADMIN_ID
+    const esYoMismo = id === currentUserId
+    const bloquear  = esSuper || esYoMismo
+    const fRolEl    = container.querySelector('#f-rol')
+    const fEstadoEl = container.querySelector('#f-estado')
+    fRolEl.disabled    = bloquear
+    fEstadoEl.disabled = bloquear
+    fRolEl.title    = bloquear
+      ? (esSuper ? 'El rol del administrador principal no se puede cambiar.'
+                 : 'No puedes cambiar tu propio rol.')
+      : ''
+    fEstadoEl.title = bloquear
+      ? (esSuper ? 'El estado del administrador principal no se puede cambiar.'
+                 : 'No puedes cambiar tu propio estado.')
+      : ''
+
     // Pre-marcar solo las materias que ya tiene
     pintarMaterias(Array.isArray(u.materiaIds) ? u.materiaIds : [])
     toggleGrupoMaterias()
