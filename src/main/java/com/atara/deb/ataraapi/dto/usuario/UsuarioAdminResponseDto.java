@@ -2,6 +2,8 @@ package com.atara.deb.ataraapi.dto.usuario;
 
 import lombok.*;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -13,4 +15,6 @@ public class UsuarioAdminResponseDto {
     private String correo;
     private String rol;
     private String estado;
+    /** Materias actualmente asignadas al usuario (vacío si no es DOCENTE o no tiene). */
+    private List<Integer> materiaIds;
 }

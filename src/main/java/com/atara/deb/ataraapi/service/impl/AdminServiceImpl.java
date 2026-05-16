@@ -2,9 +2,11 @@ package com.atara.deb.ataraapi.service.impl;
 
 import com.atara.deb.ataraapi.dto.usuario.UsuarioAdminRequestDto;
 import com.atara.deb.ataraapi.dto.usuario.UsuarioAdminResponseDto;
+import com.atara.deb.ataraapi.model.Materia;
 import com.atara.deb.ataraapi.model.Rol;
 import com.atara.deb.ataraapi.model.Usuario;
 import com.atara.deb.ataraapi.model.enums.EstadoUsuario;
+import com.atara.deb.ataraapi.repository.MateriaRepository;
 import com.atara.deb.ataraapi.repository.RolRepository;
 import com.atara.deb.ataraapi.repository.UsuarioRepository;
 import com.atara.deb.ataraapi.service.AdminService;
@@ -12,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -19,15 +22,20 @@ import java.util.NoSuchElementException;
 @Transactional(readOnly = true)
 public class AdminServiceImpl implements AdminService {
 
+    private static final String ROL_DOCENTE = "DOCENTE";
+
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
+    private final MateriaRepository materiaRepository;
     private final PasswordEncoder passwordEncoder;
 
     public AdminServiceImpl(UsuarioRepository usuarioRepository,
                             RolRepository rolRepository,
+                            MateriaRepository materiaRepository,
                             PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
+        this.materiaRepository = materiaRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -57,8 +65,38 @@ public class AdminServiceImpl implements AdminService {
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .rol(rol)
                 .estado(EstadoUsuario.ACTIVO)
+                .materiasAsignadas(new ArrayList<>())
+                .seccionesAsignadas(new ArrayList<>())
                 .build();
+
+        // Para DOCENTE asignamos materias automáticamente, replicando lo que hizo el
+        // seed V8__usuario_materias.sql con los docentes ya existentes. Sin esto los
+        // usuarios nuevos quedan sin materias y el wizard de evaluación no carga
+        // las preguntas (verificarMateria del ContextoUsuario lanza AccesoDenegado).
+        if (ROL_DOCENTE.equalsIgnoreCase(rol.getNombre())) {
+            List<Materia> materias = resolverMaterias(dto.getMateriaIds());
+            u.getMateriasAsignadas().addAll(materias);
+        }
+
         return toDto(usuarioRepository.save(u));
+    }
+
+    /**
+     * - Lista nula o vacía → todas las materias (comportamiento por defecto, evita
+     *   el bug de docentes sin materias).
+     * - Lista con IDs → solo esas materias; valida que cada ID exista.
+     */
+    private List<Materia> resolverMaterias(List<Integer> materiaIds) {
+        if (materiaIds == null || materiaIds.isEmpty()) {
+            return new ArrayList<>(materiaRepository.findAll());
+        }
+        List<Materia> resultado = new ArrayList<>(materiaIds.size());
+        for (Integer id : materiaIds) {
+            Materia m = materiaRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Materia no encontrada: " + id));
+            resultado.add(m);
+        }
+        return resultado;
     }
 
     @Override
@@ -89,6 +127,15 @@ public class AdminServiceImpl implements AdminService {
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
             u.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
+
+        // Reasignación de materias solo si el cliente envía la lista en el PUT.
+        // null → no toca nada; lista (incluso vacía) → reemplaza el conjunto.
+        if (dto.getMateriaIds() != null && ROL_DOCENTE.equalsIgnoreCase(rol.getNombre())) {
+            List<Materia> nuevas = resolverMaterias(dto.getMateriaIds());
+            u.getMateriasAsignadas().clear();
+            u.getMateriasAsignadas().addAll(nuevas);
+        }
+
         return toDto(usuarioRepository.save(u));
     }
 
@@ -102,6 +149,9 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private UsuarioAdminResponseDto toDto(Usuario u) {
+        List<Integer> materiaIds = (u.getMateriasAsignadas() != null)
+                ? u.getMateriasAsignadas().stream().map(Materia::getId).toList()
+                : List.of();
         return UsuarioAdminResponseDto.builder()
                 .id(u.getId())
                 .nombre(u.getNombre())
@@ -109,6 +159,7 @@ public class AdminServiceImpl implements AdminService {
                 .correo(u.getCorreo())
                 .rol(u.getRol().getNombre())
                 .estado(u.getEstado().name())
+                .materiaIds(materiaIds)
                 .build();
     }
 }
