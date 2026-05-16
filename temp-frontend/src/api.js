@@ -100,39 +100,6 @@ export async function logout() {
 
 export const getMe = () => request('GET', '/auth/me')
 
-/**
- * Cambia la contraseña del usuario autenticado. Requiere la actual.
- * Backend devuelve 204 (request → null). Lanza con mensaje específico
- * si la contraseña actual no coincide.
- */
-export const cambiarPassword = (passwordActual, passwordNueva) =>
-  request('POST', '/auth/cambiar-password', { passwordActual, passwordNueva })
-
-// ── Verificación de correo y reset de contraseña por código ───────────────
-// El correo de verificación se manda automáticamente al crear el usuario
-// (desde AdminServiceImpl). Estos endpoints son para que el usuario lo
-// complete después.
-
-/** Pública. Confirma el correo con el token recibido por email. */
-export const verificarEmail = (token) =>
-  request('POST', `/auth/verificar-email?token=${encodeURIComponent(token)}`)
-
-/** Autenticada. Reenvía el correo de verificación si el usuario aún no confirmó. */
-export const reenviarVerificacionEmail = () =>
-  request('POST', '/auth/reenviar-verificacion')
-
-/**
- * Pública. Solicita un código de reset por correo. Idempotente: el backend
- * devuelve 204 sin confirmar si el correo existe (para evitar enumeración
- * de usuarios). El usuario debe revisar su bandeja en cualquier caso.
- */
-export const solicitarResetPassword = (correo) =>
-  request('POST', '/auth/reset-password/solicitar', { correo })
-
-/** Pública. Confirma el reset con correo + código de 6 dígitos + nueva contraseña. */
-export const confirmarResetPassword = (correo, codigo, passwordNueva) =>
-  request('POST', '/auth/reset-password/confirmar', { correo, codigo, passwordNueva })
-
 // ── Contexto del usuario autenticado (cacheado por sesión) ────────────────
 // Devuelve { userId, correo, nombre, apellidos, rol, seccionIds, materiaIds }
 // rol === 'DOCENTE' → seccionIds/materiaIds contienen sus asignaciones

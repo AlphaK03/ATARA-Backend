@@ -20,8 +20,6 @@ public class MeResponseDto {
     private Set<Integer> materiaIds;
     /** IDs de los centros educativos donde el usuario tiene secciones asignadas. */
     private Set<Long> centroIds;
-    /** TRUE si el usuario ya verificó su correo. El frontend usa esto para mostrar un banner. */
-    private Boolean emailVerificado;
 
     public MeResponseDto() {}
 
@@ -48,7 +46,4 @@ public class MeResponseDto {
 
     public Set<Long> getCentroIds() { return centroIds; }
     public void setCentroIds(Set<Long> centroIds) { this.centroIds = centroIds; }
-
-    public Boolean getEmailVerificado() { return emailVerificado; }
-    public void setEmailVerificado(Boolean emailVerificado) { this.emailVerificado = emailVerificado; }
 }

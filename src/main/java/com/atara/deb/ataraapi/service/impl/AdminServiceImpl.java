@@ -11,7 +11,6 @@ import com.atara.deb.ataraapi.repository.RolRepository;
 import com.atara.deb.ataraapi.repository.UsuarioRepository;
 import com.atara.deb.ataraapi.security.UsuarioPrincipal;
 import com.atara.deb.ataraapi.service.AdminService;
-import com.atara.deb.ataraapi.service.EmailTokenService;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -47,18 +46,15 @@ public class AdminServiceImpl implements AdminService {
     private final RolRepository rolRepository;
     private final MateriaRepository materiaRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailTokenService emailTokenService;
 
     public AdminServiceImpl(UsuarioRepository usuarioRepository,
                             RolRepository rolRepository,
                             MateriaRepository materiaRepository,
-                            PasswordEncoder passwordEncoder,
-                            EmailTokenService emailTokenService) {
+                            PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.materiaRepository = materiaRepository;
         this.passwordEncoder = passwordEncoder;
-        this.emailTokenService = emailTokenService;
     }
 
     @Override
@@ -100,14 +96,7 @@ public class AdminServiceImpl implements AdminService {
             u.getMateriasAsignadas().addAll(materias);
         }
 
-        Usuario guardado = usuarioRepository.save(u);
-
-        // Dispara el correo de verificación. Si SMTP no está configurado,
-        // EmailServiceImpl loguea el contenido en consola y el usuario sigue
-        // creado sin bloqueos.
-        emailTokenService.emitirYEnviarVerificacionEmail(guardado);
-
-        return toDto(guardado);
+        return toDto(usuarioRepository.save(u));
     }
 
     /**
