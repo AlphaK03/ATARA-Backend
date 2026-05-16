@@ -47,7 +47,12 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/login",
                                      "/api/auth/refresh",
-                                     "/api/auth/logout").permitAll()
+                                     "/api/auth/logout",
+                                     // Endpoints públicos para verificación y reset por correo:
+                                     // el "token" o "código + correo" del body son la prueba.
+                                     "/api/auth/verificar-email",
+                                     "/api/auth/reset-password/solicitar",
+                                     "/api/auth/reset-password/confirmar").permitAll()
                     .requestMatchers("/actuator/health").permitAll()
                     .anyRequest().authenticated()
             )

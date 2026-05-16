@@ -1,4 +1,4 @@
-import { getMe, logout, cambiarPassword } from '../api.js'
+import { getMe, logout, cambiarPassword, reenviarVerificacionEmail } from '../api.js'
 
 const ROL_LABEL = {
   ADMIN:        'Administrador',
@@ -40,8 +40,29 @@ export async function renderSesion(container) {
   const hasSecciones = Array.isArray(me.seccionIds) && me.seccionIds.length > 0
   const hasMaterias  = Array.isArray(me.materiaIds) && me.materiaIds.length > 0
 
+  const emailVerificado = me.emailVerificado !== false  // null/undefined → asumir verificado (compat)
+
   container.innerHTML = `
     <div class="sesion-page">
+
+      ${emailVerificado ? '' : `
+      <!-- Banner: correo sin verificar -->
+      <section id="verif-banner" style="
+        background:#fffbeb;border:1px solid #fcd34d;border-left:4px solid #d97706;
+        border-radius:8px;padding:14px 18px;margin-bottom:18px;
+        display:flex;flex-wrap:wrap;align-items:center;gap:14px;justify-content:space-between">
+        <div style="flex:1;min-width:240px">
+          <div style="font-weight:700;color:#92400e;margin-bottom:2px">Tu correo aún no está verificado</div>
+          <div style="font-size:13px;color:#78350f">
+            Revisa la bandeja de <strong>${escHtml(me.correo)}</strong> (o spam) y haz click en el link que recibiste.
+            Si no llegó, puedes pedir uno nuevo.
+          </div>
+        </div>
+        <button id="btn-reenviar-verif" class="btn btn-secondary" style="font-size:13px">
+          Reenviar correo
+        </button>
+      </section>
+      `}
 
       <!-- ═══ Hero / banner ═══ -->
       <section class="sesion-hero">
@@ -259,6 +280,33 @@ export async function renderSesion(container) {
   // Enter en el último campo dispara guardar
   pwdConfirm.addEventListener('keydown', e => {
     if (e.key === 'Enter') pwdSave.click()
+  })
+
+  // ── Reenviar correo de verificación ───────────────────────────────────────
+  const btnReenviar = container.querySelector('#btn-reenviar-verif')
+  btnReenviar?.addEventListener('click', async () => {
+    const banner = container.querySelector('#verif-banner')
+    btnReenviar.disabled = true
+    btnReenviar.textContent = 'Enviando…'
+    try {
+      await reenviarVerificacionEmail()
+      banner.innerHTML = `
+        <div style="flex:1;color:#166534">
+          <div style="font-weight:700;margin-bottom:2px">✓ Correo enviado</div>
+          <div style="font-size:13px">Revisa tu bandeja (o spam) y haz click en el enlace.</div>
+        </div>`
+      banner.style.background = '#f0fdf4'
+      banner.style.borderColor = '#86efac'
+      banner.style.borderLeftColor = '#16a34a'
+    } catch (e) {
+      btnReenviar.disabled = false
+      btnReenviar.textContent = 'Reenviar correo'
+      // Aviso inline sin romper el banner
+      const aviso = document.createElement('div')
+      aviso.style.cssText = 'color:#dc2626;font-size:12px;width:100%;margin-top:6px'
+      aviso.textContent = e.message
+      banner.appendChild(aviso)
+    }
   })
 }
 

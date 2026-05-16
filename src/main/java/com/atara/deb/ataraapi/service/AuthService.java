@@ -21,4 +21,19 @@ public interface AuthService {
     MeResponseDto me(Authentication authentication);
 
     void cambiarPassword(Authentication authentication, CambiarPasswordRequestDto request);
+
+    /** Confirma un token de verificación recibido por correo. */
+    void verificarEmail(String token);
+
+    /** Reenvía el correo de verificación al usuario autenticado. */
+    void reenviarVerificacionEmail(Authentication authentication);
+
+    /**
+     * Emite un código de reset al correo indicado. Por seguridad se comporta
+     * idempotentemente: no informa si el correo existe o no.
+     */
+    void solicitarResetPassword(com.atara.deb.ataraapi.dto.auth.SolicitarResetRequestDto request);
+
+    /** Valida el código y establece la nueva contraseña. */
+    void confirmarResetPassword(com.atara.deb.ataraapi.dto.auth.ConfirmarResetRequestDto request);
 }

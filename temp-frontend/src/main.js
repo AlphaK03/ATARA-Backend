@@ -15,6 +15,8 @@ import { renderSecciones }        from './pages/secciones.js'
 import { renderSesion }           from './pages/sesion.js'
 import { renderAdmin }            from './pages/admin.js'
 import { renderCentros }          from './pages/centros.js'
+import { renderVerificarEmail }   from './pages/verificarEmail.js'
+import { renderRecuperarPassword } from './pages/recuperarPassword.js'
 
 const pages = {
   aniosLectivos:    renderAniosLectivos,
@@ -221,6 +223,9 @@ function showLogin(notice = '') {
             ${notice ? `<div class="login-notice">${notice}</div>` : ''}
             <div id="login-error" class="login-error"></div>
             <button type="submit" class="login-submit" id="login-btn">Ingresar</button>
+            <div style="margin-top:14px;text-align:center;font-size:13px">
+              <a href="#recuperar" id="link-recuperar" style="color:#0369a1;text-decoration:none">¿Olvidaste tu contraseña?</a>
+            </div>
           </form>
         </div>
       </div>
@@ -254,6 +259,14 @@ function showLogin(notice = '') {
   }
 
   form.addEventListener('submit', doLogin)
+
+  // El link a "olvidé contraseña" usa href="#recuperar" pero el bootstrap
+  // ya está corrido; reload() fuerza re-leer el hash y renderizar la página pública.
+  content.querySelector('#link-recuperar')?.addEventListener('click', e => {
+    e.preventDefault()
+    window.location.hash = 'recuperar'
+    location.reload()
+  })
 }
 
 // ── Post-login: cargar contexto y mostrar app ────────────────────────────
@@ -274,10 +287,31 @@ async function afterLogin() {
   window.dispatchEvent(new CustomEvent('atara:logged-in'))
 }
 
+// Parsea el hash con soporte para query params: "#page?foo=bar" → { page, params }
+function parseHash() {
+  const raw = window.location.hash.slice(1)
+  const [page, query = ''] = raw.split('?')
+  return { page, params: new URLSearchParams(query) }
+}
+
 // ── Bootstrap: valida token antes de mostrar cualquier contenido ──────────
 async function bootstrap() {
   // Ocultar topbar hasta verificar si hay sesión activa
   document.getElementById('desktop-topbar').style.display = 'none'
+
+  // Rutas públicas: no requieren login y no muestran sidebar/topbar/bottom-nav.
+  // Se manejan antes del chequeo de auth para que un usuario sin sesión pueda
+  // llegar al link de verificación o al flujo de recuperar contraseña.
+  const { page: hashPageRaw, params: hashParams } = parseHash()
+  if (hashPageRaw === 'verificar') {
+    document.body.classList.add('login-mode')
+    return renderVerificarEmail(content, hashParams.get('token'))
+  }
+  if (hashPageRaw === 'recuperar') {
+    document.body.classList.add('login-mode')
+    return renderRecuperarPassword(content, hashParams.get('email'))
+  }
+
   if (!getAccessToken()) {
     showLogin()
     return

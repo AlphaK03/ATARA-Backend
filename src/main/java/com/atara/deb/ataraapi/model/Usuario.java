@@ -46,6 +46,16 @@ public class Usuario {
     @Column(name = "ultimo_acceso")
     private OffsetDateTime ultimoAcceso;
 
+    /**
+     * TRUE si el usuario ya confirmó su correo vía el link de verificación.
+     * Los usuarios sembrados en V2 quedan en TRUE (son reales). Los creados
+     * via /api/admin/usuarios arrancan en FALSE hasta que abren el link.
+     * El login NO está bloqueado por este flag (modo soft: solo banner).
+     */
+    @Builder.Default
+    @Column(name = "email_verificado", nullable = false)
+    private Boolean emailVerificado = false;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 

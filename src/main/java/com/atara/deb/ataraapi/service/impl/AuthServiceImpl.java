@@ -1,12 +1,14 @@
 package com.atara.deb.ataraapi.service.impl;
 
 import com.atara.deb.ataraapi.dto.auth.CambiarPasswordRequestDto;
+import com.atara.deb.ataraapi.dto.auth.ConfirmarResetRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginResponseDto;
 import com.atara.deb.ataraapi.dto.auth.LogoutRequestDto;
 import com.atara.deb.ataraapi.dto.auth.MeResponseDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenRequestDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenResponseDto;
+import com.atara.deb.ataraapi.dto.auth.SolicitarResetRequestDto;
 import com.atara.deb.ataraapi.exception.TokenRefreshException;
 import com.atara.deb.ataraapi.model.TokenRefresh;
 import com.atara.deb.ataraapi.model.Usuario;
@@ -15,6 +17,9 @@ import com.atara.deb.ataraapi.repository.UsuarioRepository;
 import com.atara.deb.ataraapi.security.JwtService;
 import com.atara.deb.ataraapi.security.UsuarioPrincipal;
 import com.atara.deb.ataraapi.service.AuthService;
+import com.atara.deb.ataraapi.service.EmailTokenService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,11 +39,14 @@ import java.util.UUID;
 @Transactional
 public class AuthServiceImpl implements AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
+
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final TokenRefreshRepository tokenRefreshRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailTokenService emailTokenService;
 
     @Value("${jwt.refresh-expiration-days}")
     private long refreshExpirationDays;
@@ -47,12 +55,14 @@ public class AuthServiceImpl implements AuthService {
                            JwtService jwtService,
                            TokenRefreshRepository tokenRefreshRepository,
                            UsuarioRepository usuarioRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           EmailTokenService emailTokenService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.tokenRefreshRepository = tokenRefreshRepository;
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailTokenService = emailTokenService;
     }
 
     /**
@@ -167,6 +177,7 @@ public class AuthServiceImpl implements AuthService {
         response.setSeccionIds(usuarioRepository.findSeccionIdsByUsuarioId(usuario.getId()));
         response.setMateriaIds(usuarioRepository.findMateriaIdsByUsuarioId(usuario.getId()));
         response.setCentroIds(usuarioRepository.findCentroIdsByUsuarioId(usuario.getId()));
+        response.setEmailVerificado(usuario.getEmailVerificado());
         return response;
     }
 
@@ -195,6 +206,39 @@ public class AuthServiceImpl implements AuthService {
 
         usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
         usuarioRepository.save(usuario);
+    }
+
+    @Override
+    public void verificarEmail(String token) {
+        emailTokenService.verificarEmail(token);
+    }
+
+    @Override
+    public void reenviarVerificacionEmail(Authentication authentication) {
+        UsuarioPrincipal principal = (UsuarioPrincipal) authentication.getPrincipal();
+        Usuario usuario = principal.getUsuario();
+        if (Boolean.TRUE.equals(usuario.getEmailVerificado())) {
+            throw new IllegalArgumentException("Tu correo ya está verificado.");
+        }
+        emailTokenService.emitirYEnviarVerificacionEmail(usuario);
+    }
+
+    @Override
+    public void solicitarResetPassword(SolicitarResetRequestDto request) {
+        // Comportamiento idempotente — no revelamos si el correo existe o no.
+        // Si existe, mandamos el código; si no, fingimos éxito.
+        usuarioRepository.findByCorreo(request.getCorreo().trim().toLowerCase())
+                .ifPresentOrElse(
+                        emailTokenService::emitirYEnviarCodigoReset,
+                        () -> log.info("Solicitud de reset para correo inexistente: {}", request.getCorreo()));
+    }
+
+    @Override
+    public void confirmarResetPassword(ConfirmarResetRequestDto request) {
+        emailTokenService.consumirCodigoReset(
+                request.getCorreo(),
+                request.getCodigo(),
+                request.getPasswordNueva());
     }
 
     // -------------------------------------------------------------------------
