@@ -1,10 +1,11 @@
-import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from '../api.js'
+import { getUsuarios, createUsuario, updateUsuario, deleteUsuario, getMaterias } from '../api.js'
 
 const ROL_BADGE  = { ADMIN: 'badge-blue', DOCENTE: 'badge-green', COORDINADOR: 'badge-yellow' }
 const ESTADO_BADGE = { ACTIVO: 'badge-green', INACTIVO: 'badge-red' }
 const ROL_LABEL  = { ADMIN: 'Administrador', DOCENTE: 'Docente', COORDINADOR: 'Coordinador' }
 
 let _usuarios = []
+let _materias = []
 
 export async function renderAdmin(container) {
   container.innerHTML = `
@@ -57,6 +58,27 @@ export async function renderAdmin(container) {
           </select>
         </div>
       </div>
+
+      <!-- Selector de materias: solo visible cuando rol = DOCENTE -->
+      <div id="grupo-materias" style="display:none;margin-top:16px;padding:14px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <label style="font-weight:600;font-size:13px;color:#334155;margin:0">
+            Materias asignadas <span style="color:#dc2626">*</span>
+            <span style="font-weight:400;color:var(--text-muted);margin-left:4px">
+              (el docente solo podrá evaluar las marcadas)
+            </span>
+          </label>
+          <div style="display:flex;gap:6px">
+            <button type="button" id="btn-mat-all" class="btn btn-sm btn-secondary" style="font-size:11px;padding:3px 10px">Marcar todas</button>
+            <button type="button" id="btn-mat-none" class="btn btn-sm btn-secondary" style="font-size:11px;padding:3px 10px">Desmarcar</button>
+          </div>
+        </div>
+        <div id="materias-checkboxes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">
+          <span style="color:var(--text-muted);font-size:13px">Cargando materias…</span>
+        </div>
+        <div id="materias-count" style="margin-top:8px;font-size:11px;color:var(--text-muted)"></div>
+      </div>
+
       <div id="form-error" style="margin-top:14px;font-size:13px;color:#dc2626"></div>
       <div class="btn-row" style="margin-top:20px">
         <button id="btn-save" class="btn btn-primary">Guardar</button>
@@ -107,6 +129,10 @@ export async function renderAdmin(container) {
   const grupoEstado = container.querySelector('#grupo-estado')
   const hintPwd    = container.querySelector('#hint-password')
   const lblPwd     = container.querySelector('#lbl-password')
+  const grupoMat   = container.querySelector('#grupo-materias')
+  const matBox     = container.querySelector('#materias-checkboxes')
+  const matCount   = container.querySelector('#materias-count')
+  const fRol       = container.querySelector('#f-rol')
 
   let editingId = null  // null = crear, número = editar
 
@@ -119,6 +145,58 @@ export async function renderAdmin(container) {
       return
     }
     renderTable(_usuarios)
+  }
+
+  // ── cargar catálogo de materias (una sola vez por sesión de página) ───────
+  async function cargarMaterias() {
+    try {
+      _materias = await getMaterias() ?? []
+    } catch (e) {
+      console.warn('No se pudieron cargar las materias:', e.message)
+      _materias = []
+    }
+  }
+
+  // ── pintar checkboxes de materias y opcionalmente marcar un subconjunto ──
+  // Sin materiaIdsMarcadas → todas marcadas (default para usuario nuevo).
+  function pintarMaterias(materiaIdsMarcadas) {
+    if (!_materias.length) {
+      matBox.innerHTML = `<span style="color:#dc2626;font-size:13px">
+        No hay materias en el catálogo. Crea materias antes de asignar docentes.
+      </span>`
+      return
+    }
+    const marcadas = materiaIdsMarcadas ?? _materias.map(m => m.id)
+    const setMarcadas = new Set(marcadas)
+    matBox.innerHTML = _materias.map(m => `
+      <label style="display:flex;align-items:center;gap:6px;padding:6px 10px;
+                    border:1px solid #e2e8f0;border-radius:6px;background:#fff;
+                    cursor:pointer;font-size:13px;user-select:none">
+        <input type="checkbox" class="mat-cb" value="${m.id}"
+          ${setMarcadas.has(m.id) ? 'checked' : ''}
+          style="accent-color:var(--primary);cursor:pointer">
+        <span>${escHtml(m.nombre)}</span>
+      </label>
+    `).join('')
+    matBox.querySelectorAll('.mat-cb').forEach(cb => {
+      cb.addEventListener('change', actualizarContadorMaterias)
+    })
+    actualizarContadorMaterias()
+  }
+
+  function actualizarContadorMaterias() {
+    const sel = matBox.querySelectorAll('.mat-cb:checked').length
+    const tot = _materias.length
+    matCount.textContent = `${sel} de ${tot} materia${tot !== 1 ? 's' : ''} seleccionada${sel !== 1 ? 's' : ''}`
+    matCount.style.color = sel === 0 ? '#dc2626' : 'var(--text-muted)'
+  }
+
+  function getMateriasSeleccionadas() {
+    return [...matBox.querySelectorAll('.mat-cb:checked')].map(cb => Number(cb.value))
+  }
+
+  function toggleGrupoMaterias() {
+    grupoMat.style.display = fRol.value === 'DOCENTE' ? '' : 'none'
   }
 
   function renderTable(lista) {
@@ -170,6 +248,9 @@ export async function renderAdmin(container) {
     hintPwd.style.display = 'none'
     lblPwd.innerHTML = 'Contraseña <span style="color:#dc2626">*</span>'
     container.querySelector('#f-password').placeholder = 'Mínimo 8 caracteres'
+    // Sin marcar específicamente nada → pintarMaterias() las marca todas
+    pintarMaterias(null)
+    toggleGrupoMaterias()
     formPanel.style.display = ''
     formPanel.scrollIntoView({ behavior: 'smooth', block: 'start' })
     container.querySelector('#f-nombre').focus()
@@ -192,6 +273,9 @@ export async function renderAdmin(container) {
     hintPwd.style.display = ''
     lblPwd.innerHTML = 'Contraseña'
     formError.textContent = ''
+    // Pre-marcar solo las materias que ya tiene
+    pintarMaterias(Array.isArray(u.materiaIds) ? u.materiaIds : [])
+    toggleGrupoMaterias()
     formPanel.style.display = ''
     formPanel.scrollIntoView({ behavior: 'smooth', block: 'start' })
     container.querySelector('#f-nombre').focus()
@@ -209,6 +293,9 @@ export async function renderAdmin(container) {
       if (el) el.value = ''
     })
     formError.textContent = ''
+    grupoMat.style.display = 'none'
+    matBox.innerHTML = ''
+    matCount.textContent = ''
   }
 
   // ── guardar (crear o actualizar) ───────────────────────────────────────────
@@ -234,9 +321,22 @@ export async function renderAdmin(container) {
       return
     }
 
+    // Validación específica para DOCENTE: debe tener al menos una materia.
+    // Sin materia el wizard de evaluación no carga preguntas (el backend filtra
+    // por usuario_materias en getContextoUsuario).
+    let materiaIds = null
+    if (rol === 'DOCENTE') {
+      materiaIds = getMateriasSeleccionadas()
+      if (!materiaIds.length) {
+        formError.textContent = 'Selecciona al menos una materia para el docente.'
+        return
+      }
+    }
+
     const payload = { nombre, apellidos, correo, rol }
     if (password) payload.password = password
     if (editingId && estado) payload.estado = estado
+    if (materiaIds !== null) payload.materiaIds = materiaIds
 
     btnSave.disabled = true
     btnSave.textContent = 'Guardando…'
@@ -303,7 +403,26 @@ export async function renderAdmin(container) {
     if (e.key === 'Enter') guardar()
   })
 
-  await cargarUsuarios()
+  // Mostrar/ocultar selector de materias según el rol elegido
+  fRol.addEventListener('change', () => {
+    if (fRol.value === 'DOCENTE' && !matBox.querySelector('.mat-cb')) {
+      // Primera vez que se elige DOCENTE en este formulario: pintar todas marcadas
+      pintarMaterias(null)
+    }
+    toggleGrupoMaterias()
+  })
+
+  // Atajos de marcar todas / desmarcar
+  container.querySelector('#btn-mat-all').addEventListener('click', () => {
+    matBox.querySelectorAll('.mat-cb').forEach(cb => { cb.checked = true })
+    actualizarContadorMaterias()
+  })
+  container.querySelector('#btn-mat-none').addEventListener('click', () => {
+    matBox.querySelectorAll('.mat-cb').forEach(cb => { cb.checked = false })
+    actualizarContadorMaterias()
+  })
+
+  await Promise.all([cargarUsuarios(), cargarMaterias()])
 }
 
 function escHtml(str) {
