@@ -1,8 +1,8 @@
 import {
   getAniosLectivos, getAnioLectivoActivo,
-  getSecciones, createSeccion, updateSeccion, deleteSeccion,
+  getSecciones, createSeccion, updateSeccion, deleteSeccion, deleteSeccionDocente,
   getNiveles, getCentros, getDocentes, getAccessToken,
-  getContextoUsuario, getEstudiantes,
+  getContextoUsuario, getEstudiantesParaSeccion,
   getMatriculasBySeccion,
 } from '../api.js'
 import { showConfirm, openModal, backendMsg } from '../confirm.js'
@@ -65,7 +65,9 @@ export async function renderSecciones(container) {
       getDocentes(),
       getAnioLectivoActivo().catch(() => null),
       getContextoUsuario().catch(() => null),
-      getEstudiantes().catch(() => []),
+      // Catálogo precargado (solo ACTIVOS). El wizard hará un refetch específico
+      // por año/sección para aplicar exclusión inteligente (V12+).
+      getEstudiantesParaSeccion().catch(() => []),
     ])
     userCtx = ctx
     esAdmin   = ctx?.rol === 'ADMIN'
@@ -139,18 +141,26 @@ export async function renderSecciones(container) {
     })
     secBody.querySelectorAll('.btn-del-sec').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const { id, nombre } = btn.dataset
+        const { id, nombre, mode } = btn.dataset
+        const esDocenteDel = mode === 'docente'
+        const message = esDocenteDel
+          ? `<p>Solo puedes eliminar la sección porque está <strong>vacía</strong>
+             (sin matrículas ni evaluaciones).</p>
+             <p style="margin-top:8px;color:#6b7280;font-size:13px">
+             Si en el futuro la sección tiene datos, solo un administrador podrá eliminarla.</p>`
+          : `<p>Esta acción es <strong>permanente</strong>.</p>
+             <p style="margin-top:8px;color:#d97706">Se eliminarán también todas las
+             <strong>matrículas</strong>, evaluaciones y alertas asociadas.</p>`
         const ok = await showConfirm({
           title: `¿Eliminar la sección "${nombre}"?`,
-          message: `<p>Esta acción es <strong>permanente</strong>.</p>
-            <p style="margin-top:8px;color:#d97706">Se eliminarán también todas las
-            <strong>matrículas</strong>, evaluaciones y alertas asociadas.</p>`,
+          message,
           confirmText: 'Sí, eliminar sección',
         })
         if (!ok) return
         btn.disabled = true
         try {
-          await deleteSeccion(id)
+          if (esDocenteDel) await deleteSeccionDocente(id)
+          else              await deleteSeccion(id)
           if (!getAccessToken()) return
           showToast(`Sección "${nombre}" eliminada.`, 'success')
           await loadSecciones()
@@ -187,12 +197,16 @@ export async function renderSecciones(container) {
       capacidad: seccion.capacidad ?? '',
     } : {}
 
-    // Refrescar listas vivas antes de abrir el wizard. Pedimos TODOS los
-    // estudiantes (sin filtro de estado) para no esconder ninguno por error
-    // de configuración. La UI distingue visualmente los inactivos.
+    // Refrescar listas vivas antes de abrir el wizard.
+    // El endpoint /secciones/catalogos/estudiantes aplica exclusión inteligente:
+    //  - sin params: todos los activos
+    //  - con anioLectivoId: excluye los ya matriculados en ese año (regla 1:1)
+    //  - con anioLectivoId + seccionId: re-incluye los ya matriculados en esa
+    //    sección (caso edición, para que aparezcan pre-seleccionados).
+    const anioParaCatalogo = esEdicion ? seccion.anioLectivoId : Number(selAnio.value)
     try {
       const [estudiantesFrescos, docentesFrescos] = await Promise.all([
-        getEstudiantes().catch(() => null),
+        getEstudiantesParaSeccion(anioParaCatalogo, esEdicion ? seccion.id : null).catch(() => null),
         getDocentes().catch(() => null),
       ])
       if (Array.isArray(estudiantesFrescos)) catalogos.estudiantes = estudiantesFrescos
@@ -321,7 +335,7 @@ export async function renderSecciones(container) {
         const original = btnReload.textContent
         btnReload.textContent = '…'
         try {
-          const fresh = await getEstudiantes()
+          const fresh = await getEstudiantesParaSeccion(anioParaCatalogo, esEdicion ? seccion.id : null)
           if (Array.isArray(fresh)) {
             catalogos.estudiantes = fresh
             renderPicker($('#sf-est-search').value)
@@ -400,7 +414,17 @@ function seccionRowHtml(s, esAdmin, esDocente, userCtx) {
   const vacia = s.totalEstudiantes === 0
   const rowStyle = vacia ? 'background:#fff5f5;border-left:3px solid #fca5a5' : ''
   // El DOCENTE puede editar si es el titular registrado.
-  const puedeEditar = esAdmin || (esDocente && s.docenteId === userCtx?.userId)
+  const esTitular = esDocente && s.docenteId === userCtx?.userId
+  const puedeEditar = esAdmin || esTitular
+  // El DOCENTE titular solo puede eliminar si la sección está vacía (regla del
+  // backend: rechaza con 400 si hay matrículas/evaluaciones). El ADMIN siempre
+  // puede eliminar (cascada total).
+  let btnEliminar = ''
+  if (esAdmin) {
+    btnEliminar = `<button class="btn-del-sec" data-id="${s.id}" data-nombre="${escHtml(s.nombre)}" data-mode="admin">Eliminar</button>`
+  } else if (esTitular && vacia) {
+    btnEliminar = `<button class="btn-del-sec" data-id="${s.id}" data-nombre="${escHtml(s.nombre)}" data-mode="docente" title="Solo puedes eliminar tu sección vacía">Eliminar</button>`
+  }
   return `
     <tr style="${rowStyle}">
       <td data-label="Nombre"><strong>${escHtml(s.nombre)}</strong>${vacia ? ' <span style="font-size:11px;color:#dc2626;font-weight:600">VACÍA</span>' : ''}</td>
@@ -410,7 +434,7 @@ function seccionRowHtml(s, esAdmin, esDocente, userCtx) {
       <td data-label="Capacidad">${s.capacidad ?? '—'}</td>
       <td class="td-actions">
         ${puedeEditar ? `<button class="btn-edit-sec" data-sec='${escAttr(JSON.stringify(s))}'>Editar</button>` : ''}
-        ${esAdmin ? `<button class="btn-del-sec" data-id="${s.id}" data-nombre="${escHtml(s.nombre)}">Eliminar</button>` : ''}
+        ${btnEliminar}
       </td>
     </tr>`
 }

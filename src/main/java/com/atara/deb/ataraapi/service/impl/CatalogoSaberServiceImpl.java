@@ -79,6 +79,18 @@ public class CatalogoSaberServiceImpl implements CatalogoSaberService {
     }
 
     @Override
+    public List<EjeTemaaticoResponseDto> listarEjesPorNivel(Long nivelId, Integer materiaId, Integer tipoSaberId) {
+        if (nivelId == null) {
+            throw new IllegalArgumentException("nivelId es requerido para filtrar ejes por grado.");
+        }
+        return ejeTemaaticoRepository
+            .findByNivelOptMateriaOptTipoSaber(nivelId, materiaId, tipoSaberId)
+            .stream()
+            .map(this::toEjeDto)
+            .toList();
+    }
+
+    @Override
     public List<NivelDesempenoResponseDto> listarNivelesDesempeno() {
         return nivelDesempenoRepository.findAllByOrderByValorNumericoAsc().stream()
             .map(nd -> NivelDesempenoResponseDto.builder()

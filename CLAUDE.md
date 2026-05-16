@@ -51,6 +51,9 @@ com.atara.deb.ataraapi/
 - `V2__sample_data.sql` — seed data (BCrypt password hashes need to be regenerated for auth testing)
 - `V3__queries_reference.sql` — 8 reporting views (`vw_criterios_completos`, `vw_rendimiento_periodo_activo`, etc.)
 - `V4__evaluacion_saberes_alertas_tematicas.sql` — 6 tables (tipos_saber, ejes_tematicos, niveles_desempeno, evaluaciones_saber, detalle_evaluacion_saber, alertas_tematicas) + 2 views + seed data
+- `V6__materias_evaluaciones_multisaber.sql` — separación de ejes por materia (84 ejes: 21 × 4 materias)
+- `V8__usuario_materias.sql` — tabla M:N para acceso de docentes a materias
+- `V12__ejes_tematicos_por_nivel.sql` — tabla M:N `ejes_tematicos_niveles` que define qué ejes son evaluables en cada grado (currículo MEP CR Primaria). Vista de apoyo: `vw_ejes_por_materia_nivel`.
 
 **Audit trail** is handled entirely at the database level via the `registro_auditoria` table (JSONB) and `fn_actualizar_updated_at` triggers — no application-level audit code needed.
 
@@ -59,7 +62,8 @@ com.atara.deb.ataraapi/
 - **Escala de valoración (original)**: 4-point scale — Insuficiente (1), Básico (2), Satisfactorio (3), Destacado (4)
 - **Escala de desempeño por saberes**: 5-point scale — Inicial (1), En desarrollo (2), Intermedio (3), Logrado (4), Avanzado (5)
 - **Dimensiones de evaluación**: 5 dimensions including Rendimiento Académico, Participación, Hábitos de Estudio, Factores Socioemocionales
-- **Tipos de saber**: Conceptual, Procedimental, Actitudinal — each with 7 ejes temáticos (21 total)
+- **Tipos de saber**: Conceptual, Procedimental, Actitudinal — each with 7 ejes temáticos por materia
+- **Ejes por nivel** (V12+): cada eje se asocia a uno o más grados vía `ejes_tematicos_niveles`. Ejemplos: "Álgebra y patrones" (Matemáticas) → 4°-6°; "Fracciones, decimales y porcentajes" → 3°-6°; "Estadística y probabilidad" → 3°-6°. El wizard de evaluación usa este filtro para no mostrar ejes que no aplican al grado del estudiante.
 - **Structure hierarchy**: Centro Educativo → Sección → Periodo → Evaluacion → DetalleEvaluacion
 - **Evaluaciones por saber**: EvaluacionSaber → DetalleEvaluacionSaber (multiple per student/period/tipo_saber)
 - **Alertas temáticas**: Generated from averages per eje temático — ALTA (≤2.0), MEDIA (2.1-3.0), SIN_ALERTA (>3.0)
@@ -95,7 +99,7 @@ com.atara.deb.ataraapi/
 | VisualizacionController | GET | `/api/visualizaciones/seccion/{sectionId}/distribucion?materiaId=&periodoId=` |
 | CatalogoSaberController | GET | `/api/catalogos/saberes/tipos` |
 | | GET | `/api/catalogos/saberes/materias` |
-| | GET | `/api/catalogos/saberes/ejes?materiaId=&tipoSaberId=` |
+| | GET | `/api/catalogos/saberes/ejes?nivelId=&materiaId=&tipoSaberId=` |
 | | GET | `/api/catalogos/saberes/niveles-desempeno` |
 | EvaluacionSaberController | POST | `/api/evaluaciones-saber` |
 | | PUT | `/api/evaluaciones-saber/{id}` |
@@ -117,6 +121,7 @@ com.atara.deb.ataraapi/
 | | GET | `/api/secciones/catalogos/niveles` |
 | | GET | `/api/secciones/catalogos/centros` |
 | | GET | `/api/secciones/catalogos/docentes` |
+| | GET | `/api/secciones/catalogos/estudiantes?anioLectivoId=&seccionId=` (catálogo para wizard, excluye ya-matriculados) |
 | CentroEducativoController | GET | `/api/admin/centros` (solo ADMIN) |
 | | GET | `/api/admin/centros/{id}` (solo ADMIN) |
 | | POST | `/api/admin/centros` (solo ADMIN) |
@@ -158,6 +163,16 @@ These features are planned by the design rules below but **not yet implemented**
 - **Crear sección con co-docentes y estudiantes en una sola operación**: `SeccionRequestDto` se extendió con dos listas opcionales: `docentesAdicionalesIds[]` y `estudiantesIds[]`. `POST /api/secciones` ahora acepta los roles ADMIN y DOCENTE (`@PreAuthorize("hasAnyRole('ADMIN','DOCENTE')")`). Si el creador es DOCENTE: queda automáticamente como titular y se autoincluye en `usuarios_secciones`; el campo `docenteId` del DTO se ignora para este rol. Los `docentesAdicionalesIds` se insertan en `usuarios_secciones`. Los `estudiantesIds` generan `Matricula` ACTIVAS en el año lectivo de la sección dentro de la misma transacción, respetando la regla "un estudiante una matrícula por año".
 - **Nuevo `UsuarioSeccionRepository`**: La tabla intermedia `usuarios_secciones` ya existía como entidad JPA pero sin repositorio. Se añadió con métodos `findBySeccionId`, `findByUsuarioId`, `existsByUsuarioIdAndSeccionId` y `deleteAllBySeccionId`. El método de borrado se integra al flujo de eliminación de sección (ADMIN) para evitar dejar referencias colgantes.
 - **Eliminación segura de secciones por DOCENTE titular**: Nuevo endpoint `DELETE /api/secciones/{id}/docente` (`@PreAuthorize("hasRole('DOCENTE')")`) que solo el titular (`secciones.docente_id = id usuario`) puede invocar. La operación rechaza con 400 si la sección tiene matrículas, evaluaciones o evaluaciones por saber asociadas — esto preserva el histórico. Si hay datos, solo ADMIN puede borrar con cascada vía `DELETE /api/secciones/{id}`. El método `SeccionServiceImpl.eliminarComoDocente` valida titularidad y dependencias antes de borrar las asignaciones M:N y la sección.
+
+## Features added (as of 2026-05-15)
+
+- **Ejes temáticos filtrados por nivel/grado (V12)**: Nueva tabla M:N `ejes_tematicos_niveles` que define qué ejes son evaluables en cada grado. Resuelve el problema de que el wizard de evaluación por saber mostraba los mismos 7 ejes para los 6 grados sin considerar el currículo MEP (por ejemplo: "Álgebra y patrones" aparecía evaluable en 1° de primaria). Semilla inicial basada en currículo MEP CR Primaria — Matemáticas: Números/Geometría/Resolución/Razonamiento en 1°-6°, Fracciones y Estadística en 3°-6°, Álgebra en 4°-6°. Español, Ciencias y Estudios Sociales mantienen sus 21 ejes en todos los grados. Endpoint actualizado: `GET /api/catalogos/saberes/ejes?nivelId=&materiaId=&tipoSaberId=`. Si se omite `nivelId`, se preserva el comportamiento legado.
+- **Endpoint dedicado de estudiantes para wizard de sección**: `GET /api/secciones/catalogos/estudiantes?anioLectivoId=&seccionId=` ahora está conectado al frontend. Devuelve `EstudianteCatalogoDto` con `nombre`, `apellido1`, `apellido2`, `fechaNacimiento`, `genero`, `estado` y `nombreCompleto`. Aplica exclusión inteligente: si se pasa `anioLectivoId`, excluye los estudiantes ya matriculados en ese año (respetando la regla "una matrícula por año"); si además se pasa `seccionId`, re-incluye los ya matriculados en esa sección (modo edición).
+- **Nueva entidad `EjeTematicoNivel`**: Wrapper JPA sobre la tabla puente, requerida para que las queries de filtrado por nivel funcionen vía JPQL en `EjeTemaaticoRepository.findByNivelOptMateriaOptTipoSaber`.
+- **Frontend: secciones accesibles a ADMIN**: Agregado el ítem "Secciones" al nav lateral del ADMIN. Antes la página existía y soportaba el rol, pero no había enlace para llegar — solo se accedía escribiendo `#secciones` en la URL.
+- **Frontend: eliminación segura de sección para DOCENTE titular**: El botón "Eliminar" aparece para el docente titular cuando la sección está vacía (`totalEstudiantes === 0`). Llama a `deleteSeccionDocente` (endpoint backend ya existente); muestra una confirmación que explica la restricción.
+- **Frontend: páginas zombi eliminadas**: Se borraron `pages/matriculas.js`, `pages/evaluaciones.js`, `pages/alertas.js` — eran de la era anterior del proyecto (pedían IDs a mano y usaban el sistema viejo de evaluación). No estaban en ningún nav y representaban deuda técnica.
+- **Frontend: wizard de evaluación filtra ejes por grado**: `pages/evaluacionesSaber.js` ahora llama a `getEjesPorNivel(seccionSel.nivelId)` cuando se selecciona una sección. La grilla de estudiantes y el wizard solo muestran tipos de saber con ejes aplicables al grado. Si una combinación (materia + tipo de saber) tiene 0 ejes en ese grado, se omite del wizard y se marca como "Sin ejes en este grado" en la tarjeta del estudiante.
 
 ---
 

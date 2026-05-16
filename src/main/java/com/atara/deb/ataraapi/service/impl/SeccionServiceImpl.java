@@ -281,6 +281,11 @@ public class SeccionServiceImpl implements SeccionService {
                         .id(e.getId())
                         .identificacion(e.getIdentificacion())
                         .nombreCompleto(buildNombreCompleto(e))
+                        .nombre(e.getNombre())
+                        .apellido1(e.getApellido1())
+                        .apellido2(e.getApellido2())
+                        .fechaNacimiento(e.getFechaNacimiento())
+                        .genero(e.getGenero() != null ? e.getGenero().name() : null)
                         .estado(e.getEstado() != null ? e.getEstado().name() : null)
                         .build())
                 .toList();

@@ -191,6 +191,19 @@ export const getEjesTematicos    = (tipoSaberId, materiaId) => {
   if (tipoSaberId) params.push(`tipoSaberId=${tipoSaberId}`)
   return request('GET', `/catalogos/saberes/ejes${params.length ? '?' + params.join('&') : ''}`)
 }
+
+/**
+ * Ejes filtrados por nivel/grado del estudiante (V12+).
+ * Es el endpoint correcto para el wizard de evaluación: garantiza que solo
+ * se muestren los ejes que aplican al grado de la sección (ej: "Álgebra"
+ * no aparece en 1° de primaria).
+ */
+export const getEjesPorNivel = (nivelId, opts = {}) => {
+  const params = [`nivelId=${nivelId}`]
+  if (opts.materiaId)   params.push(`materiaId=${opts.materiaId}`)
+  if (opts.tipoSaberId) params.push(`tipoSaberId=${opts.tipoSaberId}`)
+  return request('GET', `/catalogos/saberes/ejes?${params.join('&')}`)
+}
 export const getNivelesDesempeno = ()                          => request('GET', '/catalogos/saberes/niveles-desempeno')
 
 // ── Catálogos de Secciones ─────────────────────────────────────────────────
@@ -198,6 +211,23 @@ export const getNiveles  = ()    => request('GET', '/secciones/catalogos/niveles
 export const getCentros  = ()    => request('GET', '/secciones/catalogos/centros')
 export const getDocentes = ()    => request('GET', '/secciones/catalogos/docentes')
 export const createSeccion = (data) => request('POST', '/secciones', data)
+
+/**
+ * Catálogo de estudiantes para el wizard de sección. A diferencia de
+ * `getEstudiantes()` (lista global), este endpoint:
+ *  - Filtra solo ACTIVOS
+ *  - Si se pasa `anioLectivoId`, excluye los que ya tienen matrícula ese año
+ *  - Si además se pasa `seccionId` (modo edición), re-incluye los ya
+ *    matriculados en esa sección para que aparezcan pre-seleccionados.
+ *
+ * Devuelve EstudianteCatalogoDto = { id, identificacion, nombreCompleto, estado }
+ */
+export const getEstudiantesParaSeccion = (anioLectivoId, seccionId) => {
+  const params = []
+  if (anioLectivoId) params.push(`anioLectivoId=${anioLectivoId}`)
+  if (seccionId)     params.push(`seccionId=${seccionId}`)
+  return request('GET', `/secciones/catalogos/estudiantes${params.length ? '?' + params.join('&') : ''}`)
+}
 
 // ── Evaluaciones por Saber ─────────────────────────────────────────────────
 export const createEvaluacionSaber = (data)        => request('POST', '/evaluaciones-saber', data)

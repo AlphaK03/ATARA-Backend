@@ -17,7 +17,7 @@ import {
   getEvaluacionesSaberBySeccionPeriodo,
   getTiposSaber,
   getMaterias,
-  getEjesTematicos,
+  getEjesPorNivel,
   createEvaluacionSaber,
   updateEvaluacionSaber,
   generarAlertasTematicasEstudiante,
@@ -34,10 +34,14 @@ const NIVEL_META = [
   { color: '#16a34a', bg: '#bbf7d0', label: 'Avanzado' },
 ]
 
-// Catálogos de saberes — se cargan una sola vez
+// Catálogos de saberes
+// - tiposSaber y materias: globales, se cargan una sola vez (no dependen del nivel)
+// - ejesPorMateriaTipo: depende del nivel de la sección, se recarga al cambiar
+//   de sección. Antes era global y mostraba todos los ejes en todos los grados.
 let tiposSaber = []
 let materias   = []
 let ejesPorMateriaTipo = {}  // key: `${materiaId}_${tipoSaberId}`
+let ejesNivelCargado   = null  // nivelId del que se cargó ejesPorMateriaTipo
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -137,13 +141,40 @@ export function renderEvaluacionesSaber(container) {
   let wizRespuestas  = {}
 
   // ── Catálogos ─────────────────────────────────────────────────────────────
-  async function ensureCatalogs() {
+  /**
+   * Carga catálogos base que no dependen del nivel (tipos de saber y materias
+   * accesibles al usuario). Se ejecuta una sola vez.
+   */
+  async function ensureBaseCatalogs() {
     if (tiposSaber.length && materias.length) return
     let allMaterias
     ;[tiposSaber, allMaterias] = await Promise.all([getTiposSaber(), getMaterias()])
     const sinEdFisica = allMaterias.filter(m => m.clave !== 'EDUCACION_FISICA')
     materias = await filtrarMateriasPropias(sinEdFisica)
-    const allEjes = await getEjesTematicos()
+  }
+
+  /**
+   * Recarga los ejes temáticos restringidos al grado de la sección activa
+   * (V12+). Reemplaza el índice anterior, que era global y mostraba todos
+   * los ejes en todos los grados.
+   *
+   * Requiere {@code seccion.nivelId} (siempre lo provee SeccionResponseDto).
+   * Si por alguna razón no llegara, deja el índice vacío y la UI mostrará
+   * "Sin ejes en este grado" sin permitir abrir el wizard.
+   */
+  async function loadEjesParaSeccion(seccion) {
+    const nivelId = seccion?.nivelId
+    if (nivelId && ejesNivelCargado === nivelId) return  // ya está cargado para este grado
+
+    let allEjes = []
+    if (nivelId) {
+      try {
+        allEjes = await getEjesPorNivel(nivelId)
+      } catch (e) {
+        console.warn('Error cargando ejes por nivel:', e.message)
+      }
+    }
+
     ejesPorMateriaTipo = {}
     for (const eje of allEjes) {
       const key = `${eje.materiaId}_${eje.tipoSaberId}`
@@ -153,6 +184,7 @@ export function renderEvaluacionesSaber(container) {
     for (const k of Object.keys(ejesPorMateriaTipo)) {
       ejesPorMateriaTipo[k].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
     }
+    ejesNivelCargado = nivelId || null
   }
 
   // ── Breadcrumb ────────────────────────────────────────────────────────────
@@ -349,7 +381,8 @@ export function renderEvaluacionesSaber(container) {
 
   // ── Carga de estudiantes y estado de evaluaciones ─────────────────────────
   async function cargarEstudiantes() {
-    await ensureCatalogs()
+    await ensureBaseCatalogs()
+    await loadEjesParaSeccion(seccionSel)
     materiaSel = materias[0] ?? null
     const [matriculas, evalsRaw] = await Promise.all([
       getMatriculasBySeccion(seccionSel.id),
@@ -377,13 +410,27 @@ export function renderEvaluacionesSaber(container) {
     }
   }
 
+  /**
+   * Tipos de saber que tienen al menos un eje evaluable para la materia y el
+   * grado actuales. Usado para calcular completitud (un estudiante está
+   * "completo" cuando todos los saberes evaluables están registrados, no
+   * cuando se cubrieron los 3 globales).
+   */
+  function tiposEvaluablesParaMateria(matId) {
+    if (!matId) return []
+    return tiposSaber.filter(t =>
+      (ejesPorMateriaTipo[`${matId}_${t.id}`] || []).length > 0
+    )
+  }
+
   // ── PASO 3: Grilla de estudiantes ─────────────────────────────────────────
   function renderStepEstudiantes() {
     const matId  = materiaSel?.id
-    const total  = tiposSaber.length
-    const completos  = estudiantes.filter(e => {
+    const tiposEval = tiposEvaluablesParaMateria(matId)
+    const total  = tiposEval.length
+    const completos  = total === 0 ? 0 : estudiantes.filter(e => {
       const evals = evalsPorEstudiante[e.id] || {}
-      return tiposSaber.every(t => !!evals[`${matId}_${t.id}`])
+      return tiposEval.every(t => !!evals[`${matId}_${t.id}`])
     }).length
     const pendientes = estudiantes.length - completos
 
@@ -447,16 +494,19 @@ export function renderEvaluacionesSaber(container) {
   }
 
   function renderGrid(grid) {
-    const total  = tiposSaber.length
-    const matId  = materiaSel?.id
+    const matId    = materiaSel?.id
+    const tiposEval = tiposEvaluablesParaMateria(matId)
+    const total    = tiposEval.length
 
     grid.innerHTML = estudiantes.map(est => {
       const evals = evalsPorEstudiante[est.id] || {}
-      const count = tiposSaber.filter(t => !!evals[`${matId}_${t.id}`]).length
-      const isCompleto = count >= total
+      const count = tiposEval.filter(t => !!evals[`${matId}_${t.id}`]).length
+      const isCompleto = total > 0 && count >= total
 
       let borderColor, badgeText, badgeBg, cardBg
-      if (count === 0) {
+      if (total === 0) {
+        borderColor = '#9ca3af'; badgeText = 'Sin ejes en este grado'; badgeBg = '#f3f4f6'; cardBg = '#f9fafb'
+      } else if (count === 0) {
         borderColor = '#dc2626'; badgeText = 'Sin evaluar'; badgeBg = '#fee2e2'; cardBg = '#fff5f5'
       } else if (!isCompleto) {
         borderColor = '#d97706'; badgeText = `${count}/${total} saberes`; badgeBg = '#fef3c7'; cardBg = '#fffdf0'
@@ -467,7 +517,7 @@ export function renderEvaluacionesSaber(container) {
       const initials = est.nombreCompleto.split(' ').filter(Boolean)
         .map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
-      const saberChips = tiposSaber.map(t => {
+      const saberChips = tiposEval.map(t => {
         const ev   = evals[`${matId}_${t.id}`]
         const done = !!ev
         // Mostrar promedio del saber si ya fue evaluado
@@ -534,8 +584,10 @@ export function renderEvaluacionesSaber(container) {
         const est = estudiantes.find(e => e.id === estId)
         const evals = evalsPorEstudiante[estId] || {}
         const matId = materiaSel?.id
-        const count = tiposSaber.filter(t => !!evals[`${matId}_${t.id}`]).length
-        const isCompleto = count >= tiposSaber.length
+        const tiposEvalClick = tiposEvaluablesParaMateria(matId)
+        if (!tiposEvalClick.length) return  // sin ejes en este grado → no abrir wizard
+        const count = tiposEvalClick.filter(t => !!evals[`${matId}_${t.id}`]).length
+        const isCompleto = count >= tiposEvalClick.length
         openWizard(est, isCompleto ? 'editar' : 'nuevo')
       })
     })
@@ -556,9 +608,16 @@ export function renderEvaluacionesSaber(container) {
     const today = new Date().toISOString().split('T')[0]
     wizNombre.textContent = est.nombreCompleto
 
+    // Filtrar tipos de saber sin ejes en este grado/materia (V12+).
+    // Ejemplo: Matemáticas en 1° no tiene "Álgebra", así que ese tipo de saber
+    // tendría 0 ejes evaluables. Mejor saltarlo que mostrar un wizard vacío.
+    const matId = wizMateria?.id
+    const tiposConEjes = tiposSaber.filter(t =>
+      (ejesPorMateriaTipo[`${matId}_${t.id}`] || []).length > 0
+    )
+
     if (modo === 'nuevo') {
-      const matId = wizMateria?.id
-      wizPendientes = tiposSaber.filter(t => !evals[`${matId}_${t.id}`])
+      wizPendientes = tiposConEjes.filter(t => !evals[`${matId}_${t.id}`])
       for (const tipo of wizPendientes) {
         wizRespuestas[tipo.id] = { fecha: today, observacion: '', detalles: {} }
       }
@@ -568,11 +627,10 @@ export function renderEvaluacionesSaber(container) {
       refreshWizardUI()
       wizOverlay.style.display = 'flex'
     } else {
-      // Editar: todos los saberes seleccionados, ir directo al wizard
+      // Editar: todos los saberes con ejes en este grado, ir directo al wizard
       wizModoLabel.textContent = 'Recalificación'
       wizModoLabel.style.color = '#d97706'
-      const matId = wizMateria?.id
-      wizPendientes = tiposSaber
+      wizPendientes = tiposConEjes
       for (const tipo of wizPendientes) {
         const ev = evals[`${matId}_${tipo.id}`]
         const detallesMap = {}

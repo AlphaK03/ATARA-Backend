@@ -6,9 +6,6 @@ import { checkHealth, getAccessToken, getContextoUsuario, login, logout,
 import { showToast } from './utils/toast.js'
 import { renderAniosLectivos }    from './pages/aniosLectivos.js'
 import { renderEstudiantes }      from './pages/estudiantes.js'
-import { renderMatriculas }       from './pages/matriculas.js'
-import { renderEvaluaciones }     from './pages/evaluaciones.js'
-import { renderAlertas }          from './pages/alertas.js'
 import { renderAlertasTempranas } from './pages/alertasTempranas.js'
 import { renderEvaluacionesSaber } from './pages/evaluacionesSaber.js'
 import { renderVisualizaciones }  from './pages/visualizaciones.js'
@@ -24,9 +21,6 @@ const pages = {
   estudiantes:      renderEstudiantes,
   importarPiad:     renderImportarPiad,
   secciones:        renderSecciones,
-  matriculas:       renderMatriculas,
-  evaluaciones:     renderEvaluaciones,
-  alertas:          renderAlertas,
   alertasTempranas: renderAlertasTempranas,
   evaluacionesSaber: renderEvaluacionesSaber,
   visualizaciones:  renderVisualizaciones,
@@ -45,6 +39,7 @@ const NAV_BY_ROL = {
     ]},
     { section: 'Gestión', items: [
       { page: 'aniosLectivos', label: 'Años Lectivos' },
+      { page: 'secciones',     label: 'Secciones' },
       { page: 'estudiantes',   label: 'Estudiantes' },
       { page: 'importarPiad',  label: 'Importar PIAD' },
     ]},

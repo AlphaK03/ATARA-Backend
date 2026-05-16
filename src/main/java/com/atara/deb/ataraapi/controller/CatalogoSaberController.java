@@ -30,10 +30,28 @@ public class CatalogoSaberController {
         return ResponseEntity.ok(catalogoSaberService.listarMaterias());
     }
 
+    /**
+     * Catálogo de ejes temáticos. Filtros opcionales:
+     *
+     * <ul>
+     *   <li>{@code nivelId} — grado del estudiante; usado por el wizard de
+     *       evaluación para mostrar solo los ejes evaluables en ese grado.
+     *       Cuando se envía, tiene prioridad sobre los otros filtros.</li>
+     *   <li>{@code materiaId} — restringe a una materia.</li>
+     *   <li>{@code tipoSaberId} — restringe a Conceptual / Procedimental / Actitudinal.</li>
+     * </ul>
+     *
+     * Si no viene {@code nivelId}, el comportamiento es el legado:
+     * filtrar por materia + tipo de saber (o todo si no se pasa nada).
+     */
     @GetMapping("/ejes")
     public ResponseEntity<List<EjeTemaaticoResponseDto>> listarEjesTematicos(
+            @RequestParam(required = false) Long    nivelId,
             @RequestParam(required = false) Integer materiaId,
             @RequestParam(required = false) Integer tipoSaberId) {
+        if (nivelId != null) {
+            return ResponseEntity.ok(catalogoSaberService.listarEjesPorNivel(nivelId, materiaId, tipoSaberId));
+        }
         if (materiaId != null && tipoSaberId != null) {
             return ResponseEntity.ok(catalogoSaberService.listarEjesPorMateriaYTipoSaber(materiaId, tipoSaberId));
         }
