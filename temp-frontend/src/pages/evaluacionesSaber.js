@@ -77,19 +77,37 @@ export function renderEvaluacionesSaber(container) {
     <!-- Contenido del paso actual -->
     <div id="step-content"></div>
 
+    <style>
+      @media (max-width: 768px) {
+        #wizard-overlay { align-items: flex-end !important; padding: 0 !important; }
+        .wiz-dialog { border-radius: 16px 16px 0 0 !important; width: 100% !important; max-height: 88vh !important; }
+        .wiz-header-pad { padding: 14px 16px 0 !important; }
+        #wiz-body { padding: 0 14px 8px !important; }
+        .wiz-footer { padding: 10px 14px !important; gap: 6px !important; }
+        #wiz-steps { overflow-x: auto !important; flex-wrap: nowrap !important; padding-bottom: 2px !important; scrollbar-width: none !important; }
+        #wiz-steps::-webkit-scrollbar { display: none; }
+        .wiz-step-pill { flex: none !important; font-size: 10px !important; padding: 4px 7px !important; white-space: nowrap !important; }
+        .wiz-step-sep { flex: none !important; }
+        .wiz-niv-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+        .niv-btn { padding: 10px 6px !important; min-height: 44px !important; border-radius: 8px !important; font-size: 11px !important; width: 100% !important; box-sizing: border-box !important; line-height: 1.3 !important; }
+        .wiz-eje-card { padding: 10px !important; margin-bottom: 8px !important; }
+        #wiz-prev, #wiz-next { font-size: 13px !important; padding: 8px 12px !important; }
+      }
+    </style>
+
     <!-- Modal wizard de evaluación -->
     <div id="wizard-overlay" style="
       display:none;position:fixed;inset:0;
       background:rgba(0,0,0,0.55);z-index:200;
       align-items:center;justify-content:center;padding:16px;
     ">
-      <div style="
+      <div class="wiz-dialog" style="
         background:#fff;border-radius:14px;
         width:680px;max-width:100%;max-height:90vh;
         display:flex;flex-direction:column;
         box-shadow:0 24px 64px rgba(0,0,0,0.35);
       ">
-        <div style="padding:20px 24px 0;flex-shrink:0">
+        <div class="wiz-header-pad" style="padding:20px 24px 0;flex-shrink:0">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
             <div>
               <div id="wiz-modo-label" style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);font-weight:600;margin-bottom:4px">
@@ -102,7 +120,7 @@ export function renderEvaluacionesSaber(container) {
           <div id="wiz-steps" style="display:flex;gap:6px;margin-bottom:20px"></div>
         </div>
         <div id="wiz-body" style="padding:0 24px 4px;overflow-y:auto;flex:1"></div>
-        <div style="padding:14px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:8px">
+        <div class="wiz-footer" style="padding:14px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:8px">
           <button id="wiz-prev" class="btn btn-secondary">← Anterior</button>
           <div id="wiz-msg" style="font-size:13px;flex:1;text-align:center"></div>
           <button id="wiz-next" class="btn btn-primary" style="white-space:nowrap">Siguiente →</button>
@@ -781,14 +799,14 @@ export function renderEvaluacionesSaber(container) {
       const evals  = evalsPorEstudiante[wizEstudiante?.id] || {}
       const yaEval = !!evals[t.id] && wizModo === 'editar'
       return `
-        <div style="
+        <div class="wiz-step-pill" style="
           flex:1;padding:6px 8px;border-radius:6px;
           font-size:12px;font-weight:700;text-align:center;
           background:${active ? 'var(--primary)' : done ? '#dcfce7' : yaEval ? '#fef3c7' : '#f3f4f6'};
           color:${active ? '#fff' : done ? '#16a34a' : yaEval ? '#d97706' : '#9ca3af'};
           border:1px solid ${active ? 'var(--primary)' : done ? '#86efac' : yaEval ? '#fcd34d' : '#e5e7eb'};
         ">${done ? '✓ ' : (i + 1) + '. '}${t.nombre}${yaEval && !done && !active ? ' (editar)' : ''}</div>
-        ${i < wizPendientes.length - 1 ? '<div style="display:flex;align-items:center;color:#d1d5db;font-size:12px">›</div>' : ''}
+        ${i < wizPendientes.length - 1 ? '<div class="wiz-step-sep" style="display:flex;align-items:center;color:#d1d5db;font-size:12px">›</div>' : ''}
       `
     }).join('')
 
@@ -819,10 +837,10 @@ export function renderEvaluacionesSaber(container) {
       ${ejes.map(eje => {
         const cur = resp.detalles[eje.id] || 0
         return `
-          <div style="margin-bottom:12px;padding:14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa">
+          <div class="wiz-eje-card" style="margin-bottom:12px;padding:14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa">
             <div style="font-weight:600;font-size:13px;margin-bottom:3px">${eje.nombre}</div>
             ${eje.descripcion ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">${eje.descripcion}</div>` : '<div style="margin-bottom:8px"></div>'}
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <div class="wiz-niv-row" style="display:flex;gap:6px;flex-wrap:wrap">
               ${NIVEL_META.slice(1).map((meta, i) => {
                 const val = i + 1, sel = cur === val
                 return `<button class="niv-btn" data-eje="${eje.id}" data-val="${val}" style="
