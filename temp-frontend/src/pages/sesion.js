@@ -1,4 +1,4 @@
-import { getMe, logout } from '../api.js'
+import { getMe, logout, getMaterias } from '../api.js'
 
 const ROL_LABEL = {
   ADMIN:        'Administrador',
@@ -25,8 +25,13 @@ const ICONS = {
 export async function renderSesion(container) {
   container.innerHTML = '<p class="loading">Cargando sesión…</p>'
 
-  const me = await getMe()
+  const [me, catalogoMaterias] = await Promise.all([
+    getMe(),
+    getMaterias().catch(() => []),
+  ])
   if (!me) return
+
+  const materiaMap = new Map((catalogoMaterias || []).map(m => [m.id, m.nombre]))
 
   const rolLabel  = ROL_LABEL[me.rol]  ?? me.rol
   const rolBadge  = ROL_BADGE[me.rol]  ?? 'badge-gray'
@@ -99,7 +104,7 @@ export async function renderSesion(container) {
             </div>
             <div class="sesion-chips">
               ${hasMaterias
-                ? me.materiaIds.map(id => `<span class="sesion-chip sesion-chip-green">Materia ${escHtml(id)}</span>`).join('')
+                ? me.materiaIds.map(id => `<span class="sesion-chip sesion-chip-green">${escHtml(materiaMap.get(id) ?? `Materia ${id}`)}</span>`).join('')
                 : `<span class="sesion-empty">Sin materias asignadas</span>`}
             </div>
           </div>
