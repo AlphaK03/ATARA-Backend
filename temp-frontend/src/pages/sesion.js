@@ -42,23 +42,17 @@ export async function renderSesion(container) {
   container.innerHTML = `
     <div class="sesion-page">
 
-      <!-- ═══ Hero / banner ═══ -->
-      <section class="sesion-hero">
-        <div class="sesion-hero-bg" aria-hidden="true"></div>
-        <div class="sesion-hero-content">
-          <div class="sesion-avatar">${iniciales}</div>
-          <div class="sesion-hero-info">
-            <h1 class="sesion-name">${escHtml(me.nombre)} ${escHtml(me.apellidos)}</h1>
-            <div class="sesion-meta">
-              <span class="badge ${rolBadge} sesion-rol-badge">${rolLabel}</span>
-              <span class="sesion-email">
-                <span class="sesion-meta-icon">${ICONS.mail}</span>
-                ${escHtml(me.correo)}
-              </span>
-            </div>
+      <!-- Encabezado de sesión -->
+      <div class="sesion-header">
+        <div class="sesion-avatar-sm">${iniciales}</div>
+        <div>
+          <div class="sesion-header-name">${escHtml(me.nombre)} ${escHtml(me.apellidos)}</div>
+          <div class="sesion-header-meta">
+            <span class="badge ${rolBadge}">${rolLabel}</span>
+            <span class="sesion-email-text">${escHtml(me.correo)}</span>
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- ═══ Grid de tarjetas ═══ -->
       <div class="sesion-grid">

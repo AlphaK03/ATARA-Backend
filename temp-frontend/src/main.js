@@ -265,6 +265,8 @@ async function afterLogin() {
   document.getElementById('desktop-topbar').style.display = ''
   renderNav(me.rol)
   updateTopbar(me)
+  const bsElA = document.querySelector('.backend-status')
+  if (bsElA) bsElA.style.display = me.rol === 'ADMIN' ? 'flex' : 'none'
   const hashPage = window.location.hash.slice(1)
   const startPage = (hashPage && pages[hashPage] && canNavigate(hashPage))
     ? hashPage
@@ -295,6 +297,8 @@ async function bootstrap() {
     document.getElementById('desktop-topbar').style.display = ''
     renderNav(me.rol)
     updateTopbar(me)
+    const bsElB = document.querySelector('.backend-status')
+    if (bsElB) bsElB.style.display = me.rol === 'ADMIN' ? 'flex' : 'none'
     const hashPage = window.location.hash.slice(1)
     const startPage = (hashPage && pages[hashPage] && canNavigate(hashPage))
       ? hashPage
