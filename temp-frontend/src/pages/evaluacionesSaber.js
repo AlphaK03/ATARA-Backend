@@ -157,6 +157,7 @@ export function renderEvaluacionesSaber(container) {
   let wizPendientes  = []
   let wizStep        = 0
   let wizRespuestas  = {}
+  let wizTempNextHandler = null  // handler temporal del paso de selección de saberes (Bug 2)
 
   // ── Catálogos ─────────────────────────────────────────────────────────────
   /**
@@ -645,33 +646,25 @@ export function renderEvaluacionesSaber(container) {
       refreshWizardUI()
       wizOverlay.style.display = 'flex'
     } else {
-      // Editar: todos los saberes con ejes en este grado, ir directo al wizard
+      // Editar: primero mostrar pantalla previa de selección de saberes con
+      // promedios y alertas pre-marcadas. showSeleccionSaberes configura
+      // wizPendientes / wizRespuestas y arranca el wizard al continuar.
       wizModoLabel.textContent = 'Recalificación'
       wizModoLabel.style.color = '#d97706'
-      wizPendientes = tiposConEjes
-      for (const tipo of wizPendientes) {
-        const ev = evals[`${matId}_${tipo.id}`]
-        const detallesMap = {}
-        if (ev?.detalles) {
-          for (const d of ev.detalles) detallesMap[d.ejeTemaaticoId] = d.valor
-        }
-        wizRespuestas[tipo.id] = {
-          evalId:      ev?.id ?? null,
-          fecha:       ev?.fecha ?? today,
-          observacion: ev?.observacion ?? '',
-          detalles:    detallesMap,
-        }
-      }
-      wizStep = 0
-      refreshWizardUI()
-      wizOverlay.style.display = 'flex'
+      if (!tiposConEjes.length) return  // grado sin ejes evaluables → no abrir
+      showSeleccionSaberes(est, evals, today, tiposConEjes)
     }
   }
 
-  function showSeleccionSaberes(est, evals, today) {
+  function showSeleccionSaberes(est, evals, today, tiposConEjes = null) {
     const matId = wizMateria?.id
+    // Solo mostrar saberes con ejes evaluables en este grado/materia (V12+).
+    // Si el caller no provee la lista filtrada, calcularla aquí.
+    const tiposDisponibles = tiposConEjes ?? tiposSaber.filter(t =>
+      (ejesPorMateriaTipo[`${matId}_${t.id}`] || []).length > 0
+    )
     // Construir datos previos para mostrar promedios
-    const items = tiposSaber.map(t => {
+    const items = tiposDisponibles.map(t => {
       const ev = evals[`${matId}_${t.id}`]
       let promedio = null
       if (ev?.detalles?.length) {
@@ -765,10 +758,12 @@ export function renderEvaluacionesSaber(container) {
       refreshWizardUI()
       wizNext.removeEventListener('click', onNext)
       wizNext.addEventListener('click', onNextDefault)
+      wizTempNextHandler = null
     }
 
     wizNext.removeEventListener('click', onNextDefault)
     wizNext.addEventListener('click', onNext)
+    wizTempNextHandler = onNext  // permite a closeWizard limpiarlo si el usuario cierra antes de continuar
     wizOverlay.style.display = 'flex'
   }
 
@@ -797,7 +792,7 @@ export function renderEvaluacionesSaber(container) {
     wizSteps.innerHTML = wizPendientes.map((t, i) => {
       const active = i === wizStep, done = i < wizStep
       const evals  = evalsPorEstudiante[wizEstudiante?.id] || {}
-      const yaEval = !!evals[t.id] && wizModo === 'editar'
+      const yaEval = !!evals[`${wizMateria?.id}_${t.id}`] && wizModo === 'editar'
       return `
         <div class="wiz-step-pill" style="
           flex:1;padding:6px 8px;border-radius:6px;
@@ -958,6 +953,13 @@ export function renderEvaluacionesSaber(container) {
 
   function closeWizard() {
     wizOverlay.style.display = 'none'
+    // Si el usuario cierra durante la pantalla de selección de saberes,
+    // limpiar el handler temporal y restaurar el handler por defecto.
+    if (wizTempNextHandler) {
+      wizNext.removeEventListener('click', wizTempNextHandler)
+      wizNext.addEventListener('click', onNextDefault)
+      wizTempNextHandler = null
+    }
     const g = container.querySelector('#student-grid')
     if (g) renderGrid(g)
   }
