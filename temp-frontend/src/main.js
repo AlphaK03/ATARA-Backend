@@ -3,7 +3,8 @@ import logoAtara  from './assets/images/logos/logo-atara-transparente.png'
 import logoUNA    from './assets/images/logos/logo_una.webp'
 import fondoLogin from './assets/images/backgrounds/fondo login.svg'
 import { checkHealth, getAccessToken, getContextoUsuario, login, logout,
-         clearAccessToken, clearRefreshToken, clearUserId } from './api.js'
+         clearAccessToken, clearRefreshToken, clearUserId,
+         solicitarResetPassword, confirmarResetPassword } from './api.js'
 import { showToast } from './utils/toast.js'
 import { renderAniosLectivos }    from './pages/aniosLectivos.js'
 import { renderEstudiantes }      from './pages/estudiantes.js'
@@ -209,7 +210,7 @@ function showLogin(notice = '') {
             <div class="login-field">
               <label for="login-correo">Correo electrónico</label>
               <div class="login-input-group">
-                <input type="email" id="login-correo" placeholder="usuario@correo.com" value="admin@atara.mep.go.cr" autocomplete="username">
+                <input type="email" id="login-correo" placeholder="usuario@correo.com" autocomplete="username">
                 <span class="login-input-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="5" width="18" height="14" rx="2"/>
@@ -221,7 +222,7 @@ function showLogin(notice = '') {
             <div class="login-field">
               <label for="login-pass">Contraseña</label>
               <div class="login-input-group">
-                <input type="password" id="login-pass" placeholder="Ingrese su contraseña" value="Admin1234!" autocomplete="current-password">
+                <input type="password" id="login-pass" placeholder="Ingrese su contraseña" autocomplete="current-password">
                 <span class="login-input-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="4" y="11" width="16" height="10" rx="2"/>
@@ -233,6 +234,7 @@ function showLogin(notice = '') {
             ${notice ? `<div class="login-notice">${notice}</div>` : ''}
             <div id="login-error" class="login-error"></div>
             <button type="submit" class="login-submit" id="login-btn">Ingresar</button>
+            <button type="button" class="login-forgot" id="btn-forgot">¿Olvidaste tu contraseña?</button>
           </form>
         </div>
       </div>
@@ -266,6 +268,140 @@ function showLogin(notice = '') {
   }
 
   form.addEventListener('submit', doLogin)
+  content.querySelector('#btn-forgot').addEventListener('click', showResetStep1)
+}
+
+// ── Reset contraseña — paso 1: ingresar correo ────────────────────────────
+function showResetStep1() {
+  content.innerHTML = `
+    <div class="login-screen">
+      <div class="login-left">
+        <div class="login-card">
+          <div class="login-logo-wrap">
+            <img src="${logoAtara}" alt="ATARA" class="login-logo">
+          </div>
+          <h2 class="login-title">Restablecer contraseña</h2>
+          <p class="login-subtitle">Ingresa tu correo y te enviaremos un código de verificación.</p>
+          <form class="login-form" id="reset-form-1">
+            <div class="login-field">
+              <label for="reset-correo">Correo electrónico</label>
+              <div class="login-input-group">
+                <input type="email" id="reset-correo" placeholder="usuario@correo.com" autocomplete="email">
+                <span class="login-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <div id="reset-error-1" class="login-error"></div>
+            <button type="submit" class="login-submit" id="reset-btn-1">Enviar código</button>
+            <button type="button" class="login-forgot" id="btn-back-login">← Volver al inicio de sesión</button>
+          </form>
+        </div>
+      </div>
+      <div class="login-right">
+        <img src="${fondoLogin}" alt="" class="login-illustration" aria-hidden="true">
+      </div>
+    </div>
+  `
+  const form     = content.querySelector('#reset-form-1')
+  const btn      = content.querySelector('#reset-btn-1')
+  const errorDiv = content.querySelector('#reset-error-1')
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault()
+    const correo = content.querySelector('#reset-correo').value.trim()
+    if (!correo) { errorDiv.textContent = 'Ingresa tu correo.'; return }
+    btn.disabled = true; btn.textContent = 'Enviando…'; errorDiv.textContent = ''
+    try {
+      await solicitarResetPassword(correo)
+      showResetStep2(correo)
+    } catch (err) {
+      errorDiv.textContent = err.message
+      btn.disabled = false; btn.textContent = 'Enviar código'
+    }
+  })
+  content.querySelector('#btn-back-login').addEventListener('click', () => showLogin())
+}
+
+// ── Reset contraseña — paso 2: ingresar código + nueva contraseña ─────────
+function showResetStep2(correo) {
+  content.innerHTML = `
+    <div class="login-screen">
+      <div class="login-left">
+        <div class="login-card">
+          <div class="login-logo-wrap">
+            <img src="${logoAtara}" alt="ATARA" class="login-logo">
+          </div>
+          <h2 class="login-title">Ingresa el código</h2>
+          <p class="login-subtitle">Enviamos un código de 4 dígitos a <strong>${correo}</strong>. Expira en 15 minutos.</p>
+          <form class="login-form" id="reset-form-2">
+            <div class="login-field">
+              <label for="reset-codigo">Código de verificación</label>
+              <div class="login-input-group">
+                <input type="text" id="reset-codigo" placeholder="0000" maxlength="4"
+                  autocomplete="one-time-code"
+                  style="font-size:24px;font-weight:700;letter-spacing:10px;text-align:center">
+              </div>
+            </div>
+            <div class="login-field">
+              <label for="reset-nueva">Nueva contraseña</label>
+              <div class="login-input-group">
+                <input type="password" id="reset-nueva" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+                <span class="login-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <div class="login-field">
+              <label for="reset-confirmar">Confirmar contraseña</label>
+              <div class="login-input-group">
+                <input type="password" id="reset-confirmar" placeholder="Repite la contraseña" autocomplete="new-password">
+              </div>
+            </div>
+            <div id="reset-error-2" class="login-error"></div>
+            <button type="submit" class="login-submit" id="reset-btn-2">Cambiar contraseña</button>
+            <button type="button" class="login-forgot" id="btn-reenviar">¿No llegó el código? Reenviar</button>
+          </form>
+        </div>
+      </div>
+      <div class="login-right">
+        <img src="${fondoLogin}" alt="" class="login-illustration" aria-hidden="true">
+      </div>
+    </div>
+  `
+  const form     = content.querySelector('#reset-form-2')
+  const btn      = content.querySelector('#reset-btn-2')
+  const errorDiv = content.querySelector('#reset-error-2')
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault()
+    const codigo    = content.querySelector('#reset-codigo').value.trim()
+    const nueva     = content.querySelector('#reset-nueva').value
+    const confirmar = content.querySelector('#reset-confirmar').value
+    if (codigo.length !== 4)  { errorDiv.textContent = 'El código debe tener 4 dígitos.'; return }
+    if (nueva.length < 8)     { errorDiv.textContent = 'La contraseña debe tener al menos 8 caracteres.'; return }
+    if (nueva !== confirmar)  { errorDiv.textContent = 'Las contraseñas no coinciden.'; return }
+    btn.disabled = true; btn.textContent = 'Cambiando…'; errorDiv.textContent = ''
+    try {
+      await confirmarResetPassword(correo, codigo, nueva)
+      showLogin('Contraseña actualizada correctamente. Inicia sesión con tu nueva contraseña.')
+    } catch (err) {
+      errorDiv.textContent = err.message
+      btn.disabled = false; btn.textContent = 'Cambiar contraseña'
+    }
+  })
+  content.querySelector('#btn-reenviar').addEventListener('click', async () => {
+    try {
+      await solicitarResetPassword(correo)
+      errorDiv.style.color = 'green'
+      errorDiv.textContent = 'Código reenviado. Revisa tu correo.'
+      setTimeout(() => { errorDiv.textContent = ''; errorDiv.style.color = '' }, 4000)
+    } catch { /* ignorar */ }
+  })
 }
 
 // ── Post-login: cargar contexto y mostrar app ────────────────────────────

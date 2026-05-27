@@ -100,6 +100,30 @@ export async function logout() {
 
 export const getMe = () => request('GET', '/auth/me')
 
+export async function solicitarResetPassword(correo) {
+  const res = await fetch(BASE + '/auth/password-reset/solicitar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ correo }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Error al solicitar el restablecimiento')
+  }
+}
+
+export async function confirmarResetPassword(correo, codigo, nuevaPassword) {
+  const res = await fetch(BASE + '/auth/password-reset/confirmar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ correo, codigo, nuevaPassword }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Error al confirmar el restablecimiento')
+  }
+}
+
 // ── Contexto del usuario autenticado (cacheado por sesión) ────────────────
 // Devuelve { userId, correo, nombre, apellidos, rol, seccionIds, materiaIds }
 // rol === 'DOCENTE' → seccionIds/materiaIds contienen sus asignaciones

@@ -853,6 +853,28 @@ body.login-mode #page-content {
   transform: none;
 }
 
+.login-forgot {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+.login-forgot:hover { color: var(--primary); }
+
+.login-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: -8px 0 16px;
+  line-height: 1.5;
+}
+
 .login-notice {
   color: #92400e;
   font-size: 13px;
