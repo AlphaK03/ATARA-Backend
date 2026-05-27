@@ -41,7 +41,7 @@ public class EmailServiceImpl implements EmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(remitente, "ATARA — Sistema de Alertas");
+            helper.setFrom(remitente, "ATARA — Notificaciones");
             helper.setTo(destinatario);
             helper.setSubject(asunto);
             helper.setText(html, true);
