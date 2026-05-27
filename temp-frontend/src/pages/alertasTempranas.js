@@ -55,7 +55,7 @@ export async function renderAlertasTempranas(container) {
             style="width:100%">
         </div>
         <button class="btn btn-secondary btn-sm" id="f-clear" style="height:36px" disabled>Limpiar</button>
-        <button class="btn btn-primary   btn-sm" id="btn-generar" style="height:36px" disabled>${_ico('refresh',13)} Regenerar</button>
+        <button class="btn btn-primary   btn-sm" id="btn-generar" style="height:36px" disabled>${_ico('refresh',13)} Actualizar alertas</button>
       </div>
     </div>
 
@@ -534,7 +534,7 @@ export async function renderAlertasTempranas(container) {
       }
       actualizarResumen(); renderNivelTabs(); renderMateriaTabs(); renderLista()
     } catch (e) { alert(`Error al regenerar: ${e.message}`) }
-    finally { btnGenerar.disabled = false; btnGenerar.innerHTML = `${_ico('refresh',13)} Regenerar` }
+    finally { btnGenerar.disabled = false; btnGenerar.innerHTML = `${_ico('refresh',13)} Actualizar alertas` }
   })
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -669,7 +669,7 @@ export async function renderAlertasTempranas(container) {
             <div style="font-size:16px;font-weight:700;margin-bottom:6px;color:#374151">Sin alertas registradas</div>
             <div style="font-size:13px">
               No hay alertas para este periodo.<br>
-              Presione <strong>Regenerar</strong> para calcularlas desde las evaluaciones.
+              Presione <strong>Actualizar alertas</strong> para calcularlas desde las evaluaciones.
             </div>
            </div>`
       return
