@@ -4,7 +4,7 @@ import logoUNA    from './assets/images/logos/logo_una.webp'
 import fondoLogin from './assets/images/backgrounds/fondo login.svg'
 import { checkHealth, getAccessToken, getContextoUsuario, login, logout,
          clearAccessToken, clearRefreshToken, clearUserId,
-         solicitarResetPassword, confirmarResetPassword } from './api.js'
+         solicitarResetPassword, confirmarResetPassword, cambiarPassword } from './api.js'
 import { showToast } from './utils/toast.js'
 import { renderAniosLectivos }    from './pages/aniosLectivos.js'
 import { renderEstudiantes }      from './pages/estudiantes.js'
@@ -257,9 +257,12 @@ function showLogin(notice = '') {
     btn.textContent = 'Ingresando…'
     errorDiv.textContent = ''
     try {
-      await login(correo, pass)
-      // login limpia _meCache en api.js; bootstrap lo recargará
-      await afterLogin()
+      const loginData = await login(correo, pass)
+      if (loginData?.debeCambiarPassword) {
+        showCambiarPasswordForzado()
+      } else {
+        await afterLogin()
+      }
     } catch (e) {
       errorDiv.textContent = e.message
       btn.disabled = false
@@ -401,6 +404,83 @@ function showResetStep2(correo) {
       errorDiv.textContent = 'Código reenviado. Revisa tu correo.'
       setTimeout(() => { errorDiv.textContent = ''; errorDiv.style.color = '' }, 4000)
     } catch { /* ignorar */ }
+  })
+}
+
+// ── Cambio de contraseña forzado (primer login) ───────────────────────────
+function showCambiarPasswordForzado() {
+  document.getElementById('desktop-topbar').style.display = 'none'
+  document.body.classList.add('login-mode')
+
+  content.innerHTML = `
+    <div class="login-screen">
+      <div class="login-left">
+        <div class="login-card">
+          <div class="login-logo-wrap">
+            <img src="${logoAtara}" alt="ATARA" class="login-logo">
+          </div>
+          <h2 class="login-title">Establece tu contraseña</h2>
+          <p class="login-subtitle">Por seguridad, debes crear tu propia contraseña antes de continuar. Usa la contraseña temporal que recibiste por correo.</p>
+          <form class="login-form" id="fp-form">
+            <div class="login-field">
+              <label for="fp-actual">Contraseña temporal</label>
+              <div class="login-input-group">
+                <input type="password" id="fp-actual" placeholder="Contraseña recibida por correo" autocomplete="current-password">
+                <span class="login-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <div class="login-field">
+              <label for="fp-nueva">Nueva contraseña</label>
+              <div class="login-input-group">
+                <input type="password" id="fp-nueva" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+                <span class="login-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <div class="login-field">
+              <label for="fp-confirmar">Confirmar contraseña</label>
+              <div class="login-input-group">
+                <input type="password" id="fp-confirmar" placeholder="Repite la nueva contraseña" autocomplete="new-password">
+              </div>
+            </div>
+            <div id="fp-error" class="login-error"></div>
+            <button type="submit" class="login-submit" id="fp-btn">Establecer contraseña</button>
+          </form>
+        </div>
+      </div>
+      <div class="login-right">
+        <img src="${fondoLogin}" alt="" class="login-illustration" aria-hidden="true">
+      </div>
+    </div>
+  `
+
+  const form     = content.querySelector('#fp-form')
+  const btn      = content.querySelector('#fp-btn')
+  const errorDiv = content.querySelector('#fp-error')
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault()
+    const actual    = content.querySelector('#fp-actual').value
+    const nueva     = content.querySelector('#fp-nueva').value
+    const confirmar = content.querySelector('#fp-confirmar').value
+    if (!actual)            { errorDiv.textContent = 'Ingresa la contraseña temporal.'; return }
+    if (nueva.length < 8)  { errorDiv.textContent = 'La nueva contraseña debe tener al menos 8 caracteres.'; return }
+    if (nueva !== confirmar){ errorDiv.textContent = 'Las contraseñas no coinciden.'; return }
+    btn.disabled = true; btn.textContent = 'Guardando…'; errorDiv.textContent = ''
+    try {
+      await cambiarPassword(actual, nueva)
+      await afterLogin()
+    } catch (err) {
+      errorDiv.textContent = err.message
+      btn.disabled = false; btn.textContent = 'Establecer contraseña'
+    }
   })
 }
 

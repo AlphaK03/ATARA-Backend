@@ -281,7 +281,10 @@ export const getAlertasTematicasSeccion = (seccionId, periodoId) =>
 export const getUsuarios    = ()           => request('GET',    '/admin/usuarios')
 export const createUsuario  = (data)       => request('POST',   '/admin/usuarios', data)
 export const updateUsuario  = (id, data)   => request('PUT',    `/admin/usuarios/${id}`, data)
-export const deleteUsuario  = (id)         => request('DELETE', `/admin/usuarios/${id}`)
+export const deleteUsuario        = (id)           => request('DELETE', `/admin/usuarios/${id}`)
+export const toggleEstadoUsuario  = (id)           => request('PATCH',  `/admin/usuarios/${id}/estado`)
+export const cambiarPassword      = (passwordActual, nuevaPassword) =>
+  request('PUT', '/auth/cambiar-password', { passwordActual, nuevaPassword })
 
 // ── Admin: Centros Educativos ─────────────────────────────────────────────
 // Solo ADMIN. Sin DELETE: los centros se conservan como histórico.

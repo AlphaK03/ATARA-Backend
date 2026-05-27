@@ -1,4 +1,4 @@
-import { getUsuarios, createUsuario, updateUsuario, deleteUsuario, getMaterias, getUserId } from '../api.js'
+import { getUsuarios, createUsuario, updateUsuario, deleteUsuario, getMaterias, getUserId, toggleEstadoUsuario } from '../api.js'
 
 const ROL_BADGE  = { ADMIN: 'badge-blue', DOCENTE: 'badge-green', COORDINADOR: 'badge-yellow' }
 const ESTADO_BADGE = { ACTIVO: 'badge-green', INACTIVO: 'badge-red' }
@@ -40,10 +40,10 @@ export async function renderAdmin(container) {
           <label>Correo electrónico <span style="color:#dc2626">*</span></label>
           <input type="email" id="f-correo" maxlength="150" placeholder="correo@institución.cr">
         </div>
-        <div class="form-group">
-          <label id="lbl-password">Contraseña <span style="color:#dc2626">*</span></label>
-          <input type="password" id="f-password" maxlength="100" placeholder="Mínimo 8 caracteres">
-          <span id="hint-password" style="font-size:11px;color:var(--text-muted);display:none">Dejar vacío para no cambiar.</span>
+        <div class="form-group" id="grupo-password">
+          <label>Nueva contraseña <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+          <input type="password" id="f-password" maxlength="100" placeholder="Dejar vacío para no cambiar">
+          <span style="font-size:11px;color:var(--text-muted)">Mínimo 8 caracteres. Dejar vacío para no cambiar.</span>
         </div>
         <div class="form-group">
           <label>Rol <span style="color:#dc2626">*</span></label>
@@ -107,7 +107,7 @@ export async function renderAdmin(container) {
               <th>Correo</th>
               <th>Rol</th>
               <th>Estado</th>
-              <th style="text-align:center;width:120px">Acciones</th>
+              <th style="text-align:center;width:200px">Acciones</th>
             </tr>
           </thead>
           <tbody id="admin-tbody">
@@ -131,9 +131,8 @@ export async function renderAdmin(container) {
   const btnCancel  = container.querySelector('#btn-cancel')
   const btnClose   = container.querySelector('#btn-form-close')
   const grupoEstado = container.querySelector('#grupo-estado')
-  const hintPwd    = container.querySelector('#hint-password')
-  const lblPwd     = container.querySelector('#lbl-password')
-  const grupoMat   = container.querySelector('#grupo-materias')
+  const grupoPwd    = container.querySelector('#grupo-password')
+  const grupoMat    = container.querySelector('#grupo-materias')
   const matBox     = container.querySelector('#materias-checkboxes')
   const matCount   = container.querySelector('#materias-count')
   const fRol       = container.querySelector('#f-rol')
@@ -211,12 +210,12 @@ export async function renderAdmin(container) {
       return
     }
     tbody.innerHTML = lista.map((u, i) => {
-      const esSuper   = u.id === SUPERADMIN_ID
-      const esYoMismo = u.id === currentUserId
-      // Editar: bloqueado solo al superadmin si el caller no es él mismo
-      const puedeEditar  = !esSuper || esYoMismo
-      // Eliminar: nunca al superadmin ni a uno mismo
+      const esSuper    = u.id === SUPERADMIN_ID
+      const esYoMismo  = u.id === currentUserId
+      const esActivo   = u.estado === 'ACTIVO'
+      const puedeEditar   = !esSuper || esYoMismo
       const puedeEliminar = !esSuper && !esYoMismo
+      const puedeToggle   = !esSuper && !esYoMismo
       const tagSuper = esSuper
         ? '<span class="badge badge-blue" style="margin-left:6px;font-size:10px" title="Cuenta protegida del sistema">★ Principal</span>'
         : ''
@@ -231,13 +230,19 @@ export async function renderAdmin(container) {
         </td>
         <td style="color:var(--text-muted)">${escHtml(u.correo)}</td>
         <td><span class="badge ${ROL_BADGE[u.rol] ?? 'badge-gray'}">${ROL_LABEL[u.rol] ?? u.rol}</span></td>
-        <td><span class="badge ${ESTADO_BADGE[u.estado] ?? 'badge-gray'}">${u.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}</span></td>
-        <td style="text-align:center">
+        <td><span class="badge ${ESTADO_BADGE[u.estado] ?? 'badge-gray'}">${esActivo ? 'Activo' : 'Inactivo'}</span></td>
+        <td style="text-align:center;white-space:nowrap">
           ${puedeEditar
             ? `<button class="btn btn-sm btn-secondary btn-edit" data-id="${u.id}" title="Editar">Editar</button>`
             : `<button class="btn btn-sm btn-secondary" disabled title="Cuenta protegida — solo el administrador principal puede editarse a sí mismo">Editar</button>`}
+          ${puedeToggle
+            ? `<button class="btn btn-sm btn-secondary btn-toggle" data-id="${u.id}"
+                 style="margin-left:4px${esActivo ? ';color:#b45309' : ';color:#16a34a'}"
+                 title="${esActivo ? 'Desactivar usuario' : 'Activar usuario'}"
+                 >${esActivo ? 'Desactivar' : 'Activar'}</button>`
+            : ''}
           ${puedeEliminar
-            ? `<button class="btn btn-sm btn-danger btn-del" data-id="${u.id}" title="Eliminar" style="margin-left:4px">×</button>`
+            ? `<button class="btn btn-sm btn-danger btn-del" data-id="${u.id}" title="Eliminar usuario" style="margin-left:4px">×</button>`
             : `<button class="btn btn-sm btn-danger" disabled title="${esSuper ? 'El administrador principal no se puede eliminar' : 'No puedes eliminar tu propia cuenta'}" style="margin-left:4px">×</button>`}
         </td>
       </tr>
@@ -245,6 +250,9 @@ export async function renderAdmin(container) {
 
     tbody.querySelectorAll('.btn-edit').forEach(btn => {
       btn.addEventListener('click', () => abrirEditar(Number(btn.dataset.id)))
+    })
+    tbody.querySelectorAll('.btn-toggle').forEach(btn => {
+      btn.addEventListener('click', () => toggleEstado(Number(btn.dataset.id)))
     })
     tbody.querySelectorAll('.btn-del').forEach(btn => {
       btn.addEventListener('click', () => confirmarEliminar(Number(btn.dataset.id)))
@@ -267,9 +275,7 @@ export async function renderAdmin(container) {
     formTitle.textContent = 'Nuevo usuario'
     limpiarForm()
     grupoEstado.style.display = 'none'
-    hintPwd.style.display = 'none'
-    lblPwd.innerHTML = 'Contraseña <span style="color:#dc2626">*</span>'
-    container.querySelector('#f-password').placeholder = 'Mínimo 8 caracteres'
+    grupoPwd.style.display = 'none'
     // Reset por si el último abrirEditar deshabilitó rol/estado (superadmin/self)
     const fRolEl = container.querySelector('#f-rol')
     const fEstadoEl = container.querySelector('#f-estado')
@@ -297,8 +303,7 @@ export async function renderAdmin(container) {
     container.querySelector('#f-rol').value       = u.rol
     container.querySelector('#f-estado').value    = u.estado
     grupoEstado.style.display = ''
-    hintPwd.style.display = ''
-    lblPwd.innerHTML = 'Contraseña'
+    grupoPwd.style.display = ''
     formError.textContent = ''
 
     // Reglas de auto-protección: rol y estado nunca cambian en
@@ -361,11 +366,7 @@ export async function renderAdmin(container) {
       formError.textContent = 'Completa todos los campos requeridos.'
       return
     }
-    if (!editingId && !password) {
-      formError.textContent = 'La contraseña es requerida al crear un usuario.'
-      return
-    }
-    if (password && password.length < 8) {
+    if (editingId && password && password.length < 8) {
       formError.textContent = 'La contraseña debe tener al menos 8 caracteres.'
       return
     }
@@ -406,7 +407,9 @@ export async function renderAdmin(container) {
             `${u.nombre} ${u.apellidos}`.toLowerCase().includes(q) ||
             u.correo.toLowerCase().includes(q))
         : _usuarios)
-      mostrarExito(editingId ? 'Usuario actualizado correctamente.' : 'Usuario creado correctamente.')
+      mostrarExito(editingId
+        ? 'Usuario actualizado correctamente.'
+        : 'Usuario creado. Se envió un correo con las credenciales al nuevo usuario.')
     } catch (e) {
       formError.textContent = e.message
     } finally {
@@ -431,6 +434,30 @@ export async function renderAdmin(container) {
             u2.correo.toLowerCase().includes(q))
         : _usuarios)
       mostrarExito('Usuario eliminado.')
+    } catch (e) {
+      msg.innerHTML = `<div class="alert alert-error" style="margin:16px">${e.message}</div>`
+      setTimeout(() => { msg.innerHTML = '' }, 4000)
+    }
+  }
+
+  // ── activar / desactivar usuario ──────────────────────────────────────────
+  async function toggleEstado(id) {
+    const u = _usuarios.find(x => x.id === id)
+    if (!u) return
+    const accion = u.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'
+    if (!confirm(`¿${accion} al usuario "${u.nombre} ${u.apellidos}"?`)) return
+
+    try {
+      const updated = await toggleEstadoUsuario(id)
+      const idx = _usuarios.findIndex(x => x.id === id)
+      if (idx !== -1) _usuarios[idx] = updated
+      const q = searchInput.value.toLowerCase()
+      renderTable(q
+        ? _usuarios.filter(u2 =>
+            `${u2.nombre} ${u2.apellidos}`.toLowerCase().includes(q) ||
+            u2.correo.toLowerCase().includes(q))
+        : _usuarios)
+      mostrarExito(`Usuario ${updated.estado === 'ACTIVO' ? 'activado' : 'desactivado'} correctamente.`)
     } catch (e) {
       msg.innerHTML = `<div class="alert alert-error" style="margin:16px">${e.message}</div>`
       setTimeout(() => { msg.innerHTML = '' }, 4000)

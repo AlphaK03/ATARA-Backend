@@ -1,5 +1,6 @@
 package com.atara.deb.ataraapi.controller;
 
+import com.atara.deb.ataraapi.dto.auth.CambiarPasswordRequestDto;
 import com.atara.deb.ataraapi.dto.auth.ConfirmarResetRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginResponseDto;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -106,6 +108,18 @@ public class AuthController {
     @GetMapping("/email/verificar")
     public ResponseEntity<Void> verificarEmail(@RequestParam String token) {
         emailTokenService.confirmarVerificacionEmail(token);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * PUT /api/auth/cambiar-password
+     * Cambia la contraseña del usuario autenticado y limpia el flag debeCambiarPassword.
+     */
+    @PutMapping("/cambiar-password")
+    public ResponseEntity<Void> cambiarPassword(
+            @Valid @RequestBody CambiarPasswordRequestDto request,
+            Authentication authentication) {
+        authService.cambiarPassword(authentication, request.getPasswordActual(), request.getNuevaPassword());
         return ResponseEntity.ok().build();
     }
 }

@@ -11,11 +11,13 @@ import com.atara.deb.ataraapi.repository.RolRepository;
 import com.atara.deb.ataraapi.repository.UsuarioRepository;
 import com.atara.deb.ataraapi.security.UsuarioPrincipal;
 import com.atara.deb.ataraapi.service.AdminService;
+import com.atara.deb.ataraapi.service.EmailService;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -26,6 +28,8 @@ import java.util.Objects;
 public class AdminServiceImpl implements AdminService {
 
     private static final String ROL_DOCENTE = "DOCENTE";
+    private static final String TEMP_PASSWORD_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     /**
      * ID del superadministrador (Carlos Rodríguez Mora, admin@atara.mep.go.cr) sembrado
@@ -46,15 +50,18 @@ public class AdminServiceImpl implements AdminService {
     private final RolRepository rolRepository;
     private final MateriaRepository materiaRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     public AdminServiceImpl(UsuarioRepository usuarioRepository,
                             RolRepository rolRepository,
                             MateriaRepository materiaRepository,
-                            PasswordEncoder passwordEncoder) {
+                            PasswordEncoder passwordEncoder,
+                            EmailService emailService) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.materiaRepository = materiaRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
 
     @Override
@@ -70,33 +77,41 @@ public class AdminServiceImpl implements AdminService {
         if (usuarioRepository.existsByCorreo(dto.getCorreo())) {
             throw new IllegalArgumentException("Ya existe un usuario con el correo: " + dto.getCorreo());
         }
-        if (dto.getPassword() == null || dto.getPassword().isBlank()) {
-            throw new IllegalArgumentException("La contraseña es requerida al crear un usuario.");
-        }
         Rol rol = rolRepository.findByNombre(dto.getRol())
                 .orElseThrow(() -> new IllegalArgumentException("Rol no válido: " + dto.getRol()));
+
+        String tempPassword = generarPasswordTemporal();
 
         Usuario u = Usuario.builder()
                 .nombre(dto.getNombre())
                 .apellidos(dto.getApellidos())
                 .correo(dto.getCorreo())
-                .password(passwordEncoder.encode(dto.getPassword()))
+                .password(passwordEncoder.encode(tempPassword))
                 .rol(rol)
                 .estado(EstadoUsuario.ACTIVO)
+                .debeCambiarPassword(true)
                 .materiasAsignadas(new ArrayList<>())
                 .seccionesAsignadas(new ArrayList<>())
                 .build();
 
-        // Para DOCENTE asignamos materias automáticamente, replicando lo que hizo el
-        // seed V8__usuario_materias.sql con los docentes ya existentes. Sin esto los
-        // usuarios nuevos quedan sin materias y el wizard de evaluación no carga
-        // las preguntas (verificarMateria del ContextoUsuario lanza AccesoDenegado).
         if (ROL_DOCENTE.equalsIgnoreCase(rol.getNombre())) {
             List<Materia> materias = resolverMaterias(dto.getMateriaIds());
             u.getMateriasAsignadas().addAll(materias);
         }
 
-        return toDto(usuarioRepository.save(u));
+        UsuarioAdminResponseDto result = toDto(usuarioRepository.save(u));
+
+        emailService.enviarBienvenida(dto.getCorreo(), dto.getNombre(), tempPassword);
+
+        return result;
+    }
+
+    private String generarPasswordTemporal() {
+        StringBuilder sb = new StringBuilder("Atara");
+        for (int i = 0; i < 6; i++) {
+            sb.append(TEMP_PASSWORD_CHARS.charAt(SECURE_RANDOM.nextInt(TEMP_PASSWORD_CHARS.length())));
+        }
+        return sb.toString();
     }
 
     /**
@@ -205,11 +220,28 @@ public class AdminServiceImpl implements AdminService {
         usuarioRepository.deleteById(id);
     }
 
-    /**
-     * Lee el ID del usuario autenticado del SecurityContext. Devuelve null si
-     * no hay autenticación (escenario imposible aquí porque {@code AdminController}
-     * exige {@code hasRole('ADMIN')}, pero defendemos por si acaso).
-     */
+    @Override
+    @Transactional
+    public UsuarioAdminResponseDto toggleEstado(Long id) {
+        Usuario u = usuarioRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + id));
+
+        if (id == SUPERADMIN_ID) {
+            throw new IllegalArgumentException(
+                    "El estado del administrador principal no puede modificarse.");
+        }
+        Long callerId = obtenerIdUsuarioActual();
+        if (Objects.equals(callerId, id)) {
+            throw new IllegalArgumentException("No puede cambiar su propio estado.");
+        }
+
+        u.setEstado(u.getEstado() == EstadoUsuario.ACTIVO
+                ? EstadoUsuario.INACTIVO
+                : EstadoUsuario.ACTIVO);
+
+        return toDto(usuarioRepository.save(u));
+    }
+
     private Long obtenerIdUsuarioActual() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof UsuarioPrincipal up)) {

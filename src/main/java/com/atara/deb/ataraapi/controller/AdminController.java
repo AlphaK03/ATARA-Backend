@@ -48,4 +48,10 @@ public class AdminController {
         adminService.eliminarUsuario(id);
         return ResponseEntity.noContent().build();
     }
+
+    /** PATCH /api/admin/usuarios/{id}/estado — alterna ACTIVO ↔ INACTIVO. */
+    @PatchMapping("/usuarios/{id}/estado")
+    public ResponseEntity<UsuarioAdminResponseDto> toggleEstado(@PathVariable Long id) {
+        return ResponseEntity.ok(adminService.toggleEstado(id));
+    }
 }
