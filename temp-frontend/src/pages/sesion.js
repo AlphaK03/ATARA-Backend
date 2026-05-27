@@ -1,4 +1,4 @@
-import { getMe, logout, getMaterias } from '../api.js'
+import { getMe, logout, getMaterias, getSecciones, getAnioLectivoActivo } from '../api.js'
 
 const ROL_LABEL = {
   ADMIN:        'Administrador',
@@ -25,13 +25,23 @@ const ICONS = {
 export async function renderSesion(container) {
   container.innerHTML = '<p class="loading">Cargando sesión…</p>'
 
-  const [me, catalogoMaterias] = await Promise.all([
+  const [me, catalogoMaterias, anio] = await Promise.all([
     getMe(),
     getMaterias().catch(() => []),
+    getAnioLectivoActivo().catch(() => null),
   ])
   if (!me) return
 
   const materiaMap = new Map((catalogoMaterias || []).map(m => [m.id, m.nombre]))
+
+  const seccionMap = new Map()
+  if (anio) {
+    const secciones = await getSecciones(anio.id).catch(() => [])
+    secciones.forEach(s => {
+      const label = s.nivelGrado ? `Sección ${s.nivelGrado}-${s.nombre}` : s.nombre
+      seccionMap.set(s.id, label)
+    })
+  }
 
   const rolLabel  = ROL_LABEL[me.rol]  ?? me.rol
   const rolBadge  = ROL_BADGE[me.rol]  ?? 'badge-gray'
@@ -91,7 +101,7 @@ export async function renderSesion(container) {
             </div>
             <div class="sesion-chips">
               ${hasSecciones
-                ? me.seccionIds.map(id => `<span class="sesion-chip sesion-chip-blue">Sección ${escHtml(id)}</span>`).join('')
+                ? me.seccionIds.map(id => `<span class="sesion-chip sesion-chip-blue">${escHtml(seccionMap.get(id) ?? `Sección ${id}`)}</span>`).join('')
                 : `<span class="sesion-empty">Sin secciones asignadas</span>`}
             </div>
           </div>

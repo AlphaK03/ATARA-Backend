@@ -7,6 +7,7 @@
  * Paso 4: Click en estudiante → wizard modal para evaluar (o recalificar) cada tipo de saber.
  */
 
+import './evaluacionesSaber.css'
 import {
   getAnioLectivoActivo,
   getPeriodos,
@@ -69,77 +70,45 @@ export function renderEvaluacionesSaber(container) {
     </p>
 
     <!-- Breadcrumb de selección -->
-    <div id="breadcrumb" style="
-      display:flex;gap:8px;align-items:center;flex-wrap:wrap;
-      margin-bottom:20px;font-size:13px;
-    "></div>
+    <div id="breadcrumb"></div>
 
     <!-- Contenido del paso actual -->
     <div id="step-content"></div>
 
-    <style>
-      @media (max-width: 768px) {
-        #wizard-overlay { align-items: flex-end !important; padding: 0 !important; }
-        .wiz-dialog { border-radius: 16px 16px 0 0 !important; width: 100% !important; max-height: 88vh !important; }
-        .wiz-header-pad { padding: 14px 16px 0 !important; }
-        #wiz-body { padding: 0 14px 8px !important; }
-        .wiz-footer { padding: 10px 14px !important; gap: 6px !important; }
-        #wiz-steps { overflow-x: auto !important; flex-wrap: nowrap !important; padding-bottom: 2px !important; scrollbar-width: none !important; }
-        #wiz-steps::-webkit-scrollbar { display: none; }
-        .wiz-step-pill { flex: none !important; font-size: 10px !important; padding: 4px 7px !important; white-space: nowrap !important; }
-        .wiz-step-sep { flex: none !important; }
-        .wiz-niv-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-        .niv-btn { padding: 10px 6px !important; min-height: 44px !important; border-radius: 8px !important; font-size: 11px !important; width: 100% !important; box-sizing: border-box !important; line-height: 1.3 !important; }
-        .wiz-eje-card { padding: 10px !important; margin-bottom: 8px !important; }
-        #wiz-prev, #wiz-next { font-size: 13px !important; padding: 8px 12px !important; }
-      }
-    </style>
-
     <!-- Modal wizard de evaluación -->
-    <div id="wizard-overlay" style="
-      display:none;position:fixed;inset:0;
-      background:rgba(0,0,0,0.55);z-index:200;
-      align-items:center;justify-content:center;padding:16px;
-    ">
-      <div class="wiz-dialog" style="
-        background:#fff;border-radius:14px;
-        width:680px;max-width:100%;max-height:90vh;
-        display:flex;flex-direction:column;
-        box-shadow:0 24px 64px rgba(0,0,0,0.35);
-      ">
-        <div class="wiz-header-pad" style="padding:20px 24px 0;flex-shrink:0">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+    <div id="wizard-overlay">
+      <div class="wiz-dialog">
+        <div class="wiz-header-pad">
+          <div class="wiz-header-top">
             <div>
-              <div id="wiz-modo-label" style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);font-weight:600;margin-bottom:4px">
-                Evaluación por saber
-              </div>
-              <h2 id="wiz-nombre" style="margin:0;font-size:19px;line-height:1.3"></h2>
+              <div id="wiz-modo-label">Evaluación por saber</div>
+              <h2 id="wiz-nombre"></h2>
             </div>
-            <button id="wiz-close" style="background:none;border:none;font-size:24px;cursor:pointer;color:#9ca3af;padding:0 0 0 16px;line-height:1" title="Cerrar">&times;</button>
+            <button id="wiz-close" title="Cerrar">&times;</button>
           </div>
-          <div id="wiz-steps" style="display:flex;gap:6px;margin-bottom:20px"></div>
+          <div id="wiz-steps"></div>
         </div>
-        <div id="wiz-body" style="padding:0 24px 4px;overflow-y:auto;flex:1"></div>
-        <div class="wiz-footer" style="padding:14px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:8px">
+        <div id="wiz-body"></div>
+        <div class="wiz-footer">
           <button id="wiz-prev" class="btn btn-secondary">← Anterior</button>
-          <div id="wiz-msg" style="font-size:13px;flex:1;text-align:center"></div>
-          <button id="wiz-next" class="btn btn-primary" style="white-space:nowrap">Siguiente →</button>
+          <div id="wiz-msg"></div>
+          <button id="wiz-next" class="btn btn-primary">Siguiente →</button>
         </div>
       </div>
     </div>
   `
 
   // ── Refs ──────────────────────────────────────────────────────────────────
-  const breadcrumb  = container.querySelector('#breadcrumb')
-  const stepContent = container.querySelector('#step-content')
-  const wizOverlay  = container.querySelector('#wizard-overlay')
-  const wizNombre   = container.querySelector('#wiz-nombre')
+  const breadcrumb   = container.querySelector('#breadcrumb')
+  const stepContent  = container.querySelector('#step-content')
+  const wizOverlay   = container.querySelector('#wizard-overlay')
+  const wizNombre    = container.querySelector('#wiz-nombre')
   const wizModoLabel = container.querySelector('#wiz-modo-label')
-  const wizSteps    = container.querySelector('#wiz-steps')
-  const wizBody     = container.querySelector('#wiz-body')
-  const wizPrev     = container.querySelector('#wiz-prev')
-  const wizNext     = container.querySelector('#wiz-next')
-  const wizMsg      = container.querySelector('#wiz-msg')
+  const wizSteps     = container.querySelector('#wiz-steps')
+  const wizBody      = container.querySelector('#wiz-body')
+  const wizPrev      = container.querySelector('#wiz-prev')
+  const wizNext      = container.querySelector('#wiz-next')
+  const wizMsg       = container.querySelector('#wiz-msg')
 
   // ── Estado de navegación ──────────────────────────────────────────────────
   let anioActivo   = null
@@ -220,11 +189,8 @@ export function renderEvaluacionesSaber(container) {
     })
 
     breadcrumb.innerHTML = crumbs.map((c, i) => `
-      ${i > 0 ? '<span style="color:#d1d5db">›</span>' : ''}
-      <span style="
-        ${c.action ? 'cursor:pointer;color:var(--primary);text-decoration:underline' : 'color:#374151;font-weight:600'};
-        padding:2px 4px;border-radius:4px;
-      " data-crumb="${i}">${c.label}</span>
+      ${i > 0 ? '<span class="crumb-sep">›</span>' : ''}
+      <span class="${c.action ? 'crumb-link' : 'crumb-active'}" data-crumb="${i}">${c.label}</span>
     `).join('')
 
     breadcrumb.querySelectorAll('[data-crumb]').forEach(el => {
@@ -251,15 +217,15 @@ export function renderEvaluacionesSaber(container) {
 
       stepContent.innerHTML = `
         <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div class="card-header">
             <div>
-              <h2 style="margin:0">Seleccione el período</h2>
-              <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted)">
+              <h2 class="card-title">Seleccione el período</h2>
+              <p class="card-subtitle">
                 Año lectivo ${anioActivo.anio} · ${periodos.length} períodos
               </p>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+          <div class="periodo-grid">
             ${periodos.map(p => {
               const isActivo = p.activo
               const hoy = new Date().toISOString().split('T')[0]
@@ -278,23 +244,11 @@ export function renderEvaluacionesSaber(container) {
               }
 
               return `
-                <div class="periodo-card" data-periodo='${JSON.stringify(p)}' style="
-                  border:2px solid ${borderColor};border-radius:10px;padding:18px;
-                  background:${cardBg};cursor:pointer;
-                  transition:box-shadow 0.15s,transform 0.1s;
-                ">
-                  <div style="font-size:28px;font-weight:800;color:${borderColor};line-height:1;margin-bottom:6px">
-                    ${p.numeroPeriodo}
-                  </div>
-                  <div style="font-weight:600;font-size:14px;margin-bottom:8px;line-height:1.3">${p.nombre}</div>
-                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
-                    ${mesCorto(p.fechaInicio)} → ${mesCorto(p.fechaFin)}
-                  </div>
-                  <span style="
-                    display:inline-block;font-size:11px;font-weight:700;
-                    padding:3px 10px;border-radius:20px;
-                    background:${badgeBg};color:${badgeColor};
-                  ">${badgeText}</span>
+                <div class="periodo-card" data-periodo='${JSON.stringify(p)}' style="border-color:${borderColor};background:${cardBg}">
+                  <div class="periodo-num" style="color:${borderColor}">${p.numeroPeriodo}</div>
+                  <div class="periodo-nombre">${p.nombre}</div>
+                  <div class="periodo-fechas">${mesCorto(p.fechaInicio)} → ${mesCorto(p.fechaFin)}</div>
+                  <span class="periodo-badge" style="background:${badgeBg};color:${badgeColor}">${badgeText}</span>
                 </div>
               `
             }).join('')}
@@ -320,7 +274,7 @@ export function renderEvaluacionesSaber(container) {
       renderBreadcrumb()
 
     } catch (e) {
-      stepContent.innerHTML = `<div class="card"><p style="color:#dc2626">Error cargando períodos: ${e.message}</p></div>`
+      stepContent.innerHTML = `<div class="card"><p class="error-text">Error cargando períodos: ${e.message}</p></div>`
     }
   }
 
@@ -333,40 +287,27 @@ export function renderEvaluacionesSaber(container) {
 
       stepContent.innerHTML = `
         <div class="card">
-          <div style="margin-bottom:16px">
-            <h2 style="margin:0">Seleccione su sección</h2>
-            <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted)">
+          <div class="card-intro">
+            <h2 class="card-title">Seleccione su sección</h2>
+            <p class="card-subtitle">
               ${periodoSel.nombre} · ${secciones.length} sección(es) disponibles
             </p>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+          <div class="seccion-grid">
             ${secciones.map(s => {
-              const grado = ordinalGrado(s.nivelGrado)
+              const grado    = ordinalGrado(s.nivelGrado)
               const initials = `${s.nivelGrado}${s.nombre}`
               return `
-                <div class="seccion-card" data-seccion='${JSON.stringify(s)}' style="
-                  border:2px solid var(--primary);border-radius:10px;padding:18px;
-                  background:#f8faff;cursor:pointer;
-                  transition:box-shadow 0.15s,transform 0.1s;
-                ">
-                  <div style="display:flex;gap:12px;align-items:flex-start">
-                    <div style="
-                      width:48px;height:48px;border-radius:10px;flex-shrink:0;
-                      background:var(--primary);color:#fff;
-                      display:flex;align-items:center;justify-content:center;
-                      font-weight:800;font-size:18px;letter-spacing:-1px;
-                    ">${initials}</div>
+                <div class="seccion-card" data-seccion='${JSON.stringify(s)}'>
+                  <div class="seccion-card-inner">
+                    <div class="seccion-avatar">${initials}</div>
                     <div>
-                      <div style="font-weight:700;font-size:16px;margin-bottom:2px">
-                        ${grado} · Sección ${s.nombre}
-                      </div>
-                      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">
-                        ${s.centroNombre}
-                      </div>
+                      <div class="seccion-nombre">${grado} · Sección ${s.nombre}</div>
+                      <div class="seccion-centro">${s.centroNombre}</div>
                       ${s.docenteNombreCompleto ? `
-                        <div style="font-size:12px;display:flex;align-items:center;gap:4px">
-                          <span style="color:#9ca3af">Docente:</span>
-                          <span style="font-weight:500">${s.docenteNombreCompleto}</span>
+                        <div class="seccion-docente">
+                          <span class="seccion-docente-label">Docente:</span>
+                          <span class="seccion-docente-nombre">${s.docenteNombreCompleto}</span>
                         </div>` : ''}
                     </div>
                   </div>
@@ -394,7 +335,7 @@ export function renderEvaluacionesSaber(container) {
       })
 
     } catch (e) {
-      stepContent.innerHTML = `<div class="card"><p style="color:#dc2626">Error cargando secciones: ${e.message}</p></div>`
+      stepContent.innerHTML = `<div class="card"><p class="error-text">Error cargando secciones: ${e.message}</p></div>`
     }
   }
 
@@ -444,10 +385,10 @@ export function renderEvaluacionesSaber(container) {
 
   // ── PASO 3: Grilla de estudiantes ─────────────────────────────────────────
   function renderStepEstudiantes() {
-    const matId  = materiaSel?.id
+    const matId     = materiaSel?.id
     const tiposEval = tiposEvaluablesParaMateria(matId)
-    const total  = tiposEval.length
-    const completos  = total === 0 ? 0 : estudiantes.filter(e => {
+    const total     = tiposEval.length
+    const completos = total === 0 ? 0 : estudiantes.filter(e => {
       const evals = evalsPorEstudiante[e.id] || {}
       return tiposEval.every(t => !!evals[`${matId}_${t.id}`])
     }).length
@@ -457,48 +398,38 @@ export function renderEvaluacionesSaber(container) {
       <div class="card">
         <div class="section-actions">
           <div>
-            <h2 style="margin:0">
+            <h2 class="card-title">
               ${ordinalGrado(seccionSel.nivelGrado)} · Sección ${seccionSel.nombre}
-              <span style="font-size:14px;font-weight:400;color:var(--text-muted);margin-left:8px">${seccionSel.centroNombre}</span>
+              <span class="h2-sub">${seccionSel.centroNombre}</span>
             </h2>
-            <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted)">
+            <p class="card-subtitle">
               ${periodoSel.nombre} · ${estudiantes.length} estudiantes
-              · <span style="color:#16a34a;font-weight:600">${completos} completados</span>
-              · <span style="color:#dc2626;font-weight:600">${pendientes} pendientes</span>
+              · <span class="text-success">${completos} completados</span>
+              · <span class="text-danger">${pendientes} pendientes</span>
             </p>
           </div>
-          <div style="display:flex;gap:10px;font-size:12px;align-items:center">
-            <span style="display:flex;align-items:center;gap:4px">
-              <span style="width:10px;height:10px;border-radius:50%;background:#dc2626;display:inline-block"></span>Sin evaluar
+          <div class="legend-row">
+            <span class="legend-item">
+              <span class="legend-dot legend-dot--danger"></span>Sin evaluar
             </span>
-            <span style="display:flex;align-items:center;gap:4px">
-              <span style="width:10px;height:10px;border-radius:50%;background:#d97706;display:inline-block"></span>Parcial
+            <span class="legend-item">
+              <span class="legend-dot legend-dot--warning"></span>Parcial
             </span>
-            <span style="display:flex;align-items:center;gap:4px">
-              <span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block"></span>Completo
+            <span class="legend-item">
+              <span class="legend-dot legend-dot--success"></span>Completo
             </span>
           </div>
         </div>
 
         <!-- Tabs de materia -->
-        <div id="materia-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0">
+        <div id="materia-tabs">
           ${materias.map(m => {
             const sel = materiaSel?.id === m.id
-            return `<button class="mat-tab" data-mat='${JSON.stringify(m)}' style="
-              padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;
-              cursor:pointer;transition:all 0.15s;
-              border:2px solid ${sel ? 'var(--primary)' : '#e5e7eb'};
-              background:${sel ? 'var(--primary)' : '#f9fafb'};
-              color:${sel ? '#fff' : '#374151'};
-            ">${m.nombre}</button>`
+            return `<button class="mat-tab${sel ? ' mat-tab--active' : ''}" data-mat='${JSON.stringify(m)}'>${m.nombre}</button>`
           }).join('')}
         </div>
 
-        <div id="student-grid" style="
-          display:grid;
-          grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
-          gap:12px;margin-top:16px;
-        "></div>
+        <div id="student-grid"></div>
       </div>
     `
 
@@ -513,13 +444,13 @@ export function renderEvaluacionesSaber(container) {
   }
 
   function renderGrid(grid) {
-    const matId    = materiaSel?.id
+    const matId     = materiaSel?.id
     const tiposEval = tiposEvaluablesParaMateria(matId)
-    const total    = tiposEval.length
+    const total     = tiposEval.length
 
     grid.innerHTML = estudiantes.map(est => {
-      const evals = evalsPorEstudiante[est.id] || {}
-      const count = tiposEval.filter(t => !!evals[`${matId}_${t.id}`]).length
+      const evals     = evalsPorEstudiante[est.id] || {}
+      const count     = tiposEval.filter(t => !!evals[`${matId}_${t.id}`]).length
       const isCompleto = total > 0 && count >= total
 
       let borderColor, badgeText, badgeBg, cardBg
@@ -539,50 +470,29 @@ export function renderEvaluacionesSaber(container) {
       const saberChips = tiposEval.map(t => {
         const ev   = evals[`${matId}_${t.id}`]
         const done = !!ev
-        // Mostrar promedio del saber si ya fue evaluado
         let promedioLabel = ''
         if (ev?.detalles?.length) {
           const sum = ev.detalles.reduce((acc, d) => acc + d.valor, 0)
           const avg = (sum / ev.detalles.length).toFixed(1)
           promedioLabel = ` · ${avg}`
         }
-        return `<span style="
-          font-size:10px;padding:2px 7px;border-radius:12px;font-weight:600;
-          background:${done ? '#dcfce7' : '#f3f4f6'};
-          color:${done ? '#16a34a' : '#9ca3af'};
-          border:1px solid ${done ? '#86efac' : '#e5e7eb'};
-        ">${done ? '✓' : '○'} ${t.nombre}${promedioLabel}</span>`
+        return `<span class="saber-chip ${done ? 'saber-chip--done' : 'saber-chip--pending'}">${done ? '✓' : '○'} ${t.nombre}${promedioLabel}</span>`
       }).join('')
 
       const accionLabel = isCompleto
-        ? `<div style="position:absolute;bottom:10px;right:12px;font-size:11px;color:#16a34a;font-weight:600;display:inline-flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Recalificar</div>`
-        : `<div style="position:absolute;bottom:10px;right:12px;font-size:11px;color:${borderColor};font-weight:600">Evaluar →</div>`
+        ? `<div class="s-action s-action--done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Recalificar</div>`
+        : `<div class="s-action" style="color:${borderColor}">Evaluar →</div>`
 
       return `
-        <div class="s-card" data-est-id="${est.id}" style="
-          border:2px solid ${borderColor};border-radius:10px;padding:16px;
-          background:${cardBg};cursor:pointer;
-          transition:box-shadow 0.15s,transform 0.1s;position:relative;
-          user-select:none;
-        ">
-          <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
-            <div style="
-              width:42px;height:42px;border-radius:50%;flex-shrink:0;
-              background:${borderColor};color:#fff;
-              display:flex;align-items:center;justify-content:center;
-              font-weight:700;font-size:15px;
-            ">${initials}</div>
-            <div style="min-width:0;flex:1">
-              <div style="font-weight:600;font-size:14px;line-height:1.35;word-break:break-word">
-                ${est.nombreCompleto}
-              </div>
-              <span style="
-                display:inline-block;margin-top:5px;font-size:11px;font-weight:700;
-                padding:2px 9px;border-radius:20px;background:${badgeBg};color:${borderColor};
-              ">${badgeText}</span>
+        <div class="s-card" data-est-id="${est.id}" style="border-color:${borderColor};background:${cardBg}">
+          <div class="s-card-top">
+            <div class="s-avatar" style="background:${borderColor}">${initials}</div>
+            <div class="s-info">
+              <div class="s-nombre">${est.nombreCompleto}</div>
+              <span class="s-badge" style="background:${badgeBg};color:${borderColor}">${badgeText}</span>
             </div>
           </div>
-          <div style="display:flex;gap:5px;flex-wrap:wrap">${saberChips}</div>
+          <div class="s-chips">${saberChips}</div>
           ${accionLabel}
         </div>
       `
@@ -628,8 +538,6 @@ export function renderEvaluacionesSaber(container) {
     wizNombre.textContent = est.nombreCompleto
 
     // Filtrar tipos de saber sin ejes en este grado/materia (V12+).
-    // Ejemplo: Matemáticas en 1° no tiene "Álgebra", así que ese tipo de saber
-    // tendría 0 ejes evaluables. Mejor saltarlo que mostrar un wizard vacío.
     const matId = wizMateria?.id
     const tiposConEjes = tiposSaber.filter(t =>
       (ejesPorMateriaTipo[`${matId}_${t.id}`] || []).length > 0
@@ -641,7 +549,7 @@ export function renderEvaluacionesSaber(container) {
         wizRespuestas[tipo.id] = { fecha: today, observacion: '', detalles: {} }
       }
       wizModoLabel.textContent = 'Evaluación por saber'
-      wizModoLabel.style.color = 'var(--text-muted)'
+      wizModoLabel.classList.remove('wiz-modo--recal')
       if (!wizPendientes.length) return
       refreshWizardUI()
       wizOverlay.style.display = 'flex'
@@ -650,7 +558,7 @@ export function renderEvaluacionesSaber(container) {
       // promedios y alertas pre-marcadas. showSeleccionSaberes configura
       // wizPendientes / wizRespuestas y arranca el wizard al continuar.
       wizModoLabel.textContent = 'Recalificación'
-      wizModoLabel.style.color = '#d97706'
+      wizModoLabel.classList.add('wiz-modo--recal')
       if (!tiposConEjes.length) return  // grado sin ejes evaluables → no abrir
       showSeleccionSaberes(est, evals, today, tiposConEjes)
     }
@@ -658,12 +566,9 @@ export function renderEvaluacionesSaber(container) {
 
   function showSeleccionSaberes(est, evals, today, tiposConEjes = null) {
     const matId = wizMateria?.id
-    // Solo mostrar saberes con ejes evaluables en este grado/materia (V12+).
-    // Si el caller no provee la lista filtrada, calcularla aquí.
     const tiposDisponibles = tiposConEjes ?? tiposSaber.filter(t =>
       (ejesPorMateriaTipo[`${matId}_${t.id}`] || []).length > 0
     )
-    // Construir datos previos para mostrar promedios
     const items = tiposDisponibles.map(t => {
       const ev = evals[`${matId}_${t.id}`]
       let promedio = null
@@ -678,28 +583,23 @@ export function renderEvaluacionesSaber(container) {
     })
 
     wizBody.innerHTML = `
-      <p style="font-size:13px;color:#6b7280;margin:0 0 16px">
+      <p class="wiz-sel-intro">
         Selecciona los saberes que deseas recalificar. Los no seleccionados se mantienen igual.
       </p>
       ${items.map(item => `
-        <label style="
-          display:flex;align-items:center;gap:14px;padding:14px;
-          border:2px solid #e5e7eb;border-radius:10px;margin-bottom:10px;
-          cursor:pointer;transition:border-color .15s;background:#fafafa;
-        " class="saber-sel-row" data-tipo-id="${item.tipo.id}">
+        <label class="saber-sel-row" data-tipo-id="${item.tipo.id}">
           <input type="checkbox" class="saber-checkbox" data-tipo-id="${item.tipo.id}"
-            style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;flex-shrink:0"
             ${item.promedio !== null && parseFloat(item.promedio) <= 3.0 ? 'checked' : ''}>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:14px">${item.tipo.nombre}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:3px">
+          <div class="saber-sel-info">
+            <div class="saber-sel-nombre">${item.tipo.nombre}</div>
+            <div class="saber-sel-meta">
               Promedio actual: <strong>${item.promedio !== null ? item.promedio : 'No evaluado'}</strong>
               &nbsp;·&nbsp; ${item.nivelAlerta}
             </div>
           </div>
         </label>
       `).join('')}
-      <p style="font-size:11px;color:#9ca3af;margin-top:8px">
+      <p class="saber-sel-hint">
         Los saberes con alerta (≤ 3.0) aparecen pre-seleccionados.
       </p>
     `
@@ -707,10 +607,7 @@ export function renderEvaluacionesSaber(container) {
     // Highlight al hacer hover / check
     wizBody.querySelectorAll('.saber-sel-row').forEach(row => {
       const cb = row.querySelector('.saber-checkbox')
-      const update = () => {
-        row.style.borderColor = cb.checked ? 'var(--primary)' : '#e5e7eb'
-        row.style.background  = cb.checked ? '#f0f7ff' : '#fafafa'
-      }
+      const update = () => row.classList.toggle('saber-sel-row--checked', cb.checked)
       update()
       cb.addEventListener('change', update)
       row.addEventListener('click', e => {
@@ -793,57 +690,45 @@ export function renderEvaluacionesSaber(container) {
       const active = i === wizStep, done = i < wizStep
       const evals  = evalsPorEstudiante[wizEstudiante?.id] || {}
       const yaEval = !!evals[`${wizMateria?.id}_${t.id}`] && wizModo === 'editar'
+      const modClass = active ? 'wiz-step-pill--active' : done ? 'wiz-step-pill--done' : yaEval ? 'wiz-step-pill--edit' : ''
       return `
-        <div class="wiz-step-pill" style="
-          flex:1;padding:6px 8px;border-radius:6px;
-          font-size:12px;font-weight:700;text-align:center;
-          background:${active ? 'var(--primary)' : done ? '#dcfce7' : yaEval ? '#fef3c7' : '#f3f4f6'};
-          color:${active ? '#fff' : done ? '#16a34a' : yaEval ? '#d97706' : '#9ca3af'};
-          border:1px solid ${active ? 'var(--primary)' : done ? '#86efac' : yaEval ? '#fcd34d' : '#e5e7eb'};
-        ">${done ? '✓ ' : (i + 1) + '. '}${t.nombre}${yaEval && !done && !active ? ' (editar)' : ''}</div>
-        ${i < wizPendientes.length - 1 ? '<div class="wiz-step-sep" style="display:flex;align-items:center;color:#d1d5db;font-size:12px">›</div>' : ''}
+        <div class="wiz-step-pill ${modClass}">${done ? '✓ ' : (i + 1) + '. '}${t.nombre}${yaEval && !done && !active ? ' (editar)' : ''}</div>
+        ${i < wizPendientes.length - 1 ? '<div class="wiz-step-sep">›</div>' : ''}
       `
     }).join('')
 
     // Body
-    const tipo = wizPendientes[wizStep]
-    const ejes = ejesPorMateriaTipo[`${wizMateria?.id}_${tipo.id}`] || []
-    const resp = wizRespuestas[tipo.id]
+    const tipo   = wizPendientes[wizStep]
+    const ejes   = ejesPorMateriaTipo[`${wizMateria?.id}_${tipo.id}`] || []
+    const resp   = wizRespuestas[tipo.id]
     const isEdit = wizModo === 'editar' && resp.evalId != null
 
     wizBody.innerHTML = `
-      ${isEdit ? `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 14px;font-size:12px;color:#92400e;margin-bottom:16px;display:flex;align-items:flex-start;gap:8px">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      ${isEdit ? `<div class="wiz-edit-warning">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span>Los valores anteriores serán reemplazados al guardar este saber.</span>
       </div>` : ''}
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
-        <div class="form-group" style="min-width:160px;margin-bottom:0">
-          <label style="font-size:12px">Fecha de evaluación</label>
+      <div class="wiz-form-row">
+        <div class="form-group wiz-form-group">
+          <label class="wiz-form-label">Fecha de evaluación</label>
           <input type="date" id="wiz-fecha" value="${resp.fecha}">
         </div>
-        <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0">
-          <label style="font-size:12px">Observación general (opcional)</label>
+        <div class="form-group wiz-form-group--flex">
+          <label class="wiz-form-label">Observación general (opcional)</label>
           <input type="text" id="wiz-obs" placeholder="Comentarios…" value="${resp.observacion || ''}">
         </div>
       </div>
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:12px">
-        Ejes temáticos — ${tipo.nombre} (${ejes.length} ejes)
-      </div>
+      <div class="wiz-ejes-titulo">Ejes temáticos — ${tipo.nombre} (${ejes.length} ejes)</div>
       ${ejes.map(eje => {
         const cur = resp.detalles[eje.id] || 0
         return `
-          <div class="wiz-eje-card" style="margin-bottom:12px;padding:14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa">
-            <div style="font-weight:600;font-size:13px;margin-bottom:3px">${eje.nombre}</div>
-            ${eje.descripcion ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">${eje.descripcion}</div>` : '<div style="margin-bottom:8px"></div>'}
-            <div class="wiz-niv-row" style="display:flex;gap:6px;flex-wrap:wrap">
+          <div class="wiz-eje-card">
+            <div class="wiz-eje-nombre">${eje.nombre}</div>
+            ${eje.descripcion ? `<div class="wiz-eje-desc">${eje.descripcion}</div>` : '<div class="wiz-eje-desc"></div>'}
+            <div class="wiz-niv-row">
               ${NIVEL_META.slice(1).map((meta, i) => {
                 const val = i + 1, sel = cur === val
-                return `<button class="niv-btn" data-eje="${eje.id}" data-val="${val}" style="
-                  padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.1s;
-                  border:2px solid ${sel ? meta.color : '#e5e7eb'};
-                  background:${sel ? meta.bg : '#fff'};
-                  color:${sel ? meta.color : '#9ca3af'};
-                ">${val}. ${meta.label}</button>`
+                return `<button class="niv-btn${sel ? ' niv-btn--sel' : ''}" data-eje="${eje.id}" data-val="${val}" style="--niv-color:${meta.color};--niv-bg:${meta.bg}">${val}. ${meta.label}</button>`
               }).join('')}
             </div>
           </div>
@@ -863,12 +748,7 @@ export function renderEvaluacionesSaber(container) {
         const val   = parseInt(btn.dataset.val)
         wizRespuestas[tipo.id].detalles[ejeId] = val
         wizBody.querySelectorAll(`.niv-btn[data-eje="${ejeId}"]`).forEach(b => {
-          const bVal = parseInt(b.dataset.val)
-          const meta = NIVEL_META[bVal]
-          const sel  = bVal === val
-          b.style.border     = `2px solid ${sel ? meta.color : '#e5e7eb'}`
-          b.style.background = sel ? meta.bg : '#fff'
-          b.style.color      = sel ? meta.color : '#9ca3af'
+          b.classList.toggle('niv-btn--sel', parseInt(b.dataset.val) === val)
         })
       })
     })

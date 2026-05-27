@@ -1,5 +1,6 @@
 import './style.css'
 import logoAtara  from './assets/images/logos/logo-atara-transparente.png'
+import logoUNA    from './assets/images/logos/logo_una.webp'
 import fondoLogin from './assets/images/backgrounds/fondo login.svg'
 import { checkHealth, getAccessToken, getContextoUsuario, login, logout,
          clearAccessToken, clearRefreshToken, clearUserId } from './api.js'
@@ -15,6 +16,7 @@ import { renderSecciones }        from './pages/secciones.js'
 import { renderSesion }           from './pages/sesion.js'
 import { renderAdmin }            from './pages/admin.js'
 import { renderCentros }          from './pages/centros.js'
+import { renderAcerca }           from './pages/acerca.js'
 
 const pages = {
   aniosLectivos:    renderAniosLectivos,
@@ -28,6 +30,7 @@ const pages = {
   sesion:           renderSesion,
   admin:            renderAdmin,
   centros:          renderCentros,
+  acerca:           renderAcerca,
 }
 
 // ── Definición de menú por rol ────────────────────────────────────────────
@@ -43,6 +46,9 @@ const NAV_BY_ROL = {
       { page: 'estudiantes',   label: 'Estudiantes' },
       { page: 'importarPiad',  label: 'Importar PIAD' },
     ]},
+    { section: 'Sistema', items: [
+      { page: 'acerca', label: 'Acerca de ATARA' },
+    ]},
   ],
   DOCENTE: [
     { section: 'Gestión', items: [
@@ -53,6 +59,9 @@ const NAV_BY_ROL = {
       { page: 'alertasTempranas', label: 'Alertas Tempranas' },
       { page: 'visualizaciones',  label: 'Visualizaciones' },
       { page: 'reportes',         label: 'Reportes' },
+    ]},
+    { section: 'Sistema', items: [
+      { page: 'acerca', label: 'Acerca de ATARA' },
     ]},
   ],
 }
@@ -94,6 +103,9 @@ const navLinks = document.getElementById('nav-links')
 // Logo del sidebar (importado desde assets, Vite lo resuelve con hash)
 const sidebarLogoEl = document.getElementById('sidebar-logo')
 if (sidebarLogoEl) sidebarLogoEl.src = logoAtara
+
+const footerLogoEl = document.getElementById('footer-logo-una')
+if (footerLogoEl) footerLogoEl.src = logoUNA
 
 // ── Render del menú según rol ─────────────────────────────────────────────
 function renderBottomNav(rol, activePage = '') {
@@ -264,6 +276,7 @@ async function afterLogin() {
   document.body.classList.remove('login-mode')
   document.getElementById('desktop-topbar').style.display = ''
   renderNav(me.rol)
+  renderFooterLinks(me.rol)
   updateTopbar(me)
   const bsElA = document.querySelector('.backend-status')
   if (bsElA) bsElA.style.display = me.rol === 'ADMIN' ? 'flex' : 'none'
@@ -371,6 +384,41 @@ hamburger?.addEventListener('click', () => {
 })
 backdrop.addEventListener('click', closeSidebar)
 
+// ── Footer ────────────────────────────────────────────────────────────────
+const footerYearEl = document.getElementById('footer-year')
+if (footerYearEl) footerYearEl.textContent = new Date().getFullYear()
+
+const FOOTER_LINKS_BY_ROL = {
+  ADMIN: [
+    { page: 'sesion', label: 'Mi sesión' },
+    { page: 'acerca', label: 'Acerca de ATARA' },
+  ],
+  DOCENTE: [
+    { page: 'sesion',            label: 'Mi sesión' },
+    { page: 'alertasTempranas',  label: 'Alertas Tempranas' },
+    { page: 'evaluacionesSaber', label: 'Eval. por Saber' },
+    { page: 'reportes',          label: 'Reportes' },
+    { page: 'acerca',            label: 'Acerca de ATARA' },
+  ],
+}
+FOOTER_LINKS_BY_ROL.COORDINADOR = FOOTER_LINKS_BY_ROL.DOCENTE
+
+function renderFooterLinks(rol) {
+  const ul = document.getElementById('footer-links')
+  if (!ul) return
+  const items = FOOTER_LINKS_BY_ROL[rol] || FOOTER_LINKS_BY_ROL.DOCENTE
+  ul.innerHTML = items.map(i =>
+    `<li><a href="#${i.page}" data-page="${i.page}">${i.label}</a></li>`
+  ).join('')
+  ul.querySelectorAll('a[data-page]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault()
+      navigate(a.dataset.page)
+      closeSidebar()
+    })
+  })
+}
+
 // ── Health check ──────────────────────────────────────────────────────────
 async function pingBackend() {
   const dot   = document.getElementById('status-dot')
@@ -379,7 +427,7 @@ async function pingBackend() {
     const data = await checkHealth()
     const up = data?.status === 'UP'
     dot.className   = `dot ${up ? 'up' : 'down'}`
-    label.textContent = up ? 'Backend UP' : 'Backend DOWN'
+    label.textContent = up ? 'En línea' : 'Error de conexión'
   } catch {
     dot.className   = 'dot down'
     label.textContent = 'Sin conexión'

@@ -30,7 +30,7 @@ const _SVG = {
 }
 
 const _ico  = (name, size = 14) => `<span style="display:inline-flex;width:${size}px;height:${size}px;flex-shrink:0">${_SVG[name]}</span>`
-const _spin = () => `<span style="display:inline-block;width:28px;height:28px;border:3px solid #e5e7eb;border-top-color:#3b7dd8;border-radius:50%;animation:spin 0.65s linear infinite"></span>`
+const _spin = () => `<span style="display:inline-block;width:28px;height:28px;border:3px solid #e5e7eb;border-top-color:#990000;border-radius:50%;animation:spin 0.65s linear infinite"></span>`
 
 // ─── render principal ─────────────────────────────────────────────────────────
 export async function renderAlertasTempranas(container) {
@@ -277,14 +277,28 @@ export async function renderAlertasTempranas(container) {
       .det-tipo-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        gap: 8px;
         padding: 9px 14px;
         background: #f9fafb;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: none;
         font-size: 12px;
         font-weight: 600;
         color: #1f2937;
+        cursor: pointer;
+        user-select: none;
+        transition: background .15s;
       }
+      .det-tipo-header:hover { background: #f3f4f6; }
+      .det-tipo-block.open .det-tipo-header { border-bottom: 1px solid #e5e7eb; }
+      .det-tipo-chevron {
+        font-size: 10px;
+        color: #9ca3af;
+        transition: transform .2s;
+        flex-shrink: 0;
+      }
+      .det-tipo-block.open .det-tipo-chevron { transform: rotate(90deg); }
+      .det-tipo-body { display: none; }
+      .det-tipo-block.open .det-tipo-body { display: block; }
       .det-tipo-count {
         font-size: 11px;
         font-weight: 500;
@@ -330,6 +344,63 @@ export async function renderAlertasTempranas(container) {
         font-variant-numeric: tabular-nums;
         color: #374151;
       }
+
+      /* ── Acordeón por materia ──────────────────────────────── */
+      .det-mat-block {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 10px;
+      }
+      .det-mat-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px;
+        background: #f9fafb;
+        cursor: pointer;
+        width: 100%;
+        border: none;
+        text-align: left;
+        transition: background .15s;
+        border-bottom: 1px solid transparent;
+      }
+      .det-mat-header:hover { background: #f3f4f6; }
+      .det-mat-block.open .det-mat-header {
+        border-bottom-color: #e5e7eb;
+        background: #f3f4f6;
+      }
+      .det-mat-chevron {
+        font-size: 11px;
+        color: #9ca3af;
+        transition: transform .2s;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+      .det-mat-block.open .det-mat-chevron { transform: rotate(90deg); }
+      .det-mat-nombre {
+        font-weight: 700;
+        font-size: 13px;
+        color: #1f2937;
+        flex: 1;
+      }
+      .det-mat-pills { display: flex; gap: 5px; flex-shrink: 0; }
+      .det-mat-pill {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .det-mat-pill.alta  { background: #fef2f2; color: #b91c1c; }
+      .det-mat-pill.media { background: #fef3c7; color: #92400e; }
+      .det-mat-body {
+        display: none;
+        padding: 10px;
+        background: #fafbfc;
+      }
+      .det-mat-block.open .det-mat-body { display: block; }
+      .det-mat-body .det-tipo-block { margin-bottom: 8px; }
+      .det-mat-body .det-tipo-block:last-child { margin-bottom: 0; }
     </style>
   `
 
@@ -665,39 +736,67 @@ export async function renderAlertasTempranas(container) {
       nMedia ? `${nMedia} media${nMedia!==1?'s':''}` : '',
     ].filter(Boolean).join(' · ')
 
-    // Agrupar por materia → tipo
-    const porMateriaTipo = new Map()
+    // Agrupar materia → tipo de saber → ejes
+    const porMateria = new Map()
     est.alertas.forEach(a => {
-      const key   = `${a.materiaNombre || 'Sin materia'}_${a.tipoSaberNombre}`
-      const label = a.materiaNombre ? `${a.materiaNombre} — ${a.tipoSaberNombre}` : a.tipoSaberNombre
-      if (!porMateriaTipo.has(key)) porMateriaTipo.set(key, { label, alertas: [] })
-      porMateriaTipo.get(key).alertas.push(a)
+      const matKey = a.materiaNombre || 'Sin materia'
+      if (!porMateria.has(matKey)) porMateria.set(matKey, { nombre: matKey, alta: 0, media: 0, tipos: new Map() })
+      const mat = porMateria.get(matKey)
+      if (a.nivelAlerta === 'ALTA') mat.alta++; else mat.media++
+      if (!mat.tipos.has(a.tipoSaberNombre)) mat.tipos.set(a.tipoSaberNombre, [])
+      mat.tipos.get(a.tipoSaberNombre).push(a)
     })
 
-    detBody.innerHTML = [...porMateriaTipo.values()].map(entry => {
-      const rows = entry.alertas
-        .sort((x, y) => (x.nivelAlerta === 'ALTA' ? 0 : 1) - (y.nivelAlerta === 'ALTA' ? 0 : 1))
-        .map(a => {
-          const cls = a.nivelAlerta === 'ALTA' ? 'alta' : 'media'
-          const pct = Math.round(Number(a.promedio) / 5 * 100)
-          return `
-            <div class="det-eje-row">
-              <span class="det-eje-dot ${cls}"></span>
-              <span class="det-eje-name">${a.ejeNombre}</span>
-              <div class="det-bar-wrap"><div class="det-bar-fill ${cls}" style="width:${pct}%"></div></div>
-              <span class="det-score">${Number(a.promedio).toFixed(1)}</span>
-            </div>`
-        }).join('')
+    const materias = [...porMateria.values()]
+
+    detBody.innerHTML = materias.map((mat, idx) => {
+      const pills = [
+        mat.alta  ? `<span class="det-mat-pill alta">${mat.alta} alta${mat.alta!==1?'s':''}</span>`   : '',
+        mat.media ? `<span class="det-mat-pill media">${mat.media} media${mat.media!==1?'s':''}</span>` : '',
+      ].filter(Boolean).join('')
+
+      const tiposHtml = [...mat.tipos.entries()].map(([tipoNombre, alertas]) => {
+        const rows = alertas
+          .sort((x, y) => (x.nivelAlerta === 'ALTA' ? 0 : 1) - (y.nivelAlerta === 'ALTA' ? 0 : 1))
+          .map(a => {
+            const cls = a.nivelAlerta === 'ALTA' ? 'alta' : 'media'
+            const pct = Math.round(Number(a.promedio) / 5 * 100)
+            return `
+              <div class="det-eje-row">
+                <span class="det-eje-dot ${cls}"></span>
+                <span class="det-eje-name">${a.ejeNombre}</span>
+                <div class="det-bar-wrap"><div class="det-bar-fill ${cls}" style="width:${pct}%"></div></div>
+                <span class="det-score">${Number(a.promedio).toFixed(1)}</span>
+              </div>`
+          }).join('')
+        return `
+          <div class="det-tipo-block">
+            <div class="det-tipo-header">
+              <span class="det-tipo-chevron">▸</span>
+              <span style="flex:1">${tipoNombre}</span>
+              <span class="det-tipo-count">${alertas.length} alerta${alertas.length!==1?'s':''}</span>
+            </div>
+            <div class="det-tipo-body">${rows}</div>
+          </div>`
+      }).join('')
 
       return `
-        <div class="det-tipo-block">
-          <div class="det-tipo-header">
-            <span>${entry.label}</span>
-            <span class="det-tipo-count">${entry.alertas.length} alerta${entry.alertas.length!==1?'s':''}</span>
-          </div>
-          ${rows}
+        <div class="det-mat-block">
+          <button class="det-mat-header" type="button">
+            <span class="det-mat-chevron">▸</span>
+            <span class="det-mat-nombre">${mat.nombre}</span>
+            <span class="det-mat-pills">${pills}</span>
+          </button>
+          <div class="det-mat-body">${tiposHtml}</div>
         </div>`
     }).join('')
+
+    detBody.querySelectorAll('.det-mat-header').forEach(btn => {
+      btn.addEventListener('click', () => btn.closest('.det-mat-block').classList.toggle('open'))
+    })
+    detBody.querySelectorAll('.det-tipo-header').forEach(hdr => {
+      hdr.addEventListener('click', () => hdr.closest('.det-tipo-block').classList.toggle('open'))
+    })
 
     overlay.style.display = 'flex'
   }
