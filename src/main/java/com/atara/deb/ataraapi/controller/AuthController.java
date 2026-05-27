@@ -1,12 +1,15 @@
 package com.atara.deb.ataraapi.controller;
 
+import com.atara.deb.ataraapi.dto.auth.ConfirmarResetRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginResponseDto;
 import com.atara.deb.ataraapi.dto.auth.LogoutRequestDto;
 import com.atara.deb.ataraapi.dto.auth.MeResponseDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenRequestDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenResponseDto;
+import com.atara.deb.ataraapi.dto.auth.SolicitarResetRequestDto;
 import com.atara.deb.ataraapi.service.AuthService;
+import com.atara.deb.ataraapi.service.EmailTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -22,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailTokenService emailTokenService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
+    public AuthController(AuthService authService, EmailTokenService emailTokenService) {
+        this.authService       = authService;
+        this.emailTokenService = emailTokenService;
     }
 
     /**
@@ -69,5 +75,37 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<MeResponseDto> me(Authentication authentication) {
         return ResponseEntity.ok(authService.me(authentication));
+    }
+
+    /**
+     * POST /api/auth/password-reset/solicitar
+     * Genera y envía un código de 4 dígitos al correo indicado.
+     * Responde siempre 200 para no revelar si el correo existe.
+     */
+    @PostMapping("/password-reset/solicitar")
+    public ResponseEntity<Void> solicitarReset(@Valid @RequestBody SolicitarResetRequestDto request) {
+        emailTokenService.solicitarResetPassword(request.getCorreo());
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * POST /api/auth/password-reset/confirmar
+     * Valida el código y actualiza la contraseña.
+     */
+    @PostMapping("/password-reset/confirmar")
+    public ResponseEntity<Void> confirmarReset(@Valid @RequestBody ConfirmarResetRequestDto request) {
+        emailTokenService.confirmarResetPassword(
+                request.getCorreo(), request.getCodigo(), request.getNuevaPassword());
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * GET /api/auth/email/verificar?token=...
+     * Confirma la verificación de correo desde el enlace enviado al usuario.
+     */
+    @GetMapping("/email/verificar")
+    public ResponseEntity<Void> verificarEmail(@RequestParam String token) {
+        emailTokenService.confirmarVerificacionEmail(token);
+        return ResponseEntity.ok().build();
     }
 }
