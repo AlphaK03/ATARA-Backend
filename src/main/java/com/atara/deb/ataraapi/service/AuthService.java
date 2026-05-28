@@ -18,4 +18,6 @@ public interface AuthService {
     void logout(LogoutRequestDto request);
 
     MeResponseDto me(Authentication authentication);
+
+    void cambiarPassword(Authentication authentication, String passwordActual, String nuevaPassword);
 }

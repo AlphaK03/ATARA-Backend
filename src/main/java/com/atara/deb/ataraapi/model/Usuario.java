@@ -56,6 +56,10 @@ public class Usuario {
     @Builder.Default
     private Boolean emailVerificado = false;
 
+    @Column(name = "debe_cambiar_password", nullable = false)
+    @Builder.Default
+    private Boolean debeCambiarPassword = false;
+
     /** Secciones asignadas al usuario (tabla join: usuarios_secciones). */
     @Builder.Default
     @ManyToMany(fetch = FetchType.LAZY)

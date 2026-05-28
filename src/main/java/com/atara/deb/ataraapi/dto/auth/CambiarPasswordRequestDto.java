@@ -1,0 +1,14 @@
+package com.atara.deb.ataraapi.dto.auth;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+
+@Data
+public class CambiarPasswordRequestDto {
+    @NotBlank
+    private String passwordActual;
+
+    @NotBlank @Size(min = 8, max = 100)
+    private String nuevaPassword;
+}

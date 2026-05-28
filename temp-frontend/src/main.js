@@ -576,10 +576,15 @@ document.getElementById('topbar-btn-logout')?.addEventListener('click', async ()
   const btn = document.getElementById('topbar-btn-logout')
   btn.disabled = true
   btn.textContent = 'Cerrando…'
-  await logout()
-  _currentUser = null
-  showToast('Sesión cerrada correctamente.', 'info')
-  window.dispatchEvent(new CustomEvent('atara:session-expired'))
+  try {
+    await logout()
+    _currentUser = null
+    showToast('Sesión cerrada correctamente.', 'info')
+    window.dispatchEvent(new CustomEvent('atara:session-expired'))
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Cerrar sesión'
+  }
 })
 
 // ── Sidebar móvil ──────────────────────────────────────────────────────────

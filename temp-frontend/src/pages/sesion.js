@@ -82,11 +82,11 @@ export async function renderSesion(container) {
             ${row(ICONS.user,   'Nombre completo', `${escHtml(me.nombre)} ${escHtml(me.apellidos)}`)}
             ${row(ICONS.mail,   'Correo electrónico', escHtml(me.correo))}
             ${row(ICONS.shield, 'Rol en el sistema',  `<span class="badge ${rolBadge}">${rolLabel}</span>`)}
-            ${row(ICONS.hash,   'ID de usuario',       `<code class="sesion-code">#${escHtml(me.userId ?? '—')}</code>`)}
           </dl>
         </article>
 
-        <!-- Asignaciones -->
+        ${me.rol === 'ADMIN' ? '' : `
+        <!-- Asignaciones (solo docentes/coordinadores) -->
         <article class="sesion-card">
           <header class="sesion-card-head">
             <span class="sesion-card-icon">${ICONS.layers}</span>
@@ -119,6 +119,7 @@ export async function renderSesion(container) {
             </div>
           </div>
         </article>
+        `}
 
       </div>
 

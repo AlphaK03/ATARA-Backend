@@ -20,6 +20,7 @@ import {
   getAlertasTematicasSeccion,
 } from '../api.js'
 import { saveFilters, loadFilters } from '../utils/storage.js'
+import { exportarPDF, exportarExcel } from '../utils/exportReportes.js'
 
 const FILTER_KEY = 'reportes'
 
@@ -107,22 +108,46 @@ export async function renderReportes(container) {
     </div>
 
     <div class="card" style="padding:12px 18px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Tipo de grafico:</span>
-        <div id="chart-type-btns" style="display:flex;gap:6px;flex-wrap:wrap">
-          ${[
-            { type: 'bar', icon: '▦', label: 'Barras' },
-            { type: 'radar', icon: '◈', label: 'Radar' },
-            { type: 'doughnut', icon: '◎', label: 'Dona' },
-            { type: 'line', icon: '∿', label: 'Linea' },
-            { type: 'polarArea', icon: '◉', label: 'Polar' },
-          ].map(b => `
-            <button class="chart-type-btn${b.type === 'bar' ? ' active' : ''}" data-type="${b.type}"
-              style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:6px;
-                border:1px solid var(--border);background:var(--surface);color:var(--text-muted);
-                font-size:12px;font-weight:500;cursor:pointer;transition:all .15s">
-              ${b.icon} ${b.label}
-            </button>`).join('')}
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Tipo de grafico:</span>
+          <div id="chart-type-btns" style="display:flex;gap:6px;flex-wrap:wrap">
+            ${[
+              { type: 'bar', icon: '▦', label: 'Barras' },
+              { type: 'radar', icon: '◈', label: 'Radar' },
+              { type: 'doughnut', icon: '◎', label: 'Dona' },
+              { type: 'line', icon: '∿', label: 'Linea' },
+              { type: 'polarArea', icon: '◉', label: 'Polar' },
+            ].map(b => `
+              <button class="chart-type-btn${b.type === 'bar' ? ' active' : ''}" data-type="${b.type}"
+                style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:6px;
+                  border:1px solid var(--border);background:var(--surface);color:var(--text-muted);
+                  font-size:12px;font-weight:500;cursor:pointer;transition:all .15s">
+                ${b.icon} ${b.label}
+              </button>`).join('')}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="btn-export-pdf" class="btn-export" disabled
+            title="Descargar reporte en PDF"
+            style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;
+              border:1px solid #dc2626;background:#fff;color:#dc2626;font-size:12px;font-weight:600;
+              cursor:pointer;transition:all .15s;opacity:.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            PDF
+          </button>
+          <button id="btn-export-xlsx" class="btn-export" disabled
+            title="Descargar reporte en Excel"
+            style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;
+              border:1px solid #16a34a;background:#fff;color:#16a34a;font-size:12px;font-weight:600;
+              cursor:pointer;transition:all .15s;opacity:.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l6 6M15 13l-6 6"/>
+            </svg>
+            Excel
+          </button>
         </div>
       </div>
     </div>
@@ -159,6 +184,22 @@ export async function renderReportes(container) {
   let alertasMateria = []
   let promediosActivos = []
   let alertasActivas = []
+
+  // Snapshot del último render — usado por los botones de exportar
+  let _exportData = null
+
+  // Refs a los botones de exportar (declarados aquí porque habilitarExport
+  // se invoca desde renderGraficos durante el primer cargar()).
+  const btnPdf  = container.querySelector('#btn-export-pdf')
+  const btnXlsx = container.querySelector('#btn-export-xlsx')
+
+  function habilitarExport(habilitar) {
+    [btnPdf, btnXlsx].forEach(b => {
+      b.disabled = !habilitar
+      b.style.opacity = habilitar ? '1' : '.5'
+      b.style.cursor = habilitar ? 'pointer' : 'not-allowed'
+    })
+  }
 
   try {
     const anio = await getAnioLectivoActivo()
@@ -256,6 +297,42 @@ export async function renderReportes(container) {
     if (promediosActivos.length) renderGraficos(promediosActivos, alertasActivas)
   })
 
+  function snapshotCanvas() {
+    return {
+      ejes:        document.getElementById('chart-ejes'),
+      tipo:        document.getElementById('chart-tipo'),
+      alertas:     document.getElementById('chart-alertas'),
+      estudiantes: document.getElementById('chart-estudiantes'),
+      ranking:     document.getElementById('chart-ranking'),
+    }
+  }
+
+  btnPdf.addEventListener('click', () => {
+    if (!_exportData) return
+    btnPdf.disabled = true; btnPdf.textContent = 'Generando…'
+    try {
+      exportarPDF({ ..._exportData, charts: snapshotCanvas() })
+    } catch (e) {
+      alert('Error generando PDF: ' + e.message)
+    } finally {
+      btnPdf.disabled = false
+      btnPdf.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> PDF`
+    }
+  })
+
+  btnXlsx.addEventListener('click', async () => {
+    if (!_exportData) return
+    btnXlsx.disabled = true; btnXlsx.textContent = 'Generando…'
+    try {
+      await exportarExcel(_exportData)
+    } catch (e) {
+      alert('Error generando Excel: ' + e.message)
+    } finally {
+      btnXlsx.disabled = false
+      btnXlsx.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l6 6M15 13l-6 6"/></svg> Excel`
+    }
+  })
+
   function resetFiltros(desde) {
     const niveles = ['centro', 'seccion', 'estudiante']
     const idx = niveles.indexOf(desde)
@@ -306,6 +383,8 @@ export async function renderReportes(container) {
 
     if (!promediosActivos.length) {
       destroyAll()
+      _exportData = null
+      habilitarExport(false)
       rptBody.innerHTML = vacioHtml(mensajeSinDatosActual())
       return
     }
@@ -572,6 +651,22 @@ export async function renderReportes(container) {
     }
 
     const insights = generarInsights(ejes, tipoAvgs, promedios)
+
+    // Snapshot para exportar (charts se leen al click del botón, así están al día con chartType)
+    _exportData = {
+      alcance,
+      periodoNombre: selPeriodo.options[selPeriodo.selectedIndex]?.text ?? '—',
+      kpis: [
+        { val: totalEst, label: 'Estudiantes evaluados', col: '#1e40af', bg: '#eff6ff' },
+        { val: ejes.length, label: 'Ejes evaluados', col: '#7c3aed', bg: '#faf5ff' },
+        { val: nAlta, label: 'Alertas altas', col: '#dc2626', bg: '#fee2e2' },
+        { val: nMedia, label: 'Alertas medias', col: '#d97706', bg: '#fef9c3' },
+        { val: promGlobal(promedios), label: 'Promedio global', col: '#16a34a', bg: '#dcfce7' },
+      ],
+      ejes, tipoAvgs, promedios, alertas, insights,
+    }
+    habilitarExport(true)
+
     const insDiv = container.querySelector('#insights-list')
     insDiv.innerHTML = !insights.length
       ? '<p class="empty" style="padding:12px 0">No se generaron conclusiones con los datos actuales.</p>'
