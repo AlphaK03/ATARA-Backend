@@ -69,8 +69,14 @@ export function renderEvaluacionesSaber(container) {
       para ver el estado de cada estudiante.
     </p>
 
-    <!-- Breadcrumb de selección -->
-    <div id="breadcrumb"></div>
+    <!-- Barra de navegación: botón "volver" + breadcrumb -->
+    <div id="nav-bar">
+      <button id="btn-back-step" class="btn-back-step" type="button" title="Volver al paso anterior" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>Volver</span>
+      </button>
+      <div id="breadcrumb"></div>
+    </div>
 
     <!-- Contenido del paso actual -->
     <div id="step-content"></div>
@@ -100,6 +106,7 @@ export function renderEvaluacionesSaber(container) {
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const breadcrumb   = container.querySelector('#breadcrumb')
+  const btnBackStep  = container.querySelector('#btn-back-step')
   const stepContent  = container.querySelector('#step-content')
   const wizOverlay   = container.querySelector('#wizard-overlay')
   const wizNombre    = container.querySelector('#wiz-nombre')
@@ -180,6 +187,33 @@ export function renderEvaluacionesSaber(container) {
     ejesCacheKey = cacheKey
   }
 
+  // ── Botón "Volver" ────────────────────────────────────────────────────────
+  /**
+   * Retrocede un paso en el flujo:
+   *  - Si hay sección seleccionada → vuelve a la lista de secciones.
+   *  - Si solo hay período seleccionado → vuelve a la lista de períodos.
+   *  - Si no hay nada seleccionado → no hace nada (botón oculto).
+   */
+  function volverPasoAnterior() {
+    if (seccionSel) {
+      seccionSel = null
+      estudiantes = []
+      evalsPorEstudiante = {}
+      renderStep()
+    } else if (periodoSel) {
+      periodoSel = null
+      renderStep()
+    }
+  }
+
+  function refreshBackButton() {
+    if (!btnBackStep) return
+    // El botón solo tiene sentido a partir del paso 2 (con período seleccionado).
+    btnBackStep.style.display = (periodoSel || seccionSel) ? '' : 'none'
+  }
+
+  btnBackStep.addEventListener('click', volverPasoAnterior)
+
   // ── Breadcrumb ────────────────────────────────────────────────────────────
   function renderBreadcrumb() {
     const crumbs = [{ label: anioActivo ? `Año ${anioActivo.anio}` : '…', action: null }]
@@ -207,6 +241,7 @@ export function renderEvaluacionesSaber(container) {
   // ── Render del paso actual ────────────────────────────────────────────────
   function renderStep() {
     renderBreadcrumb()
+    refreshBackButton()
     if (!periodoSel) renderStepPeriodos()
     else if (!seccionSel) renderStepSecciones()
     else renderStepEstudiantes()

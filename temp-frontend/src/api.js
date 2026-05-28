@@ -135,6 +135,15 @@ export async function getContextoUsuario() {
 }
 
 /**
+ * Invalida el caché del contexto del usuario para forzar una recarga desde
+ * `/auth/me`. Debe llamarse después de cualquier operación que pueda cambiar
+ * las asignaciones del usuario (crear/editar/eliminar secciones, ya que el
+ * backend puede añadirlo como titular o co-docente y por lo tanto su lista
+ * de `seccionIds` cambia).
+ */
+export function invalidarContextoUsuario() { _meCache = null }
+
+/**
  * Filtra una lista de secciones al alcance del usuario autenticado.
  * ADMIN/COORDINADOR ven todas; DOCENTE solo las asignadas.
  */
@@ -242,7 +251,15 @@ export const getNivelesDesempeno = ()                          => request('GET',
 export const getNiveles  = ()    => request('GET', '/secciones/catalogos/niveles')
 export const getCentros  = ()    => request('GET', '/secciones/catalogos/centros')
 export const getDocentes = ()    => request('GET', '/secciones/catalogos/docentes')
-export const createSeccion = (data) => request('POST', '/secciones', data)
+// Al crear una sección, el backend añade al usuario actual como titular
+// (si es DOCENTE) o como co-docente. Eso cambia su lista `seccionIds`,
+// así que invalidamos el caché de contexto para que `filtrarSeccionesPropias`
+// vea la nueva sección sin necesidad de cerrar sesión.
+export const createSeccion = async (data) => {
+  const result = await request('POST', '/secciones', data)
+  invalidarContextoUsuario()
+  return result
+}
 
 /**
  * Catálogo de estudiantes para el wizard de sección. A diferencia de
@@ -302,7 +319,12 @@ export const createCentroAdmin   = (data)       => request('POST', '/admin/centr
 export const updateCentroAdmin   = (id, data)   => request('PUT',  `/admin/centros/${id}`, data)
 
 // ── Secciones (eliminación segura por DOCENTE titular) ────────────────────
-export const deleteSeccionDocente = (id) => request('DELETE', `/secciones/${id}/docente`)
+// Al eliminar la sección, las asignaciones del usuario cambian → refrescar caché.
+export const deleteSeccionDocente = async (id) => {
+  const result = await request('DELETE', `/secciones/${id}/docente`)
+  invalidarContextoUsuario()
+  return result
+}
 
 // ── Admin CRUD (backend endpoints not yet implemented) ────────────────────
 // Each stub will throw until the corresponding backend endpoint is created.
@@ -310,8 +332,18 @@ export const deleteSeccionDocente = (id) => request('DELETE', `/secciones/${id}/
 export const deleteEstudiante  = (id)       => request('DELETE', `/estudiantes/${id}`)
 
 // TODO: Backend needs PUT /api/secciones/{id}, DELETE /api/secciones/{id}
-export const updateSeccion     = (id, data) => request('PUT',    `/secciones/${id}`, data)
-export const deleteSeccion     = (id)       => request('DELETE', `/secciones/${id}`)
+// Al editar/eliminar una sección las asignaciones (titular/co-docentes)
+// pueden cambiar → invalidamos el contexto en caché.
+export const updateSeccion     = async (id, data) => {
+  const result = await request('PUT', `/secciones/${id}`, data)
+  invalidarContextoUsuario()
+  return result
+}
+export const deleteSeccion     = async (id) => {
+  const result = await request('DELETE', `/secciones/${id}`)
+  invalidarContextoUsuario()
+  return result
+}
 
 // TODO: Backend needs PUT /api/anios-lectivos/{id}, DELETE /api/anios-lectivos/{id}
 export const updateAnioLectivo = (id, data) => request('PUT',    `/anios-lectivos/${id}`, data)
