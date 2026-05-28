@@ -152,13 +152,9 @@ export async function renderAdmin(container) {
   }
 
   // ── cargar catálogo de materias (una sola vez por sesión de página) ───────
-  // Se excluye Educación Física: no se evalúa dentro de ATARA y no debe
-  // ofrecerse como opción al asignar materias a un docente (mismo criterio
-  // que aplica el wizard de evaluaciones por saber).
   async function cargarMaterias() {
     try {
-      const todas = await getMaterias() ?? []
-      _materias = todas.filter(m => m.clave !== 'EDUCACION_FISICA')
+      _materias = await getMaterias() ?? []
     } catch (e) {
       console.warn('No se pudieron cargar las materias:', e.message)
       _materias = []

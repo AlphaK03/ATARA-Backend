@@ -468,8 +468,7 @@ export async function renderAlertasTempranas(container) {
       getMaterias().catch(() => []),
     ])
     secciones = await filtrarSeccionesPropias(rawSecciones)
-    const sinEdFisica = allMaterias.filter(m => m.clave !== 'EDUCACION_FISICA')
-    materiasList = await filtrarMateriasPropias(sinEdFisica)
+    materiasList = await filtrarMateriasPropias(allMaterias)
     selPeriodo.innerHTML = '<option value="">— Seleccione un periodo —</option>' +
       periodos.map(p => `<option value="${p.id}">${p.nombre}${p.activo ? ' (activo)' : ''}</option>`).join('')
     selPeriodo.disabled = false

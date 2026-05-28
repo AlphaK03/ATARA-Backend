@@ -144,8 +144,7 @@ export function renderEvaluacionesSaber(container) {
     if (tiposSaber.length && materias.length) return
     let allMaterias
     ;[tiposSaber, allMaterias] = await Promise.all([getTiposSaber(), getMaterias()])
-    const sinEdFisica = allMaterias.filter(m => m.clave !== 'EDUCACION_FISICA')
-    materias = await filtrarMateriasPropias(sinEdFisica)
+    materias = await filtrarMateriasPropias(allMaterias)
   }
 
   /**
@@ -423,16 +422,67 @@ export function renderEvaluacionesSaber(container) {
     )
   }
 
+  // ── Cálculo de estado por saber y por estudiante ─────────────────────────
+  //
+  // Un saber NO se considera "completo" solo porque exista un registro de
+  // EvaluacionSaber. Cada eje del saber debe estar calificado con valor > 0.
+  // Si solo algunos ejes están calificados → el saber está "parcial" y el
+  // estudiante NO está completo hasta que todos sus saberes lo estén.
+
+  function estadoSaber(ev, matId, tipoId) {
+    if (!ev) return 'vacio'
+    const ejes = ejesPorMateriaTipo[`${matId}_${tipoId}`] || []
+    if (ejes.length === 0) return 'vacio'  // saber no evaluable en este grado
+    const evaluados = new Set(
+      (ev.detalles || []).filter(d => d.valor > 0).map(d => d.ejeTemaaticoId)
+    )
+    if (evaluados.size === 0)         return 'vacio'
+    if (evaluados.size >= ejes.length && ejes.every(e => evaluados.has(e.id))) return 'completo'
+    return 'parcial'
+  }
+
+  function conteoEjes(ev, matId, tipoId) {
+    const ejes = ejesPorMateriaTipo[`${matId}_${tipoId}`] || []
+    const total = ejes.length
+    if (!ev || !total) return { hechos: 0, total }
+    const evaluados = new Set(
+      (ev.detalles || []).filter(d => d.valor > 0).map(d => d.ejeTemaaticoId)
+    )
+    const hechos = ejes.filter(e => evaluados.has(e.id)).length
+    return { hechos, total }
+  }
+
+  function estadoEstudiante(estId, matId, tiposEval) {
+    const evals = evalsPorEstudiante[estId] || {}
+    let cntCompleto = 0, cntParcial = 0
+    for (const t of tiposEval) {
+      const st = estadoSaber(evals[`${matId}_${t.id}`], matId, t.id)
+      if      (st === 'completo') cntCompleto++
+      else if (st === 'parcial')  cntParcial++
+    }
+    let etiqueta = 'vacio'
+    if (cntCompleto === tiposEval.length && tiposEval.length > 0) etiqueta = 'completo'
+    else if (cntCompleto > 0 || cntParcial > 0)                   etiqueta = 'parcial'
+    return { etiqueta, cntCompleto, cntParcial }
+  }
+
   // ── PASO 3: Grilla de estudiantes ─────────────────────────────────────────
   function renderStepEstudiantes() {
     const matId     = materiaSel?.id
     const tiposEval = tiposEvaluablesParaMateria(matId)
     const total     = tiposEval.length
-    const completos = total === 0 ? 0 : estudiantes.filter(e => {
-      const evals = evalsPorEstudiante[e.id] || {}
-      return tiposEval.every(t => !!evals[`${matId}_${t.id}`])
-    }).length
-    const pendientes = estudiantes.length - completos
+
+    // Contadores: distinguimos completos (todos los ejes de todos los saberes),
+    // parciales (al menos un eje pero no todos), y vacíos (sin ningún eje).
+    let completos = 0, parciales = 0
+    if (total > 0) {
+      for (const e of estudiantes) {
+        const { etiqueta } = estadoEstudiante(e.id, matId, tiposEval)
+        if (etiqueta === 'completo')      completos++
+        else if (etiqueta === 'parcial')  parciales++
+      }
+    }
+    const sinEvaluar = estudiantes.length - completos - parciales
 
     stepContent.innerHTML = `
       <div class="card">
@@ -444,8 +494,9 @@ export function renderEvaluacionesSaber(container) {
             </h2>
             <p class="card-subtitle">
               ${periodoSel.nombre} · ${estudiantes.length} estudiantes
-              · <span class="text-success">${completos} completados</span>
-              · <span class="text-danger">${pendientes} pendientes</span>
+              · <span class="text-success">${completos} completos</span>
+              · <span class="text-warning">${parciales} parciales</span>
+              · <span class="text-danger">${sinEvaluar} sin evaluar</span>
             </p>
           </div>
           <div class="legend-row">
@@ -489,17 +540,22 @@ export function renderEvaluacionesSaber(container) {
     const total     = tiposEval.length
 
     grid.innerHTML = estudiantes.map(est => {
-      const evals     = evalsPorEstudiante[est.id] || {}
-      const count     = tiposEval.filter(t => !!evals[`${matId}_${t.id}`]).length
-      const isCompleto = total > 0 && count >= total
+      const evals = evalsPorEstudiante[est.id] || {}
+      const { etiqueta, cntCompleto, cntParcial } = total > 0
+        ? estadoEstudiante(est.id, matId, tiposEval)
+        : { etiqueta: 'vacio', cntCompleto: 0, cntParcial: 0 }
 
       let borderColor, badgeText, badgeBg, cardBg
       if (total === 0) {
         borderColor = '#9ca3af'; badgeText = 'Sin ejes en este grado'; badgeBg = '#f3f4f6'; cardBg = '#f9fafb'
-      } else if (count === 0) {
+      } else if (etiqueta === 'vacio') {
         borderColor = '#dc2626'; badgeText = 'Sin evaluar'; badgeBg = '#fee2e2'; cardBg = '#fff5f5'
-      } else if (!isCompleto) {
-        borderColor = '#d97706'; badgeText = `${count}/${total} saberes`; badgeBg = '#fef3c7'; cardBg = '#fffdf0'
+      } else if (etiqueta === 'parcial') {
+        // Saberes con todos sus ejes vs. saberes con algún eje pero no todos.
+        const detalle = cntParcial > 0
+          ? `${cntCompleto}/${total} saberes · ${cntParcial} parcial${cntParcial === 1 ? '' : 'es'}`
+          : `${cntCompleto}/${total} saberes`
+        borderColor = '#d97706'; badgeText = detalle; badgeBg = '#fef3c7'; cardBg = '#fffdf0'
       } else {
         borderColor = '#16a34a'; badgeText = 'Completo ✓'; badgeBg = '#dcfce7'; cardBg = '#f0fdf4'
       }
@@ -508,20 +564,30 @@ export function renderEvaluacionesSaber(container) {
         .map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
       const saberChips = tiposEval.map(t => {
-        const ev   = evals[`${matId}_${t.id}`]
-        const done = !!ev
-        let promedioLabel = ''
-        if (ev?.detalles?.length) {
-          const sum = ev.detalles.reduce((acc, d) => acc + d.valor, 0)
-          const avg = (sum / ev.detalles.length).toFixed(1)
-          promedioLabel = ` · ${avg}`
+        const ev = evals[`${matId}_${t.id}`]
+        const st = estadoSaber(ev, matId, t.id)
+        const { hechos, total: totalEjes } = conteoEjes(ev, matId, t.id)
+        let icon, cls, suffix = ''
+        if (st === 'completo') {
+          icon = '✓'; cls = 'saber-chip--done'
+          if (ev?.detalles?.length) {
+            const sum = ev.detalles.reduce((acc, d) => acc + d.valor, 0)
+            const avg = (sum / ev.detalles.length).toFixed(1)
+            suffix = ` · ${avg}`
+          }
+        } else if (st === 'parcial') {
+          icon = '◐'; cls = 'saber-chip--partial'; suffix = ` · ${hechos}/${totalEjes}`
+        } else {
+          icon = '○'; cls = 'saber-chip--pending'
         }
-        return `<span class="saber-chip ${done ? 'saber-chip--done' : 'saber-chip--pending'}">${done ? '✓' : '○'} ${t.nombre}${promedioLabel}</span>`
+        return `<span class="saber-chip ${cls}">${icon} ${t.nombre}${suffix}</span>`
       }).join('')
 
-      const accionLabel = isCompleto
+      const accionLabel = etiqueta === 'completo'
         ? `<div class="s-action s-action--done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Recalificar</div>`
-        : `<div class="s-action" style="color:${borderColor}">Evaluar →</div>`
+        : etiqueta === 'parcial'
+          ? `<div class="s-action" style="color:${borderColor}">Continuar →</div>`
+          : `<div class="s-action" style="color:${borderColor}">Evaluar →</div>`
 
       return `
         <div class="s-card" data-est-id="${est.id}" style="border-color:${borderColor};background:${cardBg}">
@@ -551,13 +617,14 @@ export function renderEvaluacionesSaber(container) {
       })
       card.addEventListener('click', () => {
         const est = estudiantes.find(e => e.id === estId)
-        const evals = evalsPorEstudiante[estId] || {}
         const matId = materiaSel?.id
         const tiposEvalClick = tiposEvaluablesParaMateria(matId)
         if (!tiposEvalClick.length) return  // sin ejes en este grado → no abrir wizard
-        const count = tiposEvalClick.filter(t => !!evals[`${matId}_${t.id}`]).length
-        const isCompleto = count >= tiposEvalClick.length
-        openWizard(est, isCompleto ? 'editar' : 'nuevo')
+        // Solo abrir en modo "editar" (recalificar) cuando TODOS los saberes
+        // están completos. Si hay parciales o vacíos, abrir en modo "nuevo"
+        // para que el docente pueda continuar/terminar la evaluación.
+        const { etiqueta } = estadoEstudiante(estId, matId, tiposEvalClick)
+        openWizard(est, etiqueta === 'completo' ? 'editar' : 'nuevo')
       })
     })
   }
@@ -584,9 +651,27 @@ export function renderEvaluacionesSaber(container) {
     )
 
     if (modo === 'nuevo') {
-      wizPendientes = tiposConEjes.filter(t => !evals[`${matId}_${t.id}`])
+      // Incluir saberes vacíos Y saberes parciales (con algunos ejes ya
+      // calificados): el docente puede así "continuar" donde lo dejó.
+      // Los saberes COMPLETOS se omiten — para modificarlos hay que entrar
+      // a través del modo "Recalificar".
+      wizPendientes = tiposConEjes.filter(t =>
+        estadoSaber(evals[`${matId}_${t.id}`], matId, t.id) !== 'completo'
+      )
       for (const tipo of wizPendientes) {
-        wizRespuestas[tipo.id] = { fecha: today, observacion: '', detalles: {} }
+        const ev = evals[`${matId}_${tipo.id}`]
+        const detallesMap = {}
+        if (ev?.detalles) {
+          for (const d of ev.detalles) detallesMap[d.ejeTemaaticoId] = d.valor
+        }
+        // evalId != null cuando el saber es parcial — la guardada usará PUT
+        // para reemplazar detalles existentes en lugar de crear un duplicado.
+        wizRespuestas[tipo.id] = {
+          evalId:      ev?.id ?? null,
+          fecha:       ev?.fecha ?? today,
+          observacion: ev?.observacion ?? '',
+          detalles:    detallesMap,
+        }
       }
       wizModoLabel.textContent = 'Evaluación por saber'
       wizModoLabel.classList.remove('wiz-modo--recal')
@@ -729,10 +814,19 @@ export function renderEvaluacionesSaber(container) {
     wizSteps.innerHTML = wizPendientes.map((t, i) => {
       const active = i === wizStep, done = i < wizStep
       const evals  = evalsPorEstudiante[wizEstudiante?.id] || {}
-      const yaEval = !!evals[`${wizMateria?.id}_${t.id}`] && wizModo === 'editar'
-      const modClass = active ? 'wiz-step-pill--active' : done ? 'wiz-step-pill--done' : yaEval ? 'wiz-step-pill--edit' : ''
+      const ev     = evals[`${wizMateria?.id}_${t.id}`]
+      const st     = estadoSaber(ev, wizMateria?.id, t.id)
+      // Marcar visualmente:
+      //   - "(editar)" si vienes en modo recalificación.
+      //   - "(continuar)" si el saber está parcial en modo nuevo.
+      let suffix = ''
+      let modClass = ''
+      if (active)      modClass = 'wiz-step-pill--active'
+      else if (done)   modClass = 'wiz-step-pill--done'
+      else if (st !== 'vacio' && wizModo === 'editar')  { modClass = 'wiz-step-pill--edit'; suffix = ' (editar)' }
+      else if (st === 'parcial' && wizModo === 'nuevo') { modClass = 'wiz-step-pill--edit'; suffix = ' (continuar)' }
       return `
-        <div class="wiz-step-pill ${modClass}">${done ? '✓ ' : (i + 1) + '. '}${t.nombre}${yaEval && !done && !active ? ' (editar)' : ''}</div>
+        <div class="wiz-step-pill ${modClass}">${done ? '✓ ' : (i + 1) + '. '}${t.nombre}${suffix}</div>
         ${i < wizPendientes.length - 1 ? '<div class="wiz-step-sep">›</div>' : ''}
       `
     }).join('')
@@ -833,12 +927,21 @@ export function renderEvaluacionesSaber(container) {
         detalles,
       }
 
+      // PUT (reemplazar detalles) cuando ya existe un registro previo,
+      // independientemente del modo. Esto cubre dos casos:
+      //   - "editar" (recalificación): siempre tiene evalId.
+      //   - "nuevo" sobre un saber parcial: también trae evalId del registro
+      //     creado en la sesión anterior y debe completarse, no duplicarse.
       let savedEval
-      if (wizModo === 'editar' && resp.evalId != null) {
+      if (resp.evalId != null) {
         savedEval = await updateEvaluacionSaber(resp.evalId, payload)
       } else {
         savedEval = await createEvaluacionSaber(payload)
       }
+      // Persistir el id para los siguientes pasos del mismo wizard, así si el
+      // docente vuelve atrás y vuelve a guardar el mismo saber, sigue siendo
+      // un PUT y no se crea un duplicado.
+      resp.evalId = savedEval.id
 
       // Actualizar el índice local con los nuevos valores
       if (!evalsPorEstudiante[wizEstudiante.id]) evalsPorEstudiante[wizEstudiante.id] = {}
