@@ -23,7 +23,7 @@ public class UsuarioAdminRequestDto {
     @Size(max = 150)
     private String correo;
 
-    /** Requerido al crear. Si se omite en PUT, la contraseña no cambia. */
+    /** Solo en PUT: si se envía, reemplaza la contraseña del usuario. En POST se ignora. */
     @Size(min = 8, max = 100)
     private String password;
 

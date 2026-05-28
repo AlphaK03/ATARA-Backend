@@ -18,4 +18,7 @@ public interface AdminService {
 
     /** Elimina un usuario por ID. */
     void eliminarUsuario(Long id);
+
+    /** Alterna el estado del usuario entre ACTIVO e INACTIVO. */
+    UsuarioAdminResponseDto toggleEstado(Long id);
 }

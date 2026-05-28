@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final TokenRefreshRepository tokenRefreshRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${jwt.refresh-expiration-days}")
     private long refreshExpirationDays;
@@ -43,11 +45,13 @@ public class AuthServiceImpl implements AuthService {
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            JwtService jwtService,
                            TokenRefreshRepository tokenRefreshRepository,
-                           UsuarioRepository usuarioRepository) {
+                           UsuarioRepository usuarioRepository,
+                           PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.tokenRefreshRepository = tokenRefreshRepository;
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -81,6 +85,7 @@ public class AuthServiceImpl implements AuthService {
         response.setNombre(usuario.getNombre());
         response.setApellidos(usuario.getApellidos());
         response.setRol(usuario.getRol().getNombre());
+        response.setDebeCambiarPassword(Boolean.TRUE.equals(usuario.getDebeCambiarPassword()));
         return response;
     }
 
@@ -141,6 +146,23 @@ public class AuthServiceImpl implements AuthService {
             token.setRevocadoEn(OffsetDateTime.now());
             tokenRefreshRepository.save(token);
         }
+    }
+
+    /**
+     * Valida la contraseña actual, actualiza a la nueva y limpia el flag debeCambiarPassword.
+     */
+    @Override
+    @Transactional
+    public void cambiarPassword(Authentication authentication, String passwordActual, String nuevaPassword) {
+        UsuarioPrincipal principal = (UsuarioPrincipal) authentication.getPrincipal();
+        Usuario usuario = principal.getUsuario();
+
+        if (!passwordEncoder.matches(passwordActual, usuario.getPassword())) {
+            throw new IllegalArgumentException("La contraseña actual es incorrecta.");
+        }
+        usuario.setPassword(passwordEncoder.encode(nuevaPassword));
+        usuario.setDebeCambiarPassword(false);
+        usuarioRepository.save(usuario);
     }
 
     /**
