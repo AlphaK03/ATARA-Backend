@@ -84,7 +84,7 @@ public class PiadServiceImpl implements PiadService {
                 String textoFila;
                 try {
                     textoFila = tesseract.doOCR(recorte).trim();
-                } catch (TesseractException e) {
+                } catch (Throwable e) {
                     log.warn("OCR falló en y={}-{}: {}", yStart, yEnd, e.getMessage());
                     continue;
                 }
