@@ -79,12 +79,15 @@ public class CatalogoSaberServiceImpl implements CatalogoSaberService {
     }
 
     @Override
-    public List<EjeTemaaticoResponseDto> listarEjesPorNivel(Long nivelId, Integer materiaId, Integer tipoSaberId) {
+    public List<EjeTemaaticoResponseDto> listarEjesPorNivel(Long nivelId, Integer materiaId, Integer tipoSaberId, Short periodoNumero) {
         if (nivelId == null) {
             throw new IllegalArgumentException("nivelId es requerido para filtrar ejes por grado.");
         }
+        if (periodoNumero != null && (periodoNumero < 1 || periodoNumero > 3)) {
+            throw new IllegalArgumentException("periodoNumero debe estar entre 1 y 3 si se proporciona.");
+        }
         return ejeTemaaticoRepository
-            .findByNivelOptMateriaOptTipoSaber(nivelId, materiaId, tipoSaberId)
+            .findByNivelOptMateriaOptTipoSaber(nivelId, materiaId, tipoSaberId, periodoNumero)
             .stream()
             .map(this::toEjeDto)
             .toList();
@@ -114,6 +117,7 @@ public class CatalogoSaberServiceImpl implements CatalogoSaberService {
             .tipoSaberNombre(ej.getTipoSaber().getNombre())
             .materiaId(ej.getMateria().getId())
             .materiaNombre(ej.getMateria().getNombre())
+            .periodoNumero(ej.getPeriodoNumero())
             .build();
     }
 }

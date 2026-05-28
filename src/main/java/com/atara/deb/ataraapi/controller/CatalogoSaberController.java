@@ -39,6 +39,9 @@ public class CatalogoSaberController {
      *       Cuando se envía, tiene prioridad sobre los otros filtros.</li>
      *   <li>{@code materiaId} — restringe a una materia.</li>
      *   <li>{@code tipoSaberId} — restringe a Conceptual / Procedimental / Actitudinal.</li>
+     *   <li>{@code periodoNumero} — restringe al trimestre 1, 2 o 3. Solo
+     *       aplica cuando se pasa {@code nivelId}. Devuelve los ejes de ese
+     *       trimestre más los transversales ({@code periodo_numero IS NULL}).</li>
      * </ul>
      *
      * Si no viene {@code nivelId}, el comportamiento es el legado:
@@ -48,9 +51,10 @@ public class CatalogoSaberController {
     public ResponseEntity<List<EjeTemaaticoResponseDto>> listarEjesTematicos(
             @RequestParam(required = false) Long    nivelId,
             @RequestParam(required = false) Integer materiaId,
-            @RequestParam(required = false) Integer tipoSaberId) {
+            @RequestParam(required = false) Integer tipoSaberId,
+            @RequestParam(required = false) Short   periodoNumero) {
         if (nivelId != null) {
-            return ResponseEntity.ok(catalogoSaberService.listarEjesPorNivel(nivelId, materiaId, tipoSaberId));
+            return ResponseEntity.ok(catalogoSaberService.listarEjesPorNivel(nivelId, materiaId, tipoSaberId, periodoNumero));
         }
         if (materiaId != null && tipoSaberId != null) {
             return ResponseEntity.ok(catalogoSaberService.listarEjesPorMateriaYTipoSaber(materiaId, tipoSaberId));

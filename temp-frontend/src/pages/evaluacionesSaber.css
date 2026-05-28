@@ -1,11 +1,47 @@
+/* ── Barra de navegación (botón volver + breadcrumb) ─────────── */
+#nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.btn-back-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: #fff;
+  color: var(--text, #1f2937);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.08s, box-shadow 0.12s;
+  line-height: 1;
+}
+.btn-back-step:hover {
+  background: #f3f4f6;
+  border-color: #94a3b8;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.btn-back-step:active { transform: translateY(1px); }
+.btn-back-step:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
+}
+
 /* ── Breadcrumb ─────────────────────────────────────────────── */
 #breadcrumb {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 20px;
   font-size: 13px;
+  flex: 1;
+  min-width: 0;
 }
 
 .crumb-sep   { color: var(--border); }
@@ -214,7 +250,12 @@
 }
 
 .saber-chip--done    { background: #dcfce7; color: #16a34a; border-color: #86efac; }
+.saber-chip--partial { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
 .saber-chip--pending { background: var(--bg); color: var(--text-muted); border-color: var(--border); }
+
+/* Color de soporte para el contador "X parciales" en el header del paso 3.
+   Si .text-warning ya existe globalmente se ignora por especificidad. */
+.text-warning { color: #b45309; font-weight: 600; }
 
 .s-action {
   position: absolute;

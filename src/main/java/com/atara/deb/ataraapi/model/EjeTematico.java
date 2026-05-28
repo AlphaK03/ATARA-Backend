@@ -44,6 +44,14 @@ public class EjeTematico {
     @Column(name = "orden", nullable = false)
     private Short orden;
 
+    /**
+     * Trimestre al que aplica el eje (1, 2 o 3). NULL = aplicable a cualquier
+     * trimestre. Columna agregada por V17 y poblada por V17/V18/V19/V20 para
+     * permitir filtrar ejes por trimestre en el wizard de evaluación.
+     */
+    @Column(name = "periodo_numero")
+    private Short periodoNumero;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 }
