@@ -37,12 +37,12 @@ const NIVEL_META = [
 
 // Catálogos de saberes
 // - tiposSaber y materias: globales, se cargan una sola vez (no dependen del nivel)
-// - ejesPorMateriaTipo: depende del nivel de la sección, se recarga al cambiar
-//   de sección. Antes era global y mostraba todos los ejes en todos los grados.
+// - ejesPorMateriaTipo: depende del nivel de la sección Y del trimestre activo,
+//   se recarga al cambiar de sección o de trimestre.
 let tiposSaber = []
 let materias   = []
 let ejesPorMateriaTipo = {}  // key: `${materiaId}_${tipoSaberId}`
-let ejesNivelCargado   = null  // nivelId del que se cargó ejesPorMateriaTipo
+let ejesCacheKey       = null  // `${nivelId}_${periodoNumero}` del que se cargó
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -143,21 +143,26 @@ export function renderEvaluacionesSaber(container) {
 
   /**
    * Recarga los ejes temáticos restringidos al grado de la sección activa
-   * (V12+). Reemplaza el índice anterior, que era global y mostraba todos
-   * los ejes en todos los grados.
+   * (V12+) y al trimestre seleccionado (V20+). Reemplaza el índice anterior
+   * que solo filtraba por grado y mostraba los 33 ejes del año mezclados.
    *
    * Requiere {@code seccion.nivelId} (siempre lo provee SeccionResponseDto).
    * Si por alguna razón no llegara, deja el índice vacío y la UI mostrará
    * "Sin ejes en este grado" sin permitir abrir el wizard.
+   *
+   * El filtro por trimestre se aplica si {@code periodoSel.numeroPeriodo}
+   * existe. La caché se invalida cuando cambia el grado o el trimestre.
    */
   async function loadEjesParaSeccion(seccion) {
-    const nivelId = seccion?.nivelId
-    if (nivelId && ejesNivelCargado === nivelId) return  // ya está cargado para este grado
+    const nivelId        = seccion?.nivelId
+    const periodoNumero  = periodoSel?.numeroPeriodo ?? null
+    const cacheKey       = nivelId != null ? `${nivelId}_${periodoNumero ?? 'any'}` : null
+    if (cacheKey && ejesCacheKey === cacheKey) return  // ya cargado para este (grado, trimestre)
 
     let allEjes = []
     if (nivelId) {
       try {
-        allEjes = await getEjesPorNivel(nivelId)
+        allEjes = await getEjesPorNivel(nivelId, periodoNumero ? { periodoNumero } : {})
       } catch (e) {
         console.warn('Error cargando ejes por nivel:', e.message)
       }
@@ -172,7 +177,7 @@ export function renderEvaluacionesSaber(container) {
     for (const k of Object.keys(ejesPorMateriaTipo)) {
       ejesPorMateriaTipo[k].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
     }
-    ejesNivelCargado = nivelId || null
+    ejesCacheKey = cacheKey
   }
 
   // ── Breadcrumb ────────────────────────────────────────────────────────────

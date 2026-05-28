@@ -221,11 +221,19 @@ export const getEjesTematicos    = (tipoSaberId, materiaId) => {
  * Es el endpoint correcto para el wizard de evaluación: garantiza que solo
  * se muestren los ejes que aplican al grado de la sección (ej: "Álgebra"
  * no aparece en 1° de primaria).
+ *
+ * Opciones:
+ *  - materiaId
+ *  - tipoSaberId
+ *  - periodoNumero (1, 2 o 3) — restringe al trimestre. Cuando se pasa,
+ *    devuelve los ejes de ese trimestre más los transversales
+ *    (periodo_numero IS NULL).
  */
 export const getEjesPorNivel = (nivelId, opts = {}) => {
   const params = [`nivelId=${nivelId}`]
-  if (opts.materiaId)   params.push(`materiaId=${opts.materiaId}`)
-  if (opts.tipoSaberId) params.push(`tipoSaberId=${opts.tipoSaberId}`)
+  if (opts.materiaId)     params.push(`materiaId=${opts.materiaId}`)
+  if (opts.tipoSaberId)   params.push(`tipoSaberId=${opts.tipoSaberId}`)
+  if (opts.periodoNumero) params.push(`periodoNumero=${opts.periodoNumero}`)
   return request('GET', `/catalogos/saberes/ejes?${params.join('&')}`)
 }
 export const getNivelesDesempeno = ()                          => request('GET', '/catalogos/saberes/niveles-desempeno')

@@ -16,8 +16,12 @@ public interface EjeTemaaticoRepository extends JpaRepository<EjeTematico, Integ
     /**
      * Ejes asociados a un nivel educativo concreto vía la tabla puente
      * {@code ejes_tematicos_niveles} (V12). Permite filtrar opcionalmente por
-     * materia y/o tipo de saber. Si los parámetros opcionales vienen en
-     * {@code null}, el filtro se ignora.
+     * materia, tipo de saber y/o trimestre (periodoNumero). Si los parámetros
+     * opcionales vienen en {@code null}, el filtro se ignora.
+     *
+     * Para periodoNumero: cuando se proporciona, devuelve los ejes con ese
+     * periodo_numero exacto MÁS los ejes con periodo_numero IS NULL
+     * (transversales — aplicables a cualquier trimestre).
      */
     @Query("""
         SELECT e FROM EjeTematico e
@@ -26,12 +30,14 @@ public interface EjeTemaaticoRepository extends JpaRepository<EjeTematico, Integ
             WHERE en.ejeTematico.id = e.id
               AND en.nivel.id = :nivelId
         )
-          AND (:materiaId   IS NULL OR e.materia.id   = :materiaId)
-          AND (:tipoSaberId IS NULL OR e.tipoSaber.id = :tipoSaberId)
+          AND (:materiaId      IS NULL OR e.materia.id      = :materiaId)
+          AND (:tipoSaberId    IS NULL OR e.tipoSaber.id    = :tipoSaberId)
+          AND (:periodoNumero  IS NULL OR e.periodoNumero   = :periodoNumero OR e.periodoNumero IS NULL)
         ORDER BY e.tipoSaber.id ASC, e.orden ASC
         """)
     List<EjeTematico> findByNivelOptMateriaOptTipoSaber(
-            @Param("nivelId")     Long    nivelId,
-            @Param("materiaId")   Integer materiaId,
-            @Param("tipoSaberId") Integer tipoSaberId);
+            @Param("nivelId")        Long    nivelId,
+            @Param("materiaId")      Integer materiaId,
+            @Param("tipoSaberId")    Integer tipoSaberId,
+            @Param("periodoNumero")  Short   periodoNumero);
 }
