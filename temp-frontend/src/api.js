@@ -193,16 +193,36 @@ export const getAlertasBySeccion = (sectionId, periodId) =>
   request('GET', `/alertas/seccion/${sectionId}${periodId ? `?periodId=${periodId}` : ''}`)
 
 // ── PIAD ───────────────────────────────────────────────────────────────────
-export async function extraerPIAD(archivo) {
+// No usa request() porque FormData necesita su propio Content-Type (multipart
+// con boundary auto-generado). Replica el manejo de 401 → refresh → reintento.
+export async function extraerPIAD(archivo, isRetry = false) {
   const form = new FormData()
   form.append('archivo', archivo)
   const headers = {}
   const token = getAccessToken()
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (!token) {
+    console.error('[PIAD] No hay access token en localStorage. ¿Sesión iniciada?')
+    throw new Error('No has iniciado sesión. Inicia sesión y vuelve a intentar.')
+  }
+  headers['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(BASE + '/piad/extraer', { method: 'POST', headers, body: form })
   const text = await res.text()
   const json = text ? JSON.parse(text) : null
-  if (!res.ok) throw new Error(json?.message || json?.error || `Error ${res.status}`)
+
+  if (!res.ok) {
+    if (res.status === 401 && !isRetry) {
+      try {
+        await tryRefresh()
+        return extraerPIAD(archivo, true)
+      } catch (e) {
+        clearAccessToken(); clearRefreshToken(); clearUserId()
+        window.dispatchEvent(new CustomEvent('atara:session-expired'))
+        throw new Error('La sesión expiró. Inicia sesión nuevamente.')
+      }
+    }
+    throw new Error(json?.message || json?.error || `Error ${res.status}`)
+  }
   return json
 }
 
