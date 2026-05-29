@@ -19,33 +19,93 @@
 
 import {
   extraerPIAD,
+  importarEstudiantesPIAD,
   getAnioLectivoActivo,
   getSecciones,
-  createEstudiante,
-  createMatricula,
   getNiveles,
   getCentros,
   getDocentes,
   createSeccion,
+  getContextoUsuario,
 } from '../api.js'
+import { makeSearchableSelect } from '../utils/searchableSelect.js'
 
 export async function renderImportarPiad(container) {
   // Cargar datos iniciales en paralelo
-  let secciones = [], anioActivo = null, niveles = [], centros = [], docentes = []
+  let secciones = [], anioActivo = null, niveles = [], centros = [], docentes = [], ctxUsuario = null
   try {
     anioActivo = await getAnioLectivoActivo()
-    ;[secciones, niveles, centros, docentes] = await Promise.all([
+    ;[secciones, niveles, centros, docentes, ctxUsuario] = await Promise.all([
       getSecciones(anioActivo.id),
       getNiveles(),
       getCentros(),
       getDocentes(),
+      getContextoUsuario().catch(() => null),
     ])
   } catch { /* no bloquea la carga */ }
+
+  // Última sección REAL elegida en "Sección destino" (no vacía ni "crear nueva").
+  // Sirve para heredar su docente al crear una nueva sección desde aquí.
+  let seccionPreviaId = null
+
+  /**
+   * Docente a preseleccionar en "Nueva sección":
+   *  1. el docente de la sección destino elegida antes de abrir el panel, o
+   *  2. el propio usuario si es DOCENTE (es el encargado natural), o
+   *  3. null → "Sin asignar".
+   */
+  function docenteOrigenId() {
+    if (seccionPreviaId != null) {
+      const s = secciones.find(x => x.id === seccionPreviaId)
+      if (s?.docenteId) return s.docenteId
+    }
+    if (ctxUsuario?.rol === 'DOCENTE' && ctxUsuario.userId) return Number(ctxUsuario.userId)
+    return null
+  }
 
   const buildOpcionesSecciones = (lista) =>
     lista.map(s =>
       `<option value="${s.id}">${s.nivelGrado ? s.nivelGrado + '° — ' : ''}${s.nombre} · ${s.centroNombre || ''}${s.docenteNombreCompleto ? ' (' + s.docenteNombreCompleto + ')' : ''}</option>`
     ).join('')
+
+  // ── Campo "Docente encargado" según el rol ──────────────────────────────────
+  // DOCENTE: queda fijado a sí mismo, de solo lectura, sin lista de otros
+  // docentes — un docente nunca puede asignar la sección a otro profesor.
+  // ADMIN u otros roles de gestión: selector con búsqueda, "Sin asignar" por
+  // defecto y preselección del docente de la sección de origen si existe.
+  const esDocente = ctxUsuario?.rol === 'DOCENTE'
+  const docenteNombrePropio = ctxUsuario
+    ? `${ctxUsuario.nombre ?? ''} ${ctxUsuario.apellidos ?? ''}`.trim()
+    : ''
+  const escAttr = (s) => String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  function buildDocenteFieldHtml() {
+    if (esDocente) {
+      return `
+        <div class="form-group" style="margin-bottom:0">
+          <label>Docente encargado
+            <span style="font-size:11px;color:#64748b;font-weight:400"> (asignado automáticamente)</span>
+          </label>
+          <input type="text" id="ns-docente-display"
+            value="${escAttr(docenteNombrePropio || 'Tú (docente actual)')}"
+            readonly tabindex="-1"
+            title="Como docente, la sección queda asignada a tu usuario y no puede reasignarse"
+            style="background:#f1f5f9;color:#475569;cursor:not-allowed">
+        </div>`
+    }
+    return `
+      <div class="form-group" style="margin-bottom:0">
+        <label>Docente encargado
+          <span style="font-size:11px;color:#64748b;font-weight:400"> (opcional)</span>
+        </label>
+        <select id="ns-docente">
+          <option value="">— Sin asignar —</option>
+          ${docentes.map(d => `<option value="${d.id}">${escAttr(d.nombreCompleto)}</option>`).join('')}
+        </select>
+      </div>`
+  }
 
   container.innerHTML = `
     <h1>Importar Lista PIAD</h1>
@@ -149,15 +209,7 @@ export async function renderImportarPiad(container) {
             </select>
           </div>
 
-          <div class="form-group" style="margin-bottom:0">
-            <label>Docente encargado
-              <span style="font-size:11px;color:#64748b;font-weight:400"> (opcional)</span>
-            </label>
-            <select id="ns-docente">
-              <option value="">— Sin asignar —</option>
-              ${docentes.map(d => `<option value="${d.id}">${d.nombreCompleto}</option>`).join('')}
-            </select>
-          </div>
+          ${buildDocenteFieldHtml()}
 
           <div class="form-group" style="margin-bottom:0">
             <label>Capacidad
@@ -249,6 +301,18 @@ export async function renderImportarPiad(container) {
 
   let archivoSeleccionado = null
 
+  // ── Selectores con búsqueda (centro y docente) ──────────────────────────────
+  // Ambos campos pueden tener muchas opciones. Se mejoran con un buscador por
+  // nombre; el <select> oculto sigue guardando el ID (lo que lee el guardado).
+  const centroCombo  = makeSearchableSelect(container.querySelector('#ns-centro'),
+    { placeholder: 'Buscar centro educativo…' })
+  // Para DOCENTE el campo es de solo lectura (no hay <select id="ns-docente">),
+  // así que no se crea combo; el guardado usará el id del usuario autenticado.
+  const docenteSelectEl = container.querySelector('#ns-docente')
+  const docenteCombo = docenteSelectEl
+    ? makeSearchableSelect(docenteSelectEl, { placeholder: 'Buscar docente… (opcional)' })
+    : null
+
   // ── Selección de archivo ────────────────────────────────────────────────────
   function seleccionarArchivo(file) {
     if (!file) return
@@ -276,8 +340,13 @@ export async function renderImportarPiad(container) {
   selSeccion.addEventListener('change', () => {
     if (selSeccion.value === '__nueva__') {
       panelNueva.style.display = ''
+      // Heredar el docente de la sección actual/origen (editable por el usuario).
+      const dId = docenteOrigenId()
+      docenteCombo?.setValue(dId != null && docentes.some(d => String(d.id) === String(dId)) ? dId : '')
       container.querySelector('#ns-nombre').focus()
     } else {
+      // Recordar la última sección real elegida para heredar su docente.
+      if (selSeccion.value) seccionPreviaId = Number(selSeccion.value)
       panelNueva.style.display = 'none'
     }
   })
@@ -297,7 +366,11 @@ export async function renderImportarPiad(container) {
     const nsNombre    = container.querySelector('#ns-nombre').value.trim().toUpperCase()
     const nsNivelId   = Number(container.querySelector('#ns-nivel').value)
     const nsCentroId  = Number(container.querySelector('#ns-centro').value)
-    const nsDocenteId = container.querySelector('#ns-docente').value
+    // DOCENTE: siempre su propio id (el backend además lo fuerza como titular e
+    // ignora este campo para ese rol). ADMIN/otros: lo que haya elegido en el select.
+    const nsDocenteId = esDocente
+      ? (ctxUsuario?.userId ? Number(ctxUsuario.userId) : null)
+      : (docenteSelectEl && docenteSelectEl.value ? Number(docenteSelectEl.value) : null)
     const nsCapacidad = container.querySelector('#ns-capacidad').value
     const nsError     = container.querySelector('#ns-error')
     const btnCrear    = container.querySelector('#btn-crear-seccion')
@@ -319,7 +392,7 @@ export async function renderImportarPiad(container) {
         nivelId:       nsNivelId,
         centroId:      nsCentroId,
         anioLectivoId: anioActivo.id,
-        docenteId:     nsDocenteId ? Number(nsDocenteId) : null,
+        docenteId:     nsDocenteId,
         capacidad:     nsCapacidad ? Number(nsCapacidad) : null,
       }
       const nuevaSeccion = await createSeccion(payload)
@@ -340,8 +413,8 @@ export async function renderImportarPiad(container) {
       // Limpiar campos del panel para próxima vez
       container.querySelector('#ns-nombre').value    = ''
       container.querySelector('#ns-nivel').value     = ''
-      container.querySelector('#ns-centro').value    = ''
-      container.querySelector('#ns-docente').value   = ''
+      centroCombo?.setValue('')    // limpia el combo de centro (select oculto + texto)
+      docenteCombo?.setValue('')   // limpia el combo de docente
       container.querySelector('#ns-capacidad').value = ''
       container.querySelector('#ns-error').textContent = ''
     } catch (err) {
@@ -381,12 +454,20 @@ export async function renderImportarPiad(container) {
   })
 
   // ── Guardar ─────────────────────────────────────────────────────────────────
+  // Una sola llamada idempotente al backend (POST /api/piad/importar): por cada
+  // estudiante reutiliza el registro si ya existe, lo crea si es nuevo y lo
+  // matricula en la sección solo si aún no pertenece a ella. No falla por
+  // duplicados ni se detiene a mitad del lote.
   btnGuardar.addEventListener('click', async () => {
     const seccionId = selSeccion.value && selSeccion.value !== '__nueva__' ? Number(selSeccion.value) : null
     const fechaMat  = container.querySelector('#fecha-matricula').value
 
     if (!seccionId) {
       saveResult.innerHTML = '<div class="alert alert-error">Selecciona la sección destino antes de guardar.</div>'
+      return
+    }
+    if (!anioActivo?.id) {
+      saveResult.innerHTML = '<div class="alert alert-error">No se pudo determinar el año lectivo activo. Recarga la página e inténtalo de nuevo.</div>'
       return
     }
 
@@ -397,23 +478,22 @@ export async function renderImportarPiad(container) {
       return
     }
 
-    const estudiantes = filas.map(tr => ({
-      identificacion: tr.querySelector('[name=cedula]').value.trim(),
-      apellido1:      tr.querySelector('[name=primerApellido]').value.trim(),
-      apellido2:      tr.querySelector('[name=segundoApellido]').value.trim() || null,
-      nombre:         tr.querySelector('[name=nombre]').value.trim(),
-    }))
-
-    // Validación básica
+    // Solo se persisten estos campos (igual que el alta manual). Nivel/grupo del
+    // PDF son referencia y no se envían. Obligatorios: identificación, apellido1, nombre.
     let valido = true
-    filas.forEach((tr, i) => {
-      const e = estudiantes[i]
-      ;['cedula','primerApellido','nombre'].forEach(campo => {
+    const estudiantes = filas.map(tr => {
+      ;['cedula', 'primerApellido', 'nombre'].forEach(campo => {
         const input = tr.querySelector(`[name=${campo}]`)
         const val = input.value.trim()
         input.classList.toggle('error', !val)
         if (!val) valido = false
       })
+      return {
+        identificacion: tr.querySelector('[name=cedula]').value.trim(),
+        nombre:         tr.querySelector('[name=nombre]').value.trim(),
+        apellido1:      tr.querySelector('[name=primerApellido]').value.trim(),
+        apellido2:      tr.querySelector('[name=segundoApellido]').value.trim() || null,
+      }
     })
 
     if (!valido) {
@@ -425,43 +505,46 @@ export async function renderImportarPiad(container) {
     btnGuardar.textContent = 'Guardando…'
     saveResult.innerHTML = ''
 
-    let ok = 0, errores = []
+    try {
+      const res = await importarEstudiantesPIAD({
+        seccionId,
+        anioLectivoId:  anioActivo.id,
+        fechaMatricula: fechaMat || null,
+        estudiantes,
+      })
 
-    for (const est of estudiantes) {
-      try {
-        const creado = await createEstudiante(est)
-        if (creado?.id) {
-          await createMatricula({
-            estudianteId:   creado.id,
-            seccionId,
-            anioLectivoId: anioActivo?.id,
-            fechaMatricula: fechaMat || new Date().toISOString().split('T')[0],
-          })
-          ok++
-        }
-      } catch (e) {
-        errores.push(`${est.nombre} ${est.apellido1}: ${e.message}`)
-      }
-    }
+      const partes = []
+      if (res.creados)        partes.push(`${res.creados} nuevo${res.creados !== 1 ? 's' : ''} creado${res.creados !== 1 ? 's' : ''}`)
+      if (res.matriculados)   partes.push(`${res.matriculados} matriculado${res.matriculados !== 1 ? 's' : ''}`)
+      if (res.yaMatriculados) partes.push(`${res.yaMatriculados} ya en la sección`)
+      const resumen = partes.length ? partes.join(' · ') : 'sin cambios'
 
-    btnGuardar.disabled = false
-    btnGuardar.textContent = 'Guardar en sistema'
-
-    if (errores.length === 0) {
-      saveResult.innerHTML = `
+      let html = `
         <div class="alert alert-success">
-          ${ok} estudiante${ok !== 1 ? 's' : ''} guardado${ok !== 1 ? 's' : ''} y matriculado${ok !== 1 ? 's' : ''} correctamente.
+          Importación completada: ${resumen}.
+          <div style="font-size:12px;margin-top:4px;color:#065f46">
+            ${res.total} fila${res.total !== 1 ? 's' : ''} procesada${res.total !== 1 ? 's' : ''} ·
+            ${res.creados} creado${res.creados !== 1 ? 's' : ''} ·
+            ${res.reutilizados} reutilizado${res.reutilizados !== 1 ? 's' : ''} (ya existían) ·
+            ${res.yaMatriculados} omitido${res.yaMatriculados !== 1 ? 's' : ''} (ya en la sección)
+          </div>
         </div>`
-    } else {
-      saveResult.innerHTML = `
-        <div class="alert alert-success" style="margin-bottom:8px">
-          ${ok} estudiante${ok !== 1 ? 's' : ''} guardado${ok !== 1 ? 's' : ''} correctamente.
-        </div>
-        <div class="alert alert-error">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline;vertical-align:-2px;margin-right:3px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          ${errores.length} error${errores.length !== 1 ? 'es' : ''}:<br>
-          ${errores.map(e => `• ${e}`).join('<br>')}
-        </div>`
+
+      if (res.errores > 0) {
+        const fallidas = (res.detalle || []).filter(d => d.estado === 'ERROR')
+        html += `
+          <div class="alert alert-error" style="margin-top:8px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline;vertical-align:-2px;margin-right:3px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            ${res.errores} fila${res.errores !== 1 ? 's' : ''} con error:<br>
+            ${fallidas.map(d => `• ${d.identificacion}: ${d.mensaje}`).join('<br>')}
+          </div>`
+      }
+      saveResult.innerHTML = html
+    } catch (e) {
+      saveResult.innerHTML = `<div class="alert alert-error">Error al importar: ${e.message}</div>`
+    } finally {
+      btnGuardar.disabled = false
+      btnGuardar.textContent = 'Guardar en sistema'
     }
   })
 

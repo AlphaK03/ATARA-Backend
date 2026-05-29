@@ -193,6 +193,8 @@ export const getAniosLectivos     = ()       => request('GET',  '/anios-lectivos
 export const getAnioLectivoActivo = ()       => request('GET',  '/anios-lectivos/activo')
 export const createAnioLectivo    = (data)   => request('POST', '/anios-lectivos', data)
 export const activarAnioLectivo   = (id)     => request('PUT',  `/anios-lectivos/${id}/activar`)
+// Asegura (crea si no existe) el año lectivo del año natural en curso + sus 3 trimestres. Solo ADMIN.
+export const asegurarAnioActual   = ()       => request('POST', '/anios-lectivos/asegurar-actual')
 
 // ── Estudiantes ────────────────────────────────────────────────────────────
 export const getEstudiantes      = (estado)   => request('GET',  `/estudiantes${estado ? `?estado=${estado}` : ''}`)
@@ -221,13 +223,47 @@ export const getAlertasBySeccion = (sectionId, periodId) =>
 // Pasa por request() para reutilizar el flujo de auth+refresh+reintento ante
 // 401. request() detecta FormData y omite el Content-Type para que el
 // navegador establezca el boundary multipart.
-export function extraerPIAD(archivo) {
+//
+// El OCR es una operación larga (renderizado + Tesseract). Si el access token
+// expira justo antes de esta llamada, request() intenta UN refresh silencioso
+// y reintenta de forma transparente. Solo si ese refresh también falla
+// llegamos al manejo de 401.
+//
+// redirectOn401:false es DELIBERADO: una extracción es una acción puntual y
+// pesada; un 401 aquí NO debe destruir la sesión global ni expulsar al usuario
+// de golpe (perdería cualquier trabajo en curso). En su lugar lanzamos un error
+// con un mensaje claro y accionable que la página muestra in situ. Si el token
+// realmente está muerto, el resto de la app lo detectará en la siguiente
+// petición normal; el usuario no pierde el contexto por culpa del OCR.
+export async function extraerPIAD(archivo) {
   const form = new FormData()
   form.append('archivo', archivo)
-  // redirectOn401:false → si la sesión falla, mostramos el error en la página
-  // en vez de expulsar al usuario de golpe por un fallo del OCR.
-  return request('POST', '/piad/extraer', form, false, { redirectOn401: false })
+  try {
+    return await request('POST', '/piad/extraer', form, false, { redirectOn401: false })
+  } catch (err) {
+    // Traducir el 401 crudo del backend a un mensaje accionable.
+    if (/token de acceso|no autorizado|401/i.test(err.message)) {
+      throw new Error(
+        'Tu sesión expiró mientras se procesaba el PDF. Vuelve a iniciar sesión ' +
+        'y repite la extracción — no se perdió ningún dato y no se guardó nada todavía.'
+      )
+    }
+    throw err
+  }
 }
+
+/**
+ * Importación masiva idempotente desde una Lista PIAD ya revisada.
+ * Una sola llamada transaccional al backend que, por cada estudiante:
+ *  - reutiliza el registro si ya existe (no lo reinserta),
+ *  - lo crea si es nuevo,
+ *  - lo matricula en la sección solo si aún no pertenece a ella.
+ * Nunca falla por duplicados. Devuelve un resumen
+ * { total, creados, reutilizados, matriculados, yaMatriculados, errores, detalle[] }.
+ *
+ * payload = { seccionId, anioLectivoId, fechaMatricula?, estudiantes:[{identificacion, nombre, apellido1, apellido2}] }
+ */
+export const importarEstudiantesPIAD = (payload) => request('POST', '/piad/importar', payload)
 
 // ── Catálogos de Saberes ───────────────────────────────────────────────────
 export const getTiposSaber       = ()                          => request('GET', '/catalogos/saberes/tipos')

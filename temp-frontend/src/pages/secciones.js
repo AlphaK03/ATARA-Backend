@@ -7,6 +7,7 @@ import {
 } from '../api.js'
 import { showConfirm, openModal, backendMsg } from '../confirm.js'
 import { showToast } from '../utils/toast.js'
+import { makeSearchableSelect } from '../utils/searchableSelect.js'
 import {
   WIZARD_CSS, escHtml, escAttr,
   studentCardHtml, seccionWizardHtml,
@@ -230,6 +231,9 @@ export async function renderSecciones(container) {
     if (modalBox) modalBox.classList.add('wide-modal')
 
     const $ = sel => modal.bodyEl.querySelector(sel)
+
+    // Centro educativo con búsqueda por nombre (la lista puede ser larga).
+    makeSearchableSelect($('#sf-centro'), { placeholder: 'Buscar centro educativo…' })
 
     function renderDocentesAgregados() {
       const ul = $('#sf-docentes-agregados')

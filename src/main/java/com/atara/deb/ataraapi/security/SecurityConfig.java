@@ -52,6 +52,13 @@ public class SecurityConfig {
                                      "/api/auth/password-reset/confirmar",
                                      "/api/auth/email/verificar").permitAll()
                     .requestMatchers("/actuator/health").permitAll()
+                    // El forward interno a /error NO debe exigir autenticación. Spring
+                    // re-despacha aquí cualquier 404/500; como JwtAuthenticationFilter es
+                    // un OncePerRequestFilter que se salta el dispatch de ERROR, el
+                    // SecurityContext queda anónimo y, sin este permitAll, el error real
+                    // se enmascararía como 401 (cerrando la sesión del cliente). Permitirlo
+                    // deja que el cliente reciba el status verdadero (404/500).
+                    .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

@@ -1,5 +1,5 @@
 import {
-  getAniosLectivos, createAnioLectivo, activarAnioLectivo,
+  getAniosLectivos, createAnioLectivo, activarAnioLectivo, asegurarAnioActual,
   updateAnioLectivo, deleteAnioLectivo,
   getPeriodos, activarPeriodo, createPeriodo, updatePeriodo, deletePeriodo,
   getAccessToken,
@@ -441,8 +441,34 @@ export async function renderAniosLectivos(container) {
     })
   }
 
-  // ── Create año lectivo ────────────────────────────────────────────────────
-  container.querySelector('#refresh-btn').addEventListener('click', loadList)
+  // ── Actualizar: asegura el año en curso y recarga ─────────────────────────
+  // Además de refrescar el listado, verifica si el año lectivo del año natural
+  // actual existe; si no, lo crea con sus 3 trimestres y lo activa (idempotente
+  // — si ya existe no hace nada). Endpoint solo ADMIN; esta página ya es ADMIN.
+  async function actualizar() {
+    const refreshBtn = container.querySelector('#refresh-btn')
+    refreshBtn.disabled = true
+    refreshBtn.textContent = 'Actualizando…'
+    let aviso = ''
+    try {
+      const previos = new Set((await getAniosLectivos().catch(() => [])).map(a => a.anio))
+      const anioActual = await asegurarAnioActual()
+      if (anioActual?.anio && !previos.has(anioActual.anio)) {
+        aviso = `<div class="alert alert-success">Se creó automáticamente el año lectivo ${anioActual.anio} con sus 3 trimestres.</div>`
+        if (anioActual.id) expanded.add(anioActual.id)
+      }
+    } catch (err) {
+      // No bloquea la recarga del listado si el aseguramiento falla.
+      aviso = `<div class="alert alert-error">No se pudo verificar el año en curso: ${err.message}</div>`
+    } finally {
+      refreshBtn.disabled = false
+      refreshBtn.textContent = 'Actualizar'
+    }
+    await loadList()           // loadList limpia listMsg, por eso el aviso va después
+    if (aviso) listMsg.innerHTML = aviso
+  }
+
+  container.querySelector('#refresh-btn').addEventListener('click', actualizar)
 
   container.querySelector('#anio-form').addEventListener('submit', async e => {
     e.preventDefault()

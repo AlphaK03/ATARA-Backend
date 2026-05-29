@@ -1,9 +1,13 @@
 package com.atara.deb.ataraapi.security;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,6 +27,8 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
 
@@ -40,6 +46,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // Sin Bearer: si el endpoint es protegido, Spring devolverá 401. Lo
+            // registramos a DEBUG para distinguir "no llegó token" de "token rechazado"
+            // al diagnosticar 401 (p. ej. en POST /api/piad/extraer).
+            if (log.isDebugEnabled()) {
+                log.debug("Request {} {} sin header 'Authorization: Bearer' — quedará sin autenticar",
+                        request.getMethod(), request.getRequestURI());
+            }
             filterChain.doFilter(request, response);
             return;
         }
@@ -60,11 +73,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authToken.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                } else if (log.isDebugEnabled()) {
+                    // El token parsea y verifica firma, pero el subject no coincide
+                    // con el UserDetails cargado. No se loguea el correo (PII).
+                    log.debug("Token RECHAZADO en {} {}: subject no coincide con el usuario cargado",
+                            request.getMethod(), request.getRequestURI());
                 }
             }
-        } catch (Exception e) {
-            // Token malformado, expirado o cualquier otro error de parsing.
-            // No se autentica el request; Spring Security gestionará el rechazo.
+        } catch (ExpiredJwtException e) {
+            // Token bien firmado pero expirado (más allá de la tolerancia de clock-skew).
+            // exp no es PII: ayuda a confirmar la hipótesis "expiró antes de extraer".
+            log.debug("Token EXPIRADO en {} {} (exp={}) — el cliente debe refrescar",
+                    request.getMethod(), request.getRequestURI(), e.getClaims().getExpiration());
+        } catch (JwtException | IllegalArgumentException e) {
+            // Firma inválida (¿secreto distinto entre emisión y validación?),
+            // token malformado o vacío. Se loguea SOLO la clase, nunca el token.
+            log.debug("Token INVÁLIDO en {} {}: {}",
+                    request.getMethod(), request.getRequestURI(), e.getClass().getSimpleName());
         }
 
         filterChain.doFilter(request, response);
