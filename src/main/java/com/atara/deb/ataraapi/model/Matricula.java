@@ -10,9 +10,11 @@ import java.time.OffsetDateTime;
 @Entity
 @Table(
     name = "matriculas",
+    // Un estudiante puede estar en varias secciones del mismo año (una por
+    // docente/materia), pero no dos veces en la misma sección. Ver migración V23.
     uniqueConstraints = @UniqueConstraint(
-        name = "uq_estudiante_por_anio",
-        columnNames = {"estudiante_id", "anio_lectivo_id"}
+        name = "uq_estudiante_por_seccion",
+        columnNames = {"estudiante_id", "seccion_id"}
     )
 )
 @Getter

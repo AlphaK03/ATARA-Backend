@@ -49,10 +49,11 @@ public class MatriculaServiceImpl implements MatriculaService {
         AnioLectivo anioLectivo = anioLectivoRepository.findById(anioLectivoId)
             .orElseThrow(() -> new NoSuchElementException("Año lectivo no encontrado con id: " + anioLectivoId));
 
-        // Un estudiante solo puede tener una matrícula por año lectivo
-        if (matriculaRepository.existsByEstudianteIdAndAnioLectivoId(estudianteId, anioLectivoId)) {
+        // Un estudiante puede pertenecer a varias secciones en el año (una por docente/materia),
+        // pero no puede quedar matriculado dos veces en la MISMA sección.
+        if (matriculaRepository.existsByEstudianteIdAndSeccionId(estudianteId, seccionId)) {
             throw new IllegalArgumentException(
-                "El estudiante ya tiene una matrícula registrada para el año lectivo: " + anioLectivo.getAnio()
+                "El estudiante ya está matriculado en esta sección."
             );
         }
 

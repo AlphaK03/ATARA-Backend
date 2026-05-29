@@ -198,11 +198,10 @@ export async function renderSecciones(container) {
     } : {}
 
     // Refrescar listas vivas antes de abrir el wizard.
-    // El endpoint /secciones/catalogos/estudiantes aplica exclusión inteligente:
-    //  - sin params: todos los activos
-    //  - con anioLectivoId: excluye los ya matriculados en ese año (regla 1:1)
-    //  - con anioLectivoId + seccionId: re-incluye los ya matriculados en esa
-    //    sección (caso edición, para que aparezcan pre-seleccionados).
+    // El endpoint /secciones/catalogos/estudiantes devuelve todos los estudiantes
+    // activos: un estudiante puede pertenecer a varias secciones del mismo año
+    // (una por docente/materia). En edición, los que ya están en esta sección se
+    // pre-seleccionan a partir de sus matrículas (getMatriculasBySeccion abajo).
     const anioParaCatalogo = esEdicion ? seccion.anioLectivoId : Number(selAnio.value)
     try {
       const [estudiantesFrescos, docentesFrescos] = await Promise.all([

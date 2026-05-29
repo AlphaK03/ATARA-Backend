@@ -38,13 +38,23 @@ async function tryRefresh() {
 }
 
 // ── Request base ──────────────────────────────────────────────────────────
-async function request(method, path, body, isRetry = false) {
-  const headers = { 'Content-Type': 'application/json' }
+// Soporta body JSON (objeto plano) y multipart (FormData). En multipart NO se
+// fija Content-Type: el navegador añade el boundary automáticamente; fijarlo a
+// mano rompe el parsing en el servidor.
+async function request(method, path, body, isRetry = false, { redirectOn401 = true } = {}) {
+  const headers = {}
   const token = getAccessToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   const opts = { method, headers }
-  if (body !== undefined) opts.body = JSON.stringify(body)
+  if (body !== undefined) {
+    if (body instanceof FormData) {
+      opts.body = body
+    } else {
+      headers['Content-Type'] = 'application/json'
+      opts.body = JSON.stringify(body)
+    }
+  }
 
   const res = await fetch(BASE + path, opts)
   const text = await res.text()
@@ -56,13 +66,19 @@ async function request(method, path, body, isRetry = false) {
         // Intentar renovar el token una sola vez
         try {
           await tryRefresh()
-          return request(method, path, body, true) // reintento con nuevo token
+          return request(method, path, body, true, { redirectOn401 }) // reintento con nuevo token
         } catch {
-          // Refresh también falló → caer al cierre de sesión
+          // Refresh también falló → caer al manejo de 401 definitivo
         }
       }
-      // 401 en primer intento (refresh fallido) O en el reintento (token rechazado
-      // de nuevo) → la sesión expiró definitivamente; mostrar login siempre.
+      // 401 definitivo (refresh fallido o token rechazado de nuevo).
+      if (!redirectOn401) {
+        // El caller maneja el 401 (p.ej. extracción PIAD): no destruimos la
+        // sesión por el fallo de un endpoint puntual; devolvemos el error.
+        const msg401 = json?.message || json?.error || 'No autorizado (401)'
+        throw new Error(msg401)
+      }
+      // Sesión expirada de verdad → cerrar y mostrar login.
       clearAccessToken()
       clearRefreshToken()
       clearUserId()
@@ -202,17 +218,15 @@ export const getAlertasBySeccion = (sectionId, periodId) =>
   request('GET', `/alertas/seccion/${sectionId}${periodId ? `?periodId=${periodId}` : ''}`)
 
 // ── PIAD ───────────────────────────────────────────────────────────────────
-export async function extraerPIAD(archivo) {
+// Pasa por request() para reutilizar el flujo de auth+refresh+reintento ante
+// 401. request() detecta FormData y omite el Content-Type para que el
+// navegador establezca el boundary multipart.
+export function extraerPIAD(archivo) {
   const form = new FormData()
   form.append('archivo', archivo)
-  const headers = {}
-  const token = getAccessToken()
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(BASE + '/piad/extraer', { method: 'POST', headers, body: form })
-  const text = await res.text()
-  const json = text ? JSON.parse(text) : null
-  if (!res.ok) throw new Error(json?.message || json?.error || `Error ${res.status}`)
-  return json
+  // redirectOn401:false → si la sesión falla, mostramos el error en la página
+  // en vez de expulsar al usuario de golpe por un fallo del OCR.
+  return request('POST', '/piad/extraer', form, false, { redirectOn401: false })
 }
 
 // ── Catálogos de Saberes ───────────────────────────────────────────────────
@@ -354,5 +368,5 @@ export const createPeriodo     = (data)     => request('POST',   `/periodos`, da
 export const updatePeriodo     = (id, data) => request('PUT',    `/periodos/${id}`, data)
 export const deletePeriodo     = (id)       => request('DELETE', `/periodos/${id}`)
 
-// ── Health ─────────────────────────────────────────────────────────────────
+// ── Health ───────────────────────────────────────────────────────────────
 export const checkHealth = () => fetch('/actuator/health').then(r => r.json())

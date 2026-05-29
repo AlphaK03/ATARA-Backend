@@ -23,6 +23,13 @@ public interface MatriculaRepository extends JpaRepository<Matricula, Long> {
 
     boolean existsByEstudianteIdAndAnioLectivoId(Long estudianteId, Long anioLectivoId);
 
+    /**
+     * True si el estudiante ya está matriculado en esa sección concreta.
+     * Guarda la unicidad (estudiante_id, seccion_id): un estudiante puede estar
+     * en varias secciones del año, pero no dos veces en la misma.
+     */
+    boolean existsByEstudianteIdAndSeccionId(Long estudianteId, Long seccionId);
+
     /** True si el estudiante tiene matrícula en alguna de las secciones indicadas. */
     boolean existsByEstudianteIdAndSeccionIdIn(Long estudianteId, java.util.Collection<Long> seccionIds);
 
