@@ -4,6 +4,9 @@ import com.atara.deb.ataraapi.model.Usuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -16,11 +19,37 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+
+    /**
+     * Tolerancia de desfase de reloj al validar exp/iat/nbf. Evita que un token
+     * recién emitido sea rechazado como "expirado" cuando el reloj del validador
+     * (p. ej. un contenedor Docker o una instancia en Railway) adelanta unos
+     * segundos respecto al emisor. 60 s es el valor habitual y no debilita la
+     * seguridad de forma apreciable frente a un access token de horas.
+     */
+    private static final long CLOCK_SKEW_SECONDS = 60;
+
     @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration-ms}")
     private long expirationMs;
+
+    /**
+     * Registra la configuración EFECTIVA del JWT al arrancar. Sirve para
+     * diagnosticar de un vistazo si el entorno (env vars de Railway/local)
+     * está fijando un TTL anormalmente corto o si la clave cambió entre
+     * despliegues. Nunca se escribe el secreto en claro: solo su longitud.
+     */
+    @PostConstruct
+    void logConfiguracionEfectiva() {
+        log.info("JWT configurado: expiration-ms={} (~{} h), tolerancia clock-skew={} s, longitud de clave={} bytes",
+                expirationMs,
+                String.format("%.2f", expirationMs / 3_600_000.0),
+                CLOCK_SKEW_SECONDS,
+                secret == null ? 0 : secret.getBytes(StandardCharsets.UTF_8).length);
+    }
 
     /**
      * Genera un access token JWT para el usuario dado.
@@ -58,11 +87,17 @@ public class JwtService {
     /**
      * Valida que el token pertenezca al usuario y no haya expirado.
      * No lanza excepción — devuelve false si hay cualquier problema.
+     *
+     * La expiración la valida el propio parser de JJWT al parsear los claims
+     * (lanza {@link io.jsonwebtoken.ExpiredJwtException} si el token expiró más
+     * allá de la tolerancia de clock-skew). Por eso NO repetimos aquí una
+     * comparación manual {@code exp.before(new Date())}: hacerlo ignoraría el
+     * clock-skew y rechazaría tokens que el parser sí acepta dentro del margen.
      */
     public boolean esTokenValido(String token, UserDetails userDetails) {
         try {
-            String correo = extraerCorreo(token);
-            return correo.equals(userDetails.getUsername()) && !esTokenExpirado(token);
+            String correo = extraerCorreo(token);   // parsea y verifica firma + expiración (con clock-skew)
+            return correo != null && correo.equals(userDetails.getUsername());
         } catch (Exception e) {
             return false;
         }
@@ -74,13 +109,10 @@ public class JwtService {
 
     // -------------------------------------------------------------------------
 
-    private boolean esTokenExpirado(String token) {
-        return extraerClaim(token, Claims::getExpiration).before(new Date());
-    }
-
     private <T> T extraerClaim(String token, Function<Claims, T> resolver) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
+                .clockSkewSeconds(CLOCK_SKEW_SECONDS)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

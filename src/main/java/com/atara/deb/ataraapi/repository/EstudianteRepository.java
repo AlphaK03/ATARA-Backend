@@ -33,39 +33,10 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
     List<Estudiante> findBySeccionIds(@Param("seccionIds") Collection<Long> seccionIds);
 
     /**
-     * Catálogo de estudiantes ACTIVOS candidatos a ser matriculados en una sección
-     * de un año lectivo. Excluye los que ya tienen matrícula registrada en ese año
-     * (regla: un estudiante = una matrícula por año), pero re-incluye los que ya
-     * están en {@code seccionIdExcluida} — caso típico del wizard de edición, donde
-     * los estudiantes actuales de la sección deben seguir apareciendo seleccionados.
-     *
-     * @param estado            estado a filtrar (típicamente ACTIVO)
-     * @param anioLectivoId     año lectivo objetivo
-     * @param seccionIdExcluida sección que se está editando; usar 0 (o cualquier id
-     *                          inexistente) en modo creación para no excluir nada
+     * Catálogo de estudiantes ACTIVOS para el wizard de sección, ordenado por
+     * apellidos y nombre. Devuelve a todos los activos: un estudiante puede
+     * pertenecer a varias secciones del mismo año (una por docente/materia), por
+     * lo que ya no se excluye a los matriculados en otras secciones.
      */
-    @Query("""
-        SELECT e FROM Estudiante e
-        WHERE e.estado = :estado
-          AND (
-                NOT EXISTS (
-                    SELECT 1 FROM Matricula m
-                    WHERE m.estudiante.id = e.id
-                      AND m.anioLectivo.id = :anioLectivoId
-                )
-                OR EXISTS (
-                    SELECT 1 FROM Matricula m2
-                    WHERE m2.estudiante.id = e.id
-                      AND m2.seccion.id = :seccionIdExcluida
-                )
-              )
-        ORDER BY e.apellido1, e.apellido2, e.nombre
-        """)
-    List<Estudiante> findDisponiblesParaMatricula(
-            @Param("estado") EstadoEstudiante estado,
-            @Param("anioLectivoId") Long anioLectivoId,
-            @Param("seccionIdExcluida") Long seccionIdExcluida);
-
-    /** Variante sin filtro por año: lista todos los estudiantes ACTIVOS para el catálogo. */
     List<Estudiante> findByEstadoOrderByApellido1AscApellido2AscNombreAsc(EstadoEstudiante estado);
 }

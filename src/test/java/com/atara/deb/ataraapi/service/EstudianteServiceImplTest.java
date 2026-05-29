@@ -27,6 +27,7 @@ class EstudianteServiceImplTest {
     @Mock EvaluacionSaberRepository evaluacionSaberRepository;
     @Mock AlertaRepository alertaRepository;
     @Mock AlertaTematicaRepository alertaTematicaRepository;
+    @Mock com.atara.deb.ataraapi.security.ContextoUsuarioService contextoUsuarioService;
 
     @InjectMocks EstudianteServiceImpl service;
 

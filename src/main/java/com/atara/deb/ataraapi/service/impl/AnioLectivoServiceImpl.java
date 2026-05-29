@@ -8,6 +8,8 @@ import com.atara.deb.ataraapi.service.AnioLectivoService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Year;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -28,6 +30,15 @@ public class AnioLectivoServiceImpl implements AnioLectivoService {
     private static final String[] NOMBRES_TRIMESTRE = {
         "I Trimestre", "II Trimestre", "III Trimestre"
     };
+
+    /**
+     * Zona horaria de Costa Rica (UTC-6, sin horario de verano). Se fija de forma
+     * explícita para que el "año natural en curso" se calcule según el calendario
+     * de CR y no según la zona del servidor: en un despliegue en la nube el JVM
+     * suele correr en UTC, lo que adelantaría ~6 h el cambio de año. Debe coincidir
+     * con la zona del {@code @Scheduled} en AnioLectivoInitializer.
+     */
+    private static final ZoneId ZONA_CR = ZoneId.of("America/Costa_Rica");
 
     public AnioLectivoServiceImpl(AnioLectivoRepository anioLectivoRepository,
                                    PeriodoRepository periodoRepository,
@@ -64,6 +75,27 @@ public class AnioLectivoServiceImpl implements AnioLectivoService {
         crearTrimestres(guardado);
 
         return guardado;
+    }
+
+    @Override
+    public AnioLectivo asegurarAnioActual() {
+        short anioActual = (short) Year.now(ZONA_CR).getValue();
+
+        // Idempotente: si el año en curso ya existe, no se toca.
+        Optional<AnioLectivo> existente = anioLectivoRepository.findByAnio(anioActual);
+        if (existente.isPresent()) {
+            return existente.get();
+        }
+
+        // No existe: se crea, se le generan los 3 trimestres y se activa.
+        anioLectivoRepository.desactivarTodos();
+        AnioLectivo nuevo = anioLectivoRepository.save(AnioLectivo.builder()
+                .anio(anioActual)
+                .activo(true)
+                .build());
+
+        crearTrimestres(nuevo);
+        return nuevo;
     }
 
     private void crearTrimestres(AnioLectivo anio) {

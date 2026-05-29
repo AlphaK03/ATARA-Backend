@@ -6,6 +6,7 @@ import com.atara.deb.ataraapi.model.AnioLectivo;
 import com.atara.deb.ataraapi.service.AnioLectivoService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -29,6 +30,18 @@ public class AnioLectivoController {
         return ResponseEntity
                 .created(URI.create("/api/anios-lectivos/" + creado.getId()))
                 .body(toResponse(creado));
+    }
+
+    /**
+     * Asegura que el año lectivo del año natural en curso exista (creándolo
+     * junto con sus 3 trimestres y activándolo si hace falta). Operación
+     * idempotente: si ya existe, lo devuelve sin cambios. Solo ADMIN.
+     */
+    @PostMapping("/asegurar-actual")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AnioLectivoResponseDto> asegurarActual() {
+        AnioLectivo anio = anioLectivoService.asegurarAnioActual();
+        return ResponseEntity.ok(toResponse(anio));
     }
 
     @GetMapping

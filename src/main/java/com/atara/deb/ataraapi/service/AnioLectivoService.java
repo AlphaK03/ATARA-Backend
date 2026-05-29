@@ -10,6 +10,19 @@ public interface AnioLectivoService {
 
     AnioLectivo crear(AnioLectivo anioLectivo);
 
+    /**
+     * Garantiza que el año lectivo correspondiente al año natural en curso
+     * (según la fecha del sistema) exista en la base de datos.
+     *
+     * <p>Si el año actual aún no existe, lo crea junto con sus 3 trimestres
+     * y lo marca como activo (desactivando el que estuviera activo). Si ya
+     * existe, lo devuelve sin modificarlo (operación idempotente: no duplica
+     * trimestres ni altera el estado de activación previo).
+     *
+     * @return el año lectivo del año en curso (recién creado o ya existente).
+     */
+    AnioLectivo asegurarAnioActual();
+
     AnioLectivo actualizar(Long id, AnioLectivoRequestDto dto);
 
     List<AnioLectivo> listarTodos();

@@ -194,28 +194,56 @@ public class PiadServiceImpl implements PiadService {
     private Tesseract crearTesseract() {
         Tesseract t = new Tesseract();
         t.setDatapath(resolverRutaTessdata());
-        t.setLanguage("spa");
+        t.setLanguage(OCR_LANG);
         t.setPageSegMode(7);
         t.setOcrEngineMode(1);
         return t;
     }
 
+    /** Idioma usado por Tesseract; el modelo correspondiente debe existir como {LANG}.traineddata. */
+    private static final String OCR_LANG = "spa";
+
+    /**
+     * Resuelve la carpeta de tessdata que efectivamente contiene el modelo de
+     * idioma ({@code spa.traineddata}). Antes esta función devolvía el primer
+     * directorio existente aunque NO tuviera el modelo, lo que provocaba que
+     * Tesseract fallara fila por fila (excepción capturada y descartada) y la
+     * extracción terminara con 0 estudiantes sin explicación. Ahora exige que
+     * el modelo exista y, si no lo encuentra en ningún lado, falla de forma
+     * explícita con un mensaje accionable.
+     */
     private String resolverRutaTessdata() {
-        if (tessdataDir != null && !tessdataDir.isBlank() && new File(tessdataDir).isDirectory()) {
-            log.info("Tessdata: {}", tessdataDir);
-            return tessdataDir;
+        List<String> candidatos = new ArrayList<>();
+        if (tessdataDir != null && !tessdataDir.isBlank()) {
+            candidatos.add(tessdataDir);                                   // ruta configurada (puede ser relativa)
+            candidatos.add(new File(tessdataDir).getAbsolutePath());       // misma ruta resuelta a absoluta
         }
         String env = System.getenv("TESSDATA_PREFIX");
-        if (env != null && new File(env).isDirectory()) return env;
-
-        for (String path : List.of(
-                "/usr/share/tesseract-ocr/5/tessdata",
-                "/usr/share/tesseract-ocr/4/tessdata",
-                "/usr/local/share/tessdata")) {
-            if (new File(path).isDirectory()) return path;
+        if (env != null && !env.isBlank()) {
+            candidatos.add(env);
+            candidatos.add(env + File.separator + "tessdata");
         }
-        log.warn("No se encontró tessdata. Verifique piad.tessdata.dir en application.properties");
-        return ".";
+        candidatos.add("/usr/share/tesseract-ocr/5/tessdata");
+        candidatos.add("/usr/share/tesseract-ocr/4/tessdata");
+        candidatos.add("/usr/share/tessdata");
+        candidatos.add("/usr/local/share/tessdata");
+
+        for (String path : candidatos) {
+            File dir = new File(path);
+            File modelo = new File(dir, OCR_LANG + ".traineddata");
+            if (dir.isDirectory() && modelo.isFile()) {
+                log.info("Tessdata: {} (modelo {}.traineddata encontrado)", dir.getAbsolutePath(), OCR_LANG);
+                return dir.getAbsolutePath();
+            }
+        }
+
+        String mensaje = "No se encontró el modelo de idioma '" + OCR_LANG + ".traineddata' para el OCR. "
+                + "Descárguelo de https://github.com/tesseract-ocr/tessdata/raw/main/" + OCR_LANG + ".traineddata "
+                + "y colóquelo en la carpeta configurada por 'piad.tessdata.dir' (actual: '" + tessdataDir + "'), "
+                + "o instale el paquete del sistema (tesseract-ocr-" + OCR_LANG + ") en el entorno de despliegue. "
+                + "Rutas revisadas: " + candidatos;
+        log.error(mensaje);
+        throw new IllegalStateException(mensaje);
     }
 
     // ─── Parseo de línea OCR ──────────────────────────────────────────────────

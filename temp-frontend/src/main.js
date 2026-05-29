@@ -54,6 +54,8 @@ const NAV_BY_ROL = {
   DOCENTE: [
     { section: 'Gestión', items: [
       { page: 'secciones',         label: 'Secciones' },
+      { page: 'estudiantes',       label: 'Estudiantes' },
+      { page: 'importarPiad',      label: 'Importar PIAD' },
       { page: 'evaluacionesSaber', label: 'Eval. por Saber' },
     ]},
     { section: 'Análisis', items: [
@@ -68,8 +70,10 @@ const NAV_BY_ROL = {
 }
 NAV_BY_ROL.COORDINADOR = NAV_BY_ROL.DOCENTE
 
-// Páginas a las que solo puede acceder ADMIN
-const ADMIN_ONLY_PAGES = new Set(['admin', 'centros', 'aniosLectivos', 'estudiantes', 'importarPiad'])
+// Páginas a las que solo puede acceder ADMIN.
+// Estudiantes e Importar PIAD se comparten con DOCENTE (también gestionan estudiantes
+// y matrículas de sus secciones), por lo que ya no son exclusivas de ADMIN.
+const ADMIN_ONLY_PAGES = new Set(['admin', 'centros', 'aniosLectivos'])
 
 const DEFAULT_PAGE = { ADMIN: 'admin', DOCENTE: 'secciones', COORDINADOR: 'secciones' }
 
@@ -274,6 +278,47 @@ function showLogin(notice = '') {
   content.querySelector('#btn-forgot').addEventListener('click', showResetStep1)
 }
 
+// ── Política de contraseña segura (debe coincidir con @PasswordSegura del backend) ──
+const PASSWORD_HINT = 'Mínimo 8 caracteres, con al menos 2 mayúsculas, 2 minúsculas y 2 números.'
+
+/**
+ * Revisa la contraseña contra TODOS los factores de la política y devuelve la
+ * lista de incumplimientos (cada uno con el motivo explicado). Lista vacía = válida.
+ */
+function obtenerFallosPassword(pwd) {
+  const p = pwd || ''
+  const mayusculas = (p.match(/[A-ZÁÉÍÓÚÑÜ]/g) || []).length
+  const minusculas = (p.match(/[a-záéíóúñü]/g) || []).length
+  const digitos    = (p.match(/[0-9]/g) || []).length
+  const fallos = []
+  if (p.length < 8) {
+    fallos.push(`Es demasiado corta: tiene ${p.length} caracter${p.length === 1 ? '' : 'es'} y se requieren al menos 8.`)
+  }
+  if (mayusculas < 2) {
+    fallos.push(`Faltan mayúsculas: tiene ${mayusculas} y se requieren al menos 2 (por ejemplo A, B, C).`)
+  }
+  if (minusculas < 2) {
+    fallos.push(`Faltan minúsculas: tiene ${minusculas} y se requieren al menos 2 (por ejemplo a, b, c).`)
+  }
+  if (digitos < 2) {
+    fallos.push(`Faltan números: tiene ${digitos} y se requieren al menos 2 (por ejemplo 1, 2, 3).`)
+  }
+  return fallos
+}
+
+/**
+ * Valida la contraseña y, si no cumple, muestra un mensaje emergente por cada
+ * factor incumplido explicando el motivo. Devuelve true solo si es válida.
+ */
+function validarPasswordConToasts(pwd) {
+  const fallos = obtenerFallosPassword(pwd)
+  fallos.forEach((motivo, i) => {
+    // Pequeño desfase para que las notificaciones no se solapen exactamente.
+    setTimeout(() => showToast(`Contraseña no válida — ${motivo}`, 'error', 6000), i * 120)
+  })
+  return fallos.length === 0
+}
+
 // ── Reset contraseña — paso 1: ingresar correo ────────────────────────────
 function showResetStep1() {
   content.innerHTML = `
@@ -351,13 +396,14 @@ function showResetStep2(correo) {
             <div class="login-field">
               <label for="reset-nueva">Nueva contraseña</label>
               <div class="login-input-group">
-                <input type="password" id="reset-nueva" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+                <input type="password" id="reset-nueva" placeholder="Nueva contraseña" autocomplete="new-password">
                 <span class="login-input-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>
                   </svg>
                 </span>
               </div>
+              <p class="login-hint">${PASSWORD_HINT}</p>
             </div>
             <div class="login-field">
               <label for="reset-confirmar">Confirmar contraseña</label>
@@ -386,7 +432,10 @@ function showResetStep2(correo) {
     const nueva     = content.querySelector('#reset-nueva').value
     const confirmar = content.querySelector('#reset-confirmar').value
     if (codigo.length !== 4)  { errorDiv.textContent = 'El código debe tener 4 dígitos.'; return }
-    if (nueva.length < 8)     { errorDiv.textContent = 'La contraseña debe tener al menos 8 caracteres.'; return }
+    if (!validarPasswordConToasts(nueva)) {
+      errorDiv.textContent = 'La contraseña no cumple los requisitos de seguridad.'
+      return
+    }
     if (nueva !== confirmar)  { errorDiv.textContent = 'Las contraseñas no coinciden.'; return }
     btn.disabled = true; btn.textContent = 'Cambiando…'; errorDiv.textContent = ''
     try {
@@ -436,13 +485,14 @@ function showCambiarPasswordForzado() {
             <div class="login-field">
               <label for="fp-nueva">Nueva contraseña</label>
               <div class="login-input-group">
-                <input type="password" id="fp-nueva" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+                <input type="password" id="fp-nueva" placeholder="Nueva contraseña" autocomplete="new-password">
                 <span class="login-input-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>
                   </svg>
                 </span>
               </div>
+              <p class="login-hint">${PASSWORD_HINT}</p>
             </div>
             <div class="login-field">
               <label for="fp-confirmar">Confirmar contraseña</label>
@@ -471,7 +521,10 @@ function showCambiarPasswordForzado() {
     const nueva     = content.querySelector('#fp-nueva').value
     const confirmar = content.querySelector('#fp-confirmar').value
     if (!actual)            { errorDiv.textContent = 'Ingresa la contraseña temporal.'; return }
-    if (nueva.length < 8)  { errorDiv.textContent = 'La nueva contraseña debe tener al menos 8 caracteres.'; return }
+    if (!validarPasswordConToasts(nueva)) {
+      errorDiv.textContent = 'La contraseña no cumple los requisitos de seguridad.'
+      return
+    }
     if (nueva !== confirmar){ errorDiv.textContent = 'Las contraseñas no coinciden.'; return }
     btn.disabled = true; btn.textContent = 'Guardando…'; errorDiv.textContent = ''
     try {

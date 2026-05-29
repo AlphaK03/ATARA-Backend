@@ -121,6 +121,18 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_IMPLEMENTED, ex.getMessage(), req);
     }
 
+    /**
+     * Errores de configuración/estado del servidor cuyo mensaje SÍ es seguro y útil
+     * mostrar al cliente (no contiene PII ni detalles internos sensibles). Ejemplo:
+     * el OCR de PIAD no encuentra el modelo de idioma 'spa.traineddata'. Se devuelve
+     * 500 con el mensaje accionable en vez del genérico para facilitar el diagnóstico.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex, HttpServletRequest req) {
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                ex.getMessage() != null ? ex.getMessage() : "Error interno del servidor.", req);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex, HttpServletRequest req) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor.", req);
