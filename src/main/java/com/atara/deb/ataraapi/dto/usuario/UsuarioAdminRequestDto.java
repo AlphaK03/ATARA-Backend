@@ -1,5 +1,6 @@
 package com.atara.deb.ataraapi.dto.usuario;
 
+import com.atara.deb.ataraapi.validation.PasswordSegura;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -25,6 +26,7 @@ public class UsuarioAdminRequestDto {
 
     /** Solo en PUT: si se envía, reemplaza la contraseña del usuario. En POST se ignora. */
     @Size(min = 8, max = 100)
+    @PasswordSegura
     private String password;
 
     /** Nombre del rol: ADMIN, DOCENTE o COORDINADOR. */

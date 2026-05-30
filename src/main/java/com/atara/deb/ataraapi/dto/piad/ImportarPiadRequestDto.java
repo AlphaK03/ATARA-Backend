@@ -3,6 +3,7 @@ package com.atara.deb.ataraapi.dto.piad;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -33,6 +34,7 @@ public class ImportarPiadRequestDto {
     private LocalDate fechaMatricula;
 
     @NotEmpty(message = "Debe enviarse al menos un estudiante")
+    @Size(max = 500, message = "No se pueden importar más de 500 estudiantes en una sola operación")
     @Valid
     private List<EstudianteImportarDto> estudiantes;
 }

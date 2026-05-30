@@ -6,7 +6,9 @@ services:
     environment:
       POSTGRES_DB: atara_db
       POSTGRES_USER: atara_user
-      POSTGRES_PASSWORD: atara_pass_123
+      # Overridable por entorno (.env o variable PGPASSWORD). El default es solo para
+      # la BD local de desarrollo; en CI/producción debe inyectarse una contraseña fuerte.
+      POSTGRES_PASSWORD: ${PGPASSWORD:-atara_pass_123}
     ports:
       - "5433:5432"
     volumes:

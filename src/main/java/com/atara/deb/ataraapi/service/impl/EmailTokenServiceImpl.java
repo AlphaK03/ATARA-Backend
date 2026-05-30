@@ -15,9 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.NoSuchElementException;
-import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -25,6 +25,9 @@ import java.util.UUID;
 public class EmailTokenServiceImpl implements EmailTokenService {
 
     private static final int MAX_INTENTOS_RESET = 5;
+
+    /** Generador criptográficamente seguro para los códigos de un solo uso. */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final EmailTokenRepository emailTokenRepository;
     private final UsuarioRepository usuarioRepository;
@@ -54,8 +57,11 @@ public class EmailTokenServiceImpl implements EmailTokenService {
             // Invalidar tokens anteriores pendientes del mismo tipo
             emailTokenRepository.invalidarPendientesPorUsuario(usuario.getId(), TipoEmailToken.RESET_PASSWORD);
 
-            String codigo  = String.format("%04d", new Random().nextInt(10000));
-            String hash    = sha256(codigo);
+            // Código de 6 dígitos con generador criptográfico. El hash se liga al id del
+            // usuario para evitar colisiones del token_hash (columna UNIQUE) y para impedir
+            // que un código validado para un usuario sirva en el token de otro.
+            String codigo  = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+            String hash    = sha256(codigo + "|" + usuario.getId());
 
             EmailToken token = EmailToken.builder()
                     .usuario(usuario)
@@ -74,33 +80,44 @@ public class EmailTokenServiceImpl implements EmailTokenService {
      * Valida el código, actualiza la contraseña y marca el token como usado.
      * Aplica conteo de intentos fallidos (máximo 5).
      */
+    // noRollbackFor: un código incorrecto lanza IllegalArgumentException, pero el
+    // incremento del contador de intentos (y la invalidación por bloqueo) DEBEN
+    // persistir. Sin esto, el rollback de la transacción borraría el incremento y
+    // el límite de intentos nunca tendría efecto (el bug original del hallazgo C-03).
     @Override
+    @Transactional(noRollbackFor = IllegalArgumentException.class)
     public void confirmarResetPassword(String correo, String codigo, String nuevaPassword) {
+        // Mensaje genérico y unificado: no revela si el correo existe (evita enumeración).
         Usuario usuario = usuarioRepository.findByCorreo(correo)
-                .orElseThrow(() -> new IllegalArgumentException("Correo no registrado."));
-
-        String hash = sha256(codigo);
-
-        EmailToken token = emailTokenRepository.findByTokenHash(hash)
                 .orElseThrow(() -> new IllegalArgumentException("Código incorrecto o expirado."));
 
-        if (!token.getUsuario().getId().equals(usuario.getId())) {
-            throw new IllegalArgumentException("Código incorrecto o expirado.");
-        }
-
-        if (token.getUsadoEn() != null) {
-            throw new IllegalArgumentException("Este código ya fue utilizado.");
-        }
+        // El token se localiza POR USUARIO (no por el hash del código), de modo que un
+        // código equivocado cuenta como intento fallido contra el token de la víctima.
+        EmailToken token = emailTokenRepository
+                .findTopByUsuarioIdAndTipoAndUsadoEnIsNullOrderByIdDesc(
+                        usuario.getId(), TipoEmailToken.RESET_PASSWORD)
+                .orElseThrow(() -> new IllegalArgumentException("Código incorrecto o expirado."));
 
         if (token.getExpiraEn().isBefore(OffsetDateTime.now())) {
             throw new IllegalArgumentException("El código ha expirado. Solicita uno nuevo.");
         }
 
+        // Bloqueo por fuerza bruta: agotados los intentos, se invalida el token.
         if (token.getIntentos() >= MAX_INTENTOS_RESET) {
+            token.setUsadoEn(OffsetDateTime.now());
+            emailTokenRepository.save(token);
             throw new IllegalArgumentException("Demasiados intentos fallidos. Solicita un nuevo código.");
         }
 
-        // Código correcto — actualizar contraseña y marcar token como usado
+        String hash = sha256(codigo + "|" + usuario.getId());
+        if (!token.getTokenHash().equals(hash)) {
+            // Intento fallido: incrementar y persistir (gracias a noRollbackFor).
+            token.setIntentos(token.getIntentos() + 1);
+            emailTokenRepository.save(token);
+            throw new IllegalArgumentException("Código incorrecto o expirado.");
+        }
+
+        // Código correcto — marcar token como usado y actualizar contraseña.
         token.setUsadoEn(OffsetDateTime.now());
         emailTokenRepository.save(token);
 

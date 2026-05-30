@@ -2,31 +2,41 @@ package com.atara.deb.ataraapi.dto.estudiante;
 
 import com.atara.deb.ataraapi.model.enums.EstadoEstudiante;
 import com.atara.deb.ataraapi.model.enums.Genero;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
 public class EstudianteRequestDto {
 
     @NotBlank
+    @Size(max = 25)
     private String identificacion;
 
     @NotBlank
+    @Size(max = 100)
     private String nombre;
 
     @NotBlank
+    @Size(max = 100)
     private String apellido1;
 
+    @Size(max = 100)
     private String apellido2;
 
     private LocalDate fechaNacimiento;
 
     private Genero genero;
 
+    @Size(max = 200)
     private String nombreAcudiente;
 
+    @Size(max = 20)
     private String telefonoAcudiente;
 
+    @Email
+    @Size(max = 150)
     private String correoAcudiente;
 
     /** Opcional en creación (default ACTIVO). En actualización: ACTIVO, INACTIVO o TRASLADADO. */

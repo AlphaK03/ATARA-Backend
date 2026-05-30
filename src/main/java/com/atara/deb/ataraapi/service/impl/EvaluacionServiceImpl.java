@@ -2,8 +2,11 @@ package com.atara.deb.ataraapi.service.impl;
 
 import com.atara.deb.ataraapi.model.DetalleEvaluacion;
 import com.atara.deb.ataraapi.model.Evaluacion;
+import com.atara.deb.ataraapi.model.Usuario;
 import com.atara.deb.ataraapi.repository.DetalleEvaluacionRepository;
 import com.atara.deb.ataraapi.repository.EvaluacionRepository;
+import com.atara.deb.ataraapi.security.ContextoUsuario;
+import com.atara.deb.ataraapi.security.ContextoUsuarioService;
 import com.atara.deb.ataraapi.service.EvaluacionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,12 +20,15 @@ public class EvaluacionServiceImpl implements EvaluacionService {
 
     private final EvaluacionRepository evaluacionRepository;
     private final DetalleEvaluacionRepository detalleEvaluacionRepository;
+    private final ContextoUsuarioService contextoUsuarioService;
 
     public EvaluacionServiceImpl(
             EvaluacionRepository evaluacionRepository,
-            DetalleEvaluacionRepository detalleEvaluacionRepository) {
+            DetalleEvaluacionRepository detalleEvaluacionRepository,
+            ContextoUsuarioService contextoUsuarioService) {
         this.evaluacionRepository = evaluacionRepository;
         this.detalleEvaluacionRepository = detalleEvaluacionRepository;
+        this.contextoUsuarioService = contextoUsuarioService;
     }
 
     @Override
@@ -38,6 +44,16 @@ public class EvaluacionServiceImpl implements EvaluacionService {
         }
         if (evaluacion.getSeccion() == null) {
             throw new IllegalArgumentException("La evaluación requiere una sección.");
+        }
+
+        // Control de acceso: un docente solo puede registrar en sus secciones y la autoría
+        // se fija al usuario autenticado (se ignora el usuarioId del body para evitar suplantación).
+        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        if (!contexto.esAdmin()) {
+            contexto.verificarSeccion(evaluacion.getSeccion().getId());
+            Usuario autor = new Usuario();
+            autor.setId(contexto.usuarioId());
+            evaluacion.setUsuario(autor);
         }
 
         // Validar unicidad: un docente no puede registrar dos evaluaciones al mismo estudiante en el mismo período
@@ -66,25 +82,41 @@ public class EvaluacionServiceImpl implements EvaluacionService {
     @Override
     @Transactional(readOnly = true)
     public Evaluacion buscarPorId(Long id) {
-        return evaluacionRepository.findById(id)
+        Evaluacion evaluacion = evaluacionRepository.findById(id)
             .orElseThrow(() -> new NoSuchElementException("Evaluación no encontrada con id: " + id));
+        // Control de acceso por sección (cubre también agregarDetalle, que pasa por aquí).
+        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        contexto.verificarSeccion(evaluacion.getSeccion().getId());
+        return evaluacion;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Evaluacion> listarPorEstudiante(Long estudianteId) {
+        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        contextoUsuarioService.verificarAccesoAlEstudiante(estudianteId, contexto);
         return evaluacionRepository.findByEstudianteId(estudianteId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Evaluacion> listarPorEstudianteYPeriodo(Long estudianteId, Long periodoId) {
+        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        contextoUsuarioService.verificarAccesoAlEstudiante(estudianteId, contexto);
         return evaluacionRepository.findByEstudianteIdAndPeriodoId(estudianteId, periodoId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Evaluacion> listarPorPeriodo(Long periodoId) {
-        return evaluacionRepository.findByPeriodoId(periodoId);
+        // Endpoint transversal a secciones: para un docente se filtra a sus secciones.
+        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        List<Evaluacion> evaluaciones = evaluacionRepository.findByPeriodoId(periodoId);
+        if (contexto.esAdmin()) {
+            return evaluaciones;
+        }
+        return evaluaciones.stream()
+            .filter(e -> e.getSeccion() != null && contexto.tieneSeccion(e.getSeccion().getId()))
+            .toList();
     }
 }

@@ -24,6 +24,7 @@ public class AnioLectivoController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AnioLectivoResponseDto> crear(@Valid @RequestBody AnioLectivoRequestDto request) {
         AnioLectivo anioLectivo = toEntity(request);
         AnioLectivo creado = anioLectivoService.crear(anioLectivo);
@@ -64,6 +65,7 @@ public class AnioLectivoController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AnioLectivoResponseDto> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody AnioLectivoRequestDto request) {
@@ -72,12 +74,14 @@ public class AnioLectivoController {
     }
 
     @PutMapping("/{id}/activar")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AnioLectivoResponseDto> activar(@PathVariable Long id) {
         AnioLectivo activado = anioLectivoService.activar(id);
         return ResponseEntity.ok(toResponse(activado));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         anioLectivoService.eliminar(id);
         return ResponseEntity.noContent().build();

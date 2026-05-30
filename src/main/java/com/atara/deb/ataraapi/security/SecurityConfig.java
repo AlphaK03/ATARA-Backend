@@ -1,6 +1,7 @@
 package com.atara.deb.ataraapi.security;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -30,6 +32,14 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
+
+    /**
+     * Orígenes permitidos para CORS (lista separada por comas). En producción debe
+     * fijarse al dominio real del frontend mediante CORS_ALLOWED_ORIGINS; el valor
+     * "*" solo es razonable en desarrollo.
+     */
+    @Value("${cors.allowed-origin-patterns:*}")
+    private String allowedOriginPatterns;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter,
                           UserDetailsServiceImpl userDetailsService) {
@@ -89,9 +99,10 @@ public class SecurityConfig {
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
-        // Permite distinguir "usuario no encontrado" de "contraseña incorrecta internamente,
-        // pero ambos se mapean a 401 en el GlobalExceptionHandler para no filtrar información.
-        provider.setHideUserNotFoundExceptions(false);
+        // Oculta "usuario no encontrado": un correo inexistente produce el mismo
+        // BadCredentialsException que una contraseña incorrecta, evitando la
+        // enumeración de cuentas en el login (hallazgo M-04).
+        provider.setHideUserNotFoundExceptions(true);
         return provider;
     }
 
@@ -103,16 +114,26 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Strength 12 exigido por la política del proyecto (hallazgo B-01). BCrypt guarda el
+        // cost en el propio hash, por lo que sigue verificando hashes previos de cost 10.
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        // Orígenes tomados de la propiedad (configurable por entorno), ya no fijo a "*".
+        config.setAllowedOriginPatterns(
+                Arrays.stream(allowedOriginPatterns.split(","))
+                        .map(String::trim)
+                        .filter(o -> !o.isEmpty())
+                        .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        // La API es stateless con token Bearer en el header (no usa cookies de sesión),
+        // por lo que NO se permiten credenciales: elimina la combinación insegura
+        // "*" + allowCredentials(true) (hallazgo M-01).
+        config.setAllowCredentials(false);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

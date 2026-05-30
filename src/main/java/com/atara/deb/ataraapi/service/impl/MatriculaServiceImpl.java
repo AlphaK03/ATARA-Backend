@@ -9,6 +9,8 @@ import com.atara.deb.ataraapi.repository.AnioLectivoRepository;
 import com.atara.deb.ataraapi.repository.EstudianteRepository;
 import com.atara.deb.ataraapi.repository.MatriculaRepository;
 import com.atara.deb.ataraapi.repository.SeccionRepository;
+import com.atara.deb.ataraapi.security.ContextoUsuario;
+import com.atara.deb.ataraapi.security.ContextoUsuarioService;
 import com.atara.deb.ataraapi.service.MatriculaService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,20 +28,26 @@ public class MatriculaServiceImpl implements MatriculaService {
     private final EstudianteRepository estudianteRepository;
     private final SeccionRepository seccionRepository;
     private final AnioLectivoRepository anioLectivoRepository;
+    private final ContextoUsuarioService contextoUsuarioService;
 
     public MatriculaServiceImpl(
             MatriculaRepository matriculaRepository,
             EstudianteRepository estudianteRepository,
             SeccionRepository seccionRepository,
-            AnioLectivoRepository anioLectivoRepository) {
+            AnioLectivoRepository anioLectivoRepository,
+            ContextoUsuarioService contextoUsuarioService) {
         this.matriculaRepository = matriculaRepository;
         this.estudianteRepository = estudianteRepository;
         this.seccionRepository = seccionRepository;
         this.anioLectivoRepository = anioLectivoRepository;
+        this.contextoUsuarioService = contextoUsuarioService;
     }
 
     @Override
     public Matricula matricular(Long estudianteId, Long seccionId, Long anioLectivoId) {
+        // Control de acceso: un docente solo puede matricular en sus secciones (admin sin restricción).
+        contextoUsuarioService.obtenerContextoActual().verificarSeccion(seccionId);
+
         Estudiante estudiante = estudianteRepository.findById(estudianteId)
             .orElseThrow(() -> new NoSuchElementException("Estudiante no encontrado con id: " + estudianteId));
 
@@ -78,12 +86,15 @@ public class MatriculaServiceImpl implements MatriculaService {
     @Override
     @Transactional(readOnly = true)
     public List<Matricula> listarPorEstudiante(Long estudianteId) {
+        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        contextoUsuarioService.verificarAccesoAlEstudiante(estudianteId, contexto);
         return matriculaRepository.findByEstudianteId(estudianteId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Matricula> listarPorSeccion(Long seccionId) {
+        contextoUsuarioService.obtenerContextoActual().verificarSeccion(seccionId);
         return matriculaRepository.findBySeccionId(seccionId);
     }
 

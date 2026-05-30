@@ -3,6 +3,8 @@ package com.atara.deb.ataraapi.service.impl;
 import com.atara.deb.ataraapi.service.EmailService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class EmailServiceImpl implements EmailService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmailServiceImpl.class);
 
     private final JavaMailSender mailSender;
 
@@ -62,7 +66,8 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(html, true);
             mailSender.send(message);
         } catch (MessagingException | java.io.UnsupportedEncodingException | MailException e) {
-            System.err.println("[EmailService] Error al enviar correo a " + destinatario + ": " + e.getMessage());
+            // Por el framework de logging y sin volcar la dirección (PII): solo asunto + causa.
+            log.warn("Error al enviar correo (asunto='{}'): {}", asunto, e.getMessage());
         }
     }
 

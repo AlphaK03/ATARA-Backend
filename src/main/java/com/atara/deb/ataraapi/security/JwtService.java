@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -30,6 +32,20 @@ public class JwtService {
      */
     private static final long CLOCK_SKEW_SECONDS = 60;
 
+    /**
+     * Valor de desarrollo que estuvo versionado en el repositorio y, por tanto,
+     * debe considerarse comprometido. Si se detecta como clave efectiva, se aborta
+     * el arranque para impedir que se firmen tokens con una clave pública.
+     */
+    private static final String SECRETO_COMPROMETIDO =
+            "atara-jwt-clave-secreta-muy-segura-para-desarrollo-local-2024-x";
+
+    /** Longitud mínima de la clave HMAC (256 bits) requerida por HS256. */
+    private static final int LONGITUD_MINIMA_BYTES = 32;
+
+    /** Emisor declarado y exigido en los tokens (defensa en profundidad — hallazgo B-11). */
+    private static final String ISSUER = "atara-api";
+
     @Value("${jwt.secret}")
     private String secret;
 
@@ -43,12 +59,31 @@ public class JwtService {
      * despliegues. Nunca se escribe el secreto en claro: solo su longitud.
      */
     @PostConstruct
-    void logConfiguracionEfectiva() {
+    void inicializarYValidarClave() {
+        // 1) Nunca arrancar con el secreto que estuvo expuesto en el repositorio.
+        if (SECRETO_COMPROMETIDO.equals(secret)) {
+            throw new IllegalStateException(
+                    "jwt.secret tiene el valor de desarrollo que estuvo versionado en el repositorio "
+                    + "y debe considerarse comprometido. Defina la variable de entorno JWT_SECRET con "
+                    + "una clave aleatoria de al menos " + LONGITUD_MINIMA_BYTES + " bytes.");
+        }
+        // 2) Si no hay clave válida configurada, generar una EFÍMERA para no bloquear el
+        //    desarrollo local. En producción DEBE inyectarse JWT_SECRET: con clave efímera
+        //    los tokens no sobreviven reinicios y, en multi-instancia, cada nodo firma distinto.
+        if (secret == null || secret.isBlank()
+                || secret.getBytes(StandardCharsets.UTF_8).length < LONGITUD_MINIMA_BYTES) {
+            byte[] aleatoria = new byte[64];
+            new SecureRandom().nextBytes(aleatoria);
+            this.secret = Base64.getEncoder().encodeToString(aleatoria);
+            log.warn("JWT_SECRET no definido o demasiado corto: se generó una clave ALEATORIA EFÍMERA. "
+                    + "Defina JWT_SECRET (>={} bytes) en producción; de lo contrario los tokens se "
+                    + "invalidan en cada reinicio y no son válidos entre instancias.", LONGITUD_MINIMA_BYTES);
+        }
         log.info("JWT configurado: expiration-ms={} (~{} h), tolerancia clock-skew={} s, longitud de clave={} bytes",
                 expirationMs,
                 String.format("%.2f", expirationMs / 3_600_000.0),
                 CLOCK_SKEW_SECONDS,
-                secret == null ? 0 : secret.getBytes(StandardCharsets.UTF_8).length);
+                secret.getBytes(StandardCharsets.UTF_8).length);
     }
 
     /**
@@ -60,6 +95,7 @@ public class JwtService {
         Date expiracion = new Date(ahora.getTime() + expirationMs);
 
         return Jwts.builder()
+                .issuer(ISSUER)
                 .subject(usuario.getCorreo())
                 .claim("userId", usuario.getId())
                 .claim("rol", usuario.getRol().getNombre())
@@ -112,6 +148,7 @@ public class JwtService {
     private <T> T extraerClaim(String token, Function<Claims, T> resolver) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
+                .requireIssuer(ISSUER)
                 .clockSkewSeconds(CLOCK_SKEW_SECONDS)
                 .build()
                 .parseSignedClaims(token)

@@ -27,6 +27,13 @@ public class PiadServiceImpl implements PiadService {
     /** DPI para renderizado — 500 captura mejor letras delgadas ('i', 'l') en fuentes pequeñas. */
     private static final int RENDER_DPI = 500;
 
+    /**
+     * Máximo de páginas a renderizar de una Lista PIAD. Cada página a 500 DPI ocupa
+     * decenas de MB en memoria; sin esta cota un PDF pequeño con cientos de páginas
+     * podría agotar el heap (DoS). Una lista real tiene unas pocas páginas.
+     */
+    private static final int MAX_PAGINAS_PIAD = 20;
+
     private static final int BRIGHTNESS_THRESHOLD = 245;
     private static final int MIN_GAP_HEIGHT        = 2;
     private static final int BAND_PADDING          = 4;
@@ -98,7 +105,8 @@ public class PiadServiceImpl implements PiadService {
                 EstudiantePIADDto est = parsearLinea(textoFila, cedulaMatcher);
                 if (est != null) {
                     resultado.add(est);
-                    log.info("✓ Fila {} — {} {} {}", est.getNumero(), est.getCedula(), est.getPrimerApellido(), est.getNombre());
+                    // No se registra cédula ni nombre (PII de menores): solo el número de fila.
+                    log.info("✓ Fila {} extraída", est.getNumero());
                 }
             }
         }
@@ -113,9 +121,16 @@ public class PiadServiceImpl implements PiadService {
     private List<BufferedImage> renderizarPDF(byte[] bytes) throws Exception {
         List<BufferedImage> paginas = new ArrayList<>();
         try (PDDocument doc = Loader.loadPDF(bytes)) {
+            int totalPaginas = doc.getNumberOfPages();
+            // Cota de páginas para evitar agotar memoria con un PDF manipulado (DoS).
+            if (totalPaginas > MAX_PAGINAS_PIAD) {
+                throw new IllegalArgumentException(
+                    "El PDF tiene " + totalPaginas + " páginas; el máximo permitido para una Lista PIAD es "
+                    + MAX_PAGINAS_PIAD + ".");
+            }
             PDFRenderer renderer = new PDFRenderer(doc);
-            log.info("PDF cargado: {} página(s). Renderizando a {} DPI...", doc.getNumberOfPages(), RENDER_DPI);
-            for (int i = 0; i < doc.getNumberOfPages(); i++) {
+            log.info("PDF cargado: {} página(s). Renderizando a {} DPI...", totalPaginas, RENDER_DPI);
+            for (int i = 0; i < totalPaginas; i++) {
                 paginas.add(renderer.renderImageWithDPI(i, RENDER_DPI, ImageType.RGB));
             }
         }
@@ -264,7 +279,8 @@ public class PiadServiceImpl implements PiadService {
 
             Matcher tipoMatcher = TIPO_ADECUACION.matcher(sufijo);
             if (!tipoMatcher.find()) {
-                log.warn("Fila {}: tipo adecuación no encontrado en: {}", numero, sufijo);
+                // El texto OCR contiene PII (nombres): solo a DEBUG.
+                log.debug("Fila {}: tipo adecuación no encontrado en: {}", numero, sufijo);
                 return null;
             }
 
@@ -278,7 +294,8 @@ public class PiadServiceImpl implements PiadService {
                 if (!limpio.isEmpty()) tokens.add(limpio);
             }
             if (tokens.size() < 3) {
-                log.warn("Fila {}: tokens insuficientes para nombre ({}): '{}'", numero, tokens.size(), antesDelTipo);
+                // antesDelTipo contiene los apellidos/nombre (PII): solo a DEBUG.
+                log.debug("Fila {}: tokens insuficientes para nombre ({})", numero, tokens.size());
                 return null;
             }
 
@@ -323,7 +340,9 @@ public class PiadServiceImpl implements PiadService {
                 .build();
 
         } catch (Exception e) {
-            log.warn("Error parseando línea: {} | {}", linea, e.getMessage());
+            // 'linea' contiene cédula y nombres (PII): el contenido solo a DEBUG.
+            log.warn("Error parseando una línea PIAD: {}", e.getMessage());
+            log.debug("Línea PIAD con error: {}", linea);
             return null;
         }
     }

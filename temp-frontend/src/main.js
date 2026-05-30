@@ -383,13 +383,13 @@ function showResetStep2(correo) {
             <img src="${logoAtara}" alt="ATARA" class="login-logo">
           </div>
           <h2 class="login-title">Ingresa el código</h2>
-          <p class="login-subtitle">Enviamos un código de 4 dígitos a <strong>${correo}</strong>. Expira en 15 minutos.</p>
+          <p class="login-subtitle">Enviamos un código de 6 dígitos a <strong>${correo}</strong>. Expira en 15 minutos.</p>
           <form class="login-form" id="reset-form-2">
             <div class="login-field">
               <label for="reset-codigo">Código de verificación</label>
               <div class="login-input-group">
-                <input type="text" id="reset-codigo" placeholder="0000" maxlength="4"
-                  autocomplete="one-time-code"
+                <input type="text" id="reset-codigo" placeholder="000000" maxlength="6"
+                  inputmode="numeric" autocomplete="one-time-code"
                   style="font-size:24px;font-weight:700;letter-spacing:10px;text-align:center">
               </div>
             </div>
@@ -431,7 +431,7 @@ function showResetStep2(correo) {
     const codigo    = content.querySelector('#reset-codigo').value.trim()
     const nueva     = content.querySelector('#reset-nueva').value
     const confirmar = content.querySelector('#reset-confirmar').value
-    if (codigo.length !== 4)  { errorDiv.textContent = 'El código debe tener 4 dígitos.'; return }
+    if (!/^\d{6}$/.test(codigo))  { errorDiv.textContent = 'El código debe tener 6 dígitos.'; return }
     if (!validarPasswordConToasts(nueva)) {
       errorDiv.textContent = 'La contraseña no cumple los requisitos de seguridad.'
       return

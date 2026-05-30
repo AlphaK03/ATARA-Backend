@@ -174,23 +174,31 @@ public class EvaluacionSaberServiceImpl implements EvaluacionSaberService {
     public EvaluacionSaberResponseDto buscarPorId(Long id) {
         EvaluacionSaber eval = evaluacionSaberRepository.findById(id)
             .orElseThrow(() -> new NoSuchElementException("Evaluación por saber no encontrada con ID: " + id));
+        // Control de acceso: solo secciones del docente (admin sin restricción).
+        contextoUsuarioService.obtenerContextoActual().verificarSeccion(eval.getSeccion().getId());
         return toResponseDto(eval);
     }
 
     @Override
     public List<EvaluacionSaberResponseDto> listarPorEstudianteYPeriodo(Long estudianteId, Long periodoId) {
+        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        contextoUsuarioService.verificarAccesoAlEstudiante(estudianteId, contexto);
         return evaluacionSaberRepository.findByEstudianteIdAndPeriodoId(estudianteId, periodoId)
             .stream().map(this::toResponseDto).toList();
     }
 
     @Override
     public List<EvaluacionSaberResponseDto> listarPorSeccionYPeriodo(Long seccionId, Long periodoId) {
+        contextoUsuarioService.obtenerContextoActual().verificarSeccion(seccionId);
         return evaluacionSaberRepository.findBySeccionIdAndPeriodoId(seccionId, periodoId)
             .stream().map(this::toResponseDto).toList();
     }
 
     @Override
     public ResumenPromediosEstudianteDto obtenerPromedios(Long estudianteId, Long periodoId) {
+        ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        contextoUsuarioService.verificarAccesoAlEstudiante(estudianteId, contexto);
+
         Estudiante estudiante = estudianteRepository.findById(estudianteId)
             .orElseThrow(() -> new NoSuchElementException("Estudiante no encontrado con ID: " + estudianteId));
         Periodo periodo = periodoRepository.findById(periodoId)
@@ -203,6 +211,8 @@ public class EvaluacionSaberServiceImpl implements EvaluacionSaberService {
 
     @Override
     public List<ResumenPromediosEstudianteDto> obtenerPromediosSeccion(Long seccionId, Long periodoId) {
+        contextoUsuarioService.obtenerContextoActual().verificarSeccion(seccionId);
+
         Periodo periodo = periodoRepository.findById(periodoId)
             .orElseThrow(() -> new NoSuchElementException("Periodo no encontrado con ID: " + periodoId));
 

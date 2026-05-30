@@ -2,9 +2,11 @@ package com.atara.deb.ataraapi.exception;
 
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.security.access.AccessDeniedException;
 import com.atara.deb.ataraapi.exception.AccesoDenegadoException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -38,7 +40,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleAuthentication(AuthenticationException ex, HttpServletRequest req) {
-        return buildResponse(HttpStatus.UNAUTHORIZED, "No autenticado: " + ex.getMessage(), req);
+        // Mensaje genérico: no se concatena ex.getMessage() para no filtrar detalles
+        // internos del mecanismo de autenticación ni permitir enumeración (hallazgo M-04).
+        return buildResponse(HttpStatus.UNAUTHORIZED, "No autenticado.", req);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -116,6 +120,27 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), req);
     }
 
+    /**
+     * Violación de restricción de unicidad/integridad de la BD (duplicados, FKs) — hallazgo M-05.
+     * Se mapea a 409 Conflict, no a 500, y con mensaje genérico (no se expone el detalle de
+     * Postgres, que podría revelar nombres de constraints/columnas internas).
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest req) {
+        return buildResponse(HttpStatus.CONFLICT,
+                "La operación viola una restricción de unicidad o integridad de datos.", req);
+    }
+
+    /**
+     * Subida que excede el límite multipart — hallazgo I-01. Devuelve 413 con un
+     * mensaje claro en vez del 500 genérico.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUpload(MaxUploadSizeExceededException ex, HttpServletRequest req) {
+        return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE,
+                "El archivo supera el tamaño máximo permitido.", req);
+    }
+
     @ExceptionHandler(UnsupportedOperationException.class)
     public ResponseEntity<Map<String, Object>> handleNotImplemented(UnsupportedOperationException ex, HttpServletRequest req) {
         return buildResponse(HttpStatus.NOT_IMPLEMENTED, ex.getMessage(), req);
@@ -129,8 +154,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex, HttpServletRequest req) {
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                ex.getMessage() != null ? ex.getMessage() : "Error interno del servidor.", req);
+        // No se expone ex.getMessage(): puede contener rutas internas del servidor
+        // (p. ej. directorios de tessdata del OCR) — hallazgo B-07. El detalle ya se
+        // registra del lado servidor donde se origina (p. ej. PiadServiceImpl.log.error).
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor.", req);
     }
 
     @ExceptionHandler(RuntimeException.class)

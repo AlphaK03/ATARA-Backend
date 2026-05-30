@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -67,6 +68,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(correo);
 
                 if (jwtService.esTokenValido(token, userDetails)) {
+                    // Cambio de contraseña obligatorio (hallazgos C-04/C-05/M-11): mientras
+                    // debe_cambiar_password=TRUE solo se permiten endpoints /api/auth/* (cambiar
+                    // contraseña, me, logout, refresh). Cualquier otra ruta se rechaza con 403,
+                    // de modo que una contraseña temporal o sembrada conocida no da acceso útil.
+                    if (cambioPasswordPendiente(userDetails) && !esRutaAuth(request)) {
+                        responderCambioRequerido(response);
+                        return;
+                    }
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, null, userDetails.getAuthorities());
@@ -93,5 +102,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /** True si el usuario autenticado tiene pendiente el cambio de contraseña obligatorio. */
+    private boolean cambioPasswordPendiente(UserDetails userDetails) {
+        return userDetails instanceof UsuarioPrincipal up
+                && Boolean.TRUE.equals(up.getUsuario().getDebeCambiarPassword());
+    }
+
+    /**
+     * Rutas siempre permitidas con cambio de contraseña pendiente: todo lo que cuelga
+     * de /api/auth/ (cambiar-password, me, logout, refresh). El resto se bloquea.
+     */
+    private boolean esRutaAuth(HttpServletRequest request) {
+        return request.getRequestURI().contains("/api/auth/");
+    }
+
+    /** Responde 403 con un código que el frontend puede usar para forzar el cambio de contraseña. */
+    private void responderCambioRequerido(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(
+                "{\"status\":403,\"error\":\"Cambio de contraseña requerido\","
+                + "\"code\":\"PASSWORD_CHANGE_REQUIRED\","
+                + "\"message\":\"Debe establecer una nueva contraseña antes de continuar.\"}");
     }
 }

@@ -13,6 +13,15 @@ public interface EmailTokenRepository extends JpaRepository<EmailToken, Long> {
 
     Optional<EmailToken> findByTokenHash(String tokenHash);
 
+    /**
+     * Token pendiente (no usado) más reciente de un usuario para un tipo dado.
+     * Usado en el flujo de reset para localizar el token POR USUARIO y poder
+     * contabilizar los intentos fallidos contra él (en vez de buscar por el hash
+     * del código, que no permitía aplicar el límite de intentos).
+     */
+    Optional<EmailToken> findTopByUsuarioIdAndTipoAndUsadoEnIsNullOrderByIdDesc(
+            Long usuarioId, TipoEmailToken tipo);
+
     /** Invalida todos los tokens pendientes del mismo tipo para un usuario (evita tokens huérfanos). */
     @Modifying
     @Query("UPDATE EmailToken t SET t.usadoEn = CURRENT_TIMESTAMP " +

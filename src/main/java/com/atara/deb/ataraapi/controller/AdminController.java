@@ -5,6 +5,8 @@ import com.atara.deb.ataraapi.dto.usuario.UsuarioAdminResponseDto;
 import com.atara.deb.ataraapi.service.AdminService;
 import com.atara.deb.ataraapi.service.EmailService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,6 +20,8 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminController.class);
 
     private final AdminService adminService;
     private final EmailService emailService;
@@ -79,9 +83,11 @@ public class AdminController {
                 "remitente", mailUsername != null ? mailUsername : "(no configurado)"
             ));
         } catch (Exception e) {
+            // No se expone el detalle del error SMTP al cliente (B-12); se registra en el servidor.
+            log.warn("Fallo en test-mail SMTP: {}", e.getMessage());
             return ResponseEntity.status(500).body(Map.of(
                 "status", "error",
-                "mensaje", e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
+                "mensaje", "No se pudo enviar el correo de prueba. Revise la configuración SMTP en el servidor.",
                 "remitente", mailUsername != null ? mailUsername : "(no configurado)"
             ));
         }
