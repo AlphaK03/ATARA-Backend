@@ -42,7 +42,12 @@ class AnioLectivoServiceImplTest {
 
     @Test
     void asegurarAnioActual_noExiste_creaActivaYGeneraTrimestres() {
-        when(anioLectivoRepository.findByAnio(ANIO_ACTUAL)).thenReturn(Optional.empty());
+        AnioLectivo recienCreado = AnioLectivo.builder().anio(ANIO_ACTUAL).activo(false).build();
+        // 1ª comprobación: no existe → se inserta (gana la carrera, filas=1) → se recarga.
+        when(anioLectivoRepository.findByAnio(ANIO_ACTUAL))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(recienCreado));
+        when(anioLectivoRepository.insertarSiNoExiste(ANIO_ACTUAL)).thenReturn(1);
         when(anioLectivoRepository.save(any())).thenAnswer(inv -> {
             AnioLectivo a = inv.getArgument(0);
             a.setId(10L);
@@ -65,6 +70,23 @@ class AnioLectivoServiceImplTest {
         assertThat(trimestres.get(0).getActivo()).isTrue();
         assertThat(trimestres.get(1).getActivo()).isFalse();
         assertThat(trimestres.get(2).getActivo()).isFalse();
+    }
+
+    @Test
+    void asegurarAnioActual_carreraConcurrente_reutilizaSinDuplicar() {
+        AnioLectivo creadoPorOtro = AnioLectivo.builder().id(7L).anio(ANIO_ACTUAL).activo(true).build();
+        when(anioLectivoRepository.findByAnio(ANIO_ACTUAL))
+                .thenReturn(Optional.empty())             // aún no lo veía
+                .thenReturn(Optional.of(creadoPorOtro));  // otro proceso lo insertó en paralelo
+        when(anioLectivoRepository.insertarSiNoExiste(ANIO_ACTUAL)).thenReturn(0); // perdió la carrera
+
+        AnioLectivo resultado = service.asegurarAnioActual();
+
+        assertThat(resultado).isSameAs(creadoPorOtro);
+        // No re-crea, no re-activa ni genera trimestres: lo hizo el proceso ganador.
+        verify(anioLectivoRepository, never()).desactivarTodos();
+        verify(anioLectivoRepository, never()).save(any());
+        verify(periodoRepository, never()).save(any());
     }
 
     @Test

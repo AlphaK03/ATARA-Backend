@@ -797,7 +797,7 @@ export function renderEvaluacionesSaber(container) {
     if (isLast) {
       wizNext.disabled = true
       wizNext.textContent = 'Generando alertas…'
-      try { await generarAlertasTematicasEstudiante(wizEstudiante.id, periodoSel.id) } catch (e) { console.warn('Alerta generación falló:', e?.message) }
+      try { await generarAlertasTematicasEstudiante(wizEstudiante.id, periodoSel.id, seccionSel.id) } catch (e) { console.warn('Alerta generación falló:', e?.message) }
       wizOverlay.style.display = 'none'
       renderGrid(container.querySelector('#student-grid'))
     } else {

@@ -6,7 +6,12 @@ import java.util.List;
 
 public interface AlertaTematicaService {
 
-    List<AlertaTematicaResponseDto> generarAlertasPorEstudiante(Long estudianteId, Long periodoId);
+    /**
+     * Genera (regenera) las alertas temáticas de un estudiante en una sección concreta.
+     * La sección es obligatoria: la alerta pertenece al contexto de un docente y solo
+     * se calcula sobre las evaluaciones hechas en esa sección.
+     */
+    List<AlertaTematicaResponseDto> generarAlertasPorEstudiante(Long estudianteId, Long periodoId, Long seccionId);
 
     List<AlertaTematicaResponseDto> generarAlertasPorSeccion(Long seccionId, Long periodoId);
 

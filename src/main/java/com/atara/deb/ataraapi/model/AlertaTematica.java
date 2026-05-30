@@ -13,7 +13,7 @@ import java.time.OffsetDateTime;
     name = "alertas_tematicas",
     uniqueConstraints = @UniqueConstraint(
         name = "uq_alerta_tematica",
-        columnNames = {"estudiante_id", "periodo_id", "eje_tematico_id", "materia_id", "nivel_alerta"}
+        columnNames = {"estudiante_id", "periodo_id", "eje_tematico_id", "materia_id", "seccion_id", "nivel_alerta"}
     )
 )
 @Getter
@@ -42,6 +42,16 @@ public class AlertaTematica {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "materia_id", nullable = false)
     private Materia materia;
+
+    /**
+     * Sección (y por tanto docente) en cuyo contexto se generó la alerta.
+     * Acota la alerta a un docente concreto: un estudiante puede estar en varias
+     * secciones del mismo año (una por docente/materia) y cada docente solo debe
+     * ver/regenerar las alertas de SU sección. ON DELETE CASCADE en BD.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seccion_id", nullable = false)
+    private Seccion seccion;
 
     @Column(name = "promedio", nullable = false, precision = 4, scale = 2)
     private BigDecimal promedio;

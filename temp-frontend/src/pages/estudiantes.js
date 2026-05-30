@@ -1,7 +1,7 @@
 import {
   getEstudiantes, getEstudiante,
   createEstudiante, updateEstudiante, deleteEstudiante,
-  getAccessToken,
+  getAccessToken, getContextoUsuario,
 } from '../api.js'
 import { showConfirm, backendMsg } from '../confirm.js'
 import { showToast } from '../utils/toast.js'
@@ -191,12 +191,19 @@ export async function renderEstudiantes(container) {
     listMsg.innerHTML = ''
     try {
       const data = await getEstudiantes(estado || null)
+      // El borrado físico (con cascada) es solo para ADMIN (hallazgo M-08); el resto
+      // de roles ve "Dar de baja" (cambio de estado a INACTIVO, conserva el histórico).
+      const ctx = await getContextoUsuario().catch(() => null)
+      const esAdmin = ctx?.rol === 'ADMIN'
       if (!data.length) {
         tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin resultados.</td></tr>'
         return
       }
       tbody.innerHTML = data.map(s => {
         const nombre = `${s.nombre} ${s.apellido1} ${s.apellido2 || ''}`.trim()
+        const accionBtn = esAdmin
+          ? `<button class="btn-danger delete-btn" data-id="${s.id}" data-nombre="${nombre}">Eliminar</button>`
+          : `<button class="btn btn-sm btn-secondary baja-btn" data-id="${s.id}" data-nombre="${nombre}">Dar de baja</button>`
         return `
           <tr>
             <td data-label="ID">${s.id}</td>
@@ -206,7 +213,7 @@ export async function renderEstudiantes(container) {
             <td data-label="Estado">${estadoBadge(s.estado)}</td>
             <td class="td-actions">
               <button class="btn btn-sm btn-secondary edit-btn" data-id="${s.id}">Editar</button>
-              <button class="btn-danger delete-btn" data-id="${s.id}" data-nombre="${nombre}">Eliminar</button>
+              ${accionBtn}
             </td>
           </tr>
         `
@@ -259,6 +266,36 @@ export async function renderEstudiantes(container) {
             await loadList()
           } catch (err) {
             showToast('No se pudo eliminar. ' + backendMsg(err), 'error')
+            btn.disabled = false
+          }
+        })
+      })
+
+      // Baja lógica (roles no-ADMIN): conserva el histórico cambiando estado a INACTIVO.
+      tbody.querySelectorAll('.baja-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const nombre = btn.dataset.nombre
+          const ok = await showConfirm({
+            title: `¿Dar de baja a ${nombre}?`,
+            message: `
+              <p>El estudiante pasará a estado <strong>INACTIVO</strong>.</p>
+              <p style="margin-top:8px;color:#374151">Se conserva todo su historial
+              (matrículas, evaluaciones y alertas). Podrás reactivarlo cambiando su estado.</p>
+            `,
+            confirmText: 'Sí, dar de baja',
+          })
+          if (!ok) return
+
+          btn.disabled = true
+          try {
+            const s = await getEstudiante(btn.dataset.id)
+            if (!getAccessToken()) return  // sesión expirada → login mostrado automáticamente
+            await updateEstudiante(s.id, { ...s, estado: 'INACTIVO' })
+            if (!getAccessToken()) return
+            showToast('Estudiante dado de baja (INACTIVO).', 'success')
+            await loadList()
+          } catch (err) {
+            showToast('No se pudo dar de baja. ' + backendMsg(err), 'error')
             btn.disabled = false
           }
         })

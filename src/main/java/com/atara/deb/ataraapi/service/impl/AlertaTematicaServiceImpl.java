@@ -7,6 +7,7 @@ import com.atara.deb.ataraapi.model.EjeTematico;
 import com.atara.deb.ataraapi.model.Estudiante;
 import com.atara.deb.ataraapi.model.Materia;
 import com.atara.deb.ataraapi.model.Periodo;
+import com.atara.deb.ataraapi.model.Seccion;
 import com.atara.deb.ataraapi.model.enums.EstadoAlerta;
 import com.atara.deb.ataraapi.model.enums.NivelAlertaTematica;
 import com.atara.deb.ataraapi.repository.AlertaTematicaRepository;
@@ -14,6 +15,7 @@ import com.atara.deb.ataraapi.repository.DetalleEvaluacionSaberRepository;
 import com.atara.deb.ataraapi.repository.EstudianteRepository;
 import com.atara.deb.ataraapi.repository.MatriculaRepository;
 import com.atara.deb.ataraapi.repository.PeriodoRepository;
+import com.atara.deb.ataraapi.repository.SeccionRepository;
 import com.atara.deb.ataraapi.security.ContextoUsuario;
 import com.atara.deb.ataraapi.security.ContextoUsuarioService;
 import com.atara.deb.ataraapi.service.AlertaTematicaService;
@@ -37,6 +39,7 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
     private final DetalleEvaluacionSaberRepository detalleRepository;
     private final EstudianteRepository estudianteRepository;
     private final PeriodoRepository periodoRepository;
+    private final SeccionRepository seccionRepository;
     private final MatriculaRepository matriculaRepository;
     private final ContextoUsuarioService contextoUsuarioService;
 
@@ -45,35 +48,37 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
             DetalleEvaluacionSaberRepository detalleRepository,
             EstudianteRepository estudianteRepository,
             PeriodoRepository periodoRepository,
+            SeccionRepository seccionRepository,
             MatriculaRepository matriculaRepository,
             ContextoUsuarioService contextoUsuarioService) {
         this.alertaRepository = alertaRepository;
         this.detalleRepository = detalleRepository;
         this.estudianteRepository = estudianteRepository;
         this.periodoRepository = periodoRepository;
+        this.seccionRepository = seccionRepository;
         this.matriculaRepository = matriculaRepository;
         this.contextoUsuarioService = contextoUsuarioService;
     }
 
     @Override
     @Transactional
-    public List<AlertaTematicaResponseDto> generarAlertasPorEstudiante(Long estudianteId, Long periodoId) {
+    public List<AlertaTematicaResponseDto> generarAlertasPorEstudiante(
+            Long estudianteId, Long periodoId, Long seccionId) {
         ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
+        // La sección acota la alerta a un docente concreto: validamos acceso a ambos.
+        contexto.verificarSeccion(seccionId);
         contextoUsuarioService.verificarAccesoAlEstudiante(estudianteId, contexto);
 
         Estudiante estudiante = estudianteRepository.findById(estudianteId)
             .orElseThrow(() -> new NoSuchElementException("Estudiante no encontrado con ID: " + estudianteId));
         Periodo periodo = periodoRepository.findById(periodoId)
             .orElseThrow(() -> new NoSuchElementException("Periodo no encontrado con ID: " + periodoId));
+        Seccion seccion = seccionRepository.findById(seccionId)
+            .orElseThrow(() -> new NoSuchElementException("Sección no encontrada con ID: " + seccionId));
 
-        List<DetalleEvaluacionSaber> detalles = detalleRepository.findByEstudianteAndPeriodo(estudianteId, periodoId);
-        if (detalles.isEmpty()) {
-            return List.of();
-        }
-
-        List<AlertaTematica> alertasGeneradas = calcularAlertas(estudiante, periodo, detalles);
-        List<AlertaTematica> saved = alertaRepository.saveAll(alertasGeneradas);
-        return saved.stream().map(this::toDto).toList();
+        return generarParaEstudianteEnSeccion(estudiante, periodo, seccion).stream()
+            .map(this::toDto)
+            .toList();
     }
 
     @Override
@@ -82,18 +87,45 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
         ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
         contexto.verificarSeccion(seccionId);
 
-        periodoRepository.findById(periodoId)
+        Periodo periodo = periodoRepository.findById(periodoId)
             .orElseThrow(() -> new NoSuchElementException("Periodo no encontrado con ID: " + periodoId));
+        Seccion seccion = seccionRepository.findById(seccionId)
+            .orElseThrow(() -> new NoSuchElementException("Sección no encontrada con ID: " + seccionId));
 
+        // Solo los estudiantes matriculados en ESTA sección.
         List<Long> estudianteIds = matriculaRepository.findBySeccionId(seccionId).stream()
             .map(m -> m.getEstudiante().getId())
+            .distinct()
             .toList();
 
         List<AlertaTematicaResponseDto> todasAlertas = new ArrayList<>();
         for (Long estId : estudianteIds) {
-            todasAlertas.addAll(generarAlertasPorEstudiante(estId, periodoId));
+            Estudiante estudiante = estudianteRepository.findById(estId).orElse(null);
+            if (estudiante == null) continue;
+            generarParaEstudianteEnSeccion(estudiante, periodo, seccion)
+                .forEach(a -> todasAlertas.add(toDto(a)));
         }
         return todasAlertas;
+    }
+
+    /**
+     * Núcleo compartido: regenera las alertas temáticas de un estudiante ACOTADAS a
+     * una sección concreta. Lee solo las evaluaciones de esa sección, limpia las
+     * alertas previas de esa misma sección (no las de otra) y persiste las nuevas con
+     * {@code seccion} asignada. Así dos docentes con el mismo estudiante en secciones
+     * distintas nunca se pisan los datos (Bug 2).
+     */
+    private List<AlertaTematica> generarParaEstudianteEnSeccion(
+            Estudiante estudiante, Periodo periodo, Seccion seccion) {
+
+        List<DetalleEvaluacionSaber> detalles = detalleRepository
+            .findByEstudiantePeriodoYSeccion(estudiante.getId(), periodo.getId(), seccion.getId());
+        if (detalles.isEmpty()) {
+            return List.of();
+        }
+
+        List<AlertaTematica> alertasGeneradas = calcularAlertas(estudiante, periodo, seccion, detalles);
+        return alertaRepository.saveAll(alertasGeneradas);
     }
 
     @Override
@@ -101,10 +133,14 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
         ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
         contextoUsuarioService.verificarAccesoAlEstudiante(estudianteId, contexto);
 
-        return alertaRepository.findByEstudianteIdAndPeriodoId(estudianteId, periodoId)
-            .stream()
-            .map(this::toDto)
-            .toList();
+        List<AlertaTematica> alertas = contexto.esAdmin()
+            // ADMIN / COORDINADOR: visión global del estudiante (todas sus secciones).
+            ? alertaRepository.findByEstudianteIdAndPeriodoId(estudianteId, periodoId)
+            // DOCENTE: solo las alertas de las secciones que le pertenecen.
+            : alertaRepository.findByEstudianteIdAndPeriodoIdAndSeccionIdIn(
+                estudianteId, periodoId, contexto.seccionIds());
+
+        return alertas.stream().map(this::toDto).toList();
     }
 
     @Override
@@ -112,21 +148,16 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
         ContextoUsuario contexto = contextoUsuarioService.obtenerContextoActual();
         contexto.verificarSeccion(seccionId);
 
-        List<Long> estudianteIds = matriculaRepository.findBySeccionId(seccionId).stream()
-            .map(m -> m.getEstudiante().getId())
-            .toList();
-        if (estudianteIds.isEmpty()) {
-            return List.of();
-        }
-
-        return alertaRepository.findByEstudianteIdInAndPeriodoId(estudianteIds, periodoId)
+        // Lectura ACOTADA por sección: solo las alertas generadas en esta sección,
+        // no las de otra sección/docente sobre los mismos estudiantes (Bug 2).
+        return alertaRepository.findBySeccionIdAndPeriodoId(seccionId, periodoId)
             .stream()
             .map(this::toDto)
             .toList();
     }
 
     private List<AlertaTematica> calcularAlertas(
-            Estudiante estudiante, Periodo periodo, List<DetalleEvaluacionSaber> detalles) {
+            Estudiante estudiante, Periodo periodo, Seccion seccion, List<DetalleEvaluacionSaber> detalles) {
 
         Map<String, List<DetalleEvaluacionSaber>> porMateriaYEje = detalles.stream()
             .collect(Collectors.groupingBy(
@@ -141,7 +172,8 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
             EjeTematico eje = primerDetalle.getEjeTematico();
             Materia materia = primerDetalle.getEvaluacionSaber().getMateria();
 
-            limpiarAlertasExistentes(estudiante.getId(), periodo.getId(), eje.getId(), materia.getId());
+            // Limpieza ACOTADA por sección: no toca las alertas de otra sección/docente.
+            limpiarAlertasExistentes(estudiante.getId(), periodo.getId(), eje.getId(), materia.getId(), seccion.getId());
 
             BigDecimal suma = BigDecimal.ZERO;
             for (DetalleEvaluacionSaber detalle : detallesPorEje) {
@@ -165,6 +197,7 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
             alertas.add(AlertaTematica.builder()
                 .estudiante(estudiante)
                 .periodo(periodo)
+                .seccion(seccion)
                 .ejeTematico(eje)
                 .materia(materia)
                 .promedio(promedio)
@@ -177,13 +210,15 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
         return alertas;
     }
 
-    private void limpiarAlertasExistentes(Long estudianteId, Long periodoId, Integer ejeId, Integer materiaId) {
-        List<AlertaTematica> existentes = alertaRepository
-            .findByEstudianteIdAndPeriodoIdAndEjeTematico_IdAndMateriaId(estudianteId, periodoId, ejeId, materiaId);
-
-        if (!existentes.isEmpty()) {
-            alertaRepository.deleteAll(existentes);
-        }
+    /**
+     * Borra (vía DELETE bulk inmediato) las alertas previas de este eje/materia
+     * EN ESTA SECCIÓN antes de regenerarlas. El DELETE se ejecuta antes de los INSERT
+     * de la regeneración, evitando colisiones con el índice único; e incluir
+     * {@code seccionId} garantiza que no se eliminan alertas de otra sección/docente.
+     */
+    private void limpiarAlertasExistentes(
+            Long estudianteId, Long periodoId, Integer ejeId, Integer materiaId, Long seccionId) {
+        alertaRepository.eliminarPorEjeMateriaSeccion(estudianteId, periodoId, ejeId, materiaId, seccionId);
     }
 
     private String claveMateriaYEje(Integer materiaId, Integer ejeId) {
@@ -233,6 +268,8 @@ public class AlertaTematicaServiceImpl implements AlertaTematicaService {
             .estudianteNombreCompleto(nombreCompleto)
             .periodoId(alerta.getPeriodo().getId())
             .periodoNombre(alerta.getPeriodo().getNombre())
+            .seccionId(alerta.getSeccion().getId())
+            .seccionNombre(alerta.getSeccion().getNombre())
             .ejeTemaaticoId(alerta.getEjeTematico().getId())
             .ejeNombre(alerta.getEjeTematico().getNombre())
             .ejeClave(alerta.getEjeTematico().getClave())

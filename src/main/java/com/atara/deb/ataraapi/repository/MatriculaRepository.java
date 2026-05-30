@@ -12,7 +12,9 @@ import java.util.Optional;
 
 public interface MatriculaRepository extends JpaRepository<Matricula, Long> {
 
-    List<Matricula> findByEstudianteId(Long estudianteId);
+    /** JOIN FETCH de estudiante, sección y año lectivo para evitar el N+1 al mapear el DTO (hallazgo B-04). */
+    @Query("SELECT m FROM Matricula m JOIN FETCH m.estudiante JOIN FETCH m.seccion JOIN FETCH m.anioLectivo WHERE m.estudiante.id = :estudianteId")
+    List<Matricula> findByEstudianteId(@Param("estudianteId") Long estudianteId);
 
     @Query("SELECT m FROM Matricula m JOIN FETCH m.estudiante WHERE m.seccion.id = :seccionId")
     List<Matricula> findBySeccionId(@Param("seccionId") Long seccionId);

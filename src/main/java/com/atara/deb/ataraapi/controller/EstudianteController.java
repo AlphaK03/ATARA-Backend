@@ -7,6 +7,7 @@ import com.atara.deb.ataraapi.model.enums.EstadoEstudiante;
 import com.atara.deb.ataraapi.service.EstudianteService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -55,7 +56,13 @@ public class EstudianteController {
         return ResponseEntity.ok(toResponse(actualizado));
     }
 
+    /**
+     * Borrado físico con cascada (alertas, evaluaciones, matrículas). Operación
+     * administrativa irreversible: restringida a ADMIN (hallazgo M-08). Los DOCENTE
+     * usan baja lógica (PUT estado=INACTIVO) para conservar el histórico del menor.
+     */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         estudianteService.eliminar(id);
         return ResponseEntity.noContent().build();

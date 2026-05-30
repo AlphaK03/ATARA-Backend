@@ -68,20 +68,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(correo);
 
                 if (jwtService.esTokenValido(token, userDetails)) {
-                    // Cambio de contraseña obligatorio (hallazgos C-04/C-05/M-11): mientras
-                    // debe_cambiar_password=TRUE solo se permiten endpoints /api/auth/* (cambiar
-                    // contraseña, me, logout, refresh). Cualquier otra ruta se rechaza con 403,
-                    // de modo que una contraseña temporal o sembrada conocida no da acceso útil.
-                    if (cambioPasswordPendiente(userDetails) && !esRutaAuth(request)) {
+                    if (!userDetails.isEnabled()) {
+                        // Cuenta desactivada (hallazgo A-07): no se autentica aunque el token
+                        // siga vigente; Spring devolverá 401. Hace que la baja surta efecto de
+                        // inmediato, sin esperar a que caduque el access token.
+                        if (log.isDebugEnabled()) {
+                            log.debug("Cuenta inactiva en {} {} — request sin autenticar",
+                                    request.getMethod(), request.getRequestURI());
+                        }
+                    } else if (cambioPasswordPendiente(userDetails) && !esRutaAuth(request)) {
+                        // Cambio de contraseña obligatorio (hallazgos C-04/C-05/M-11): mientras
+                        // debe_cambiar_password=TRUE solo se permiten endpoints /api/auth/*
+                        // (cambiar contraseña, me, logout, refresh). El resto se rechaza con 403.
                         responderCambioRequerido(response);
                         return;
+                    } else {
+                        UsernamePasswordAuthenticationToken authToken =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails, null, userDetails.getAuthorities());
+                        authToken.setDetails(
+                                new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
                     }
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
                 } else if (log.isDebugEnabled()) {
                     // El token parsea y verifica firma, pero el subject no coincide
                     // con el UserDetails cargado. No se loguea el correo (PII).

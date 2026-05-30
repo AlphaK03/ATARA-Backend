@@ -108,6 +108,24 @@ public class SeccionServiceImpl implements SeccionService {
     public SeccionResponseDto buscarPorId(Long id) {
         Seccion seccion = seccionRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Sección no encontrada con id: " + id));
+        // Control de acceso (hallazgo B-03), con la MISMA política de roles que
+        // listarPorAnioLectivo: ADMIN ve cualquiera; DOCENTE solo sus secciones
+        // (titular o co-docente); cualquier otro rol recibe 403.
+        Usuario actual = usuarioActual();
+        String rol = actual.getRol().getNombre();
+        if (ROL_ADMIN.equalsIgnoreCase(rol)) {
+            // acceso total, sin restricción
+        } else if (ROL_DOCENTE.equalsIgnoreCase(rol)) {
+            boolean esTitular = seccion.getDocente() != null
+                    && seccion.getDocente().getId().equals(actual.getId());
+            boolean esCodocente = usuarioSeccionRepository.existsByUsuarioIdAndSeccionId(actual.getId(), id);
+            if (!esTitular && !esCodocente) {
+                throw new AccesoDenegadoException("No tiene acceso a la sección ID: " + id);
+            }
+        } else {
+            throw new AccesoDenegadoException(
+                    "El rol " + rol + " no tiene permitido ver secciones.");
+        }
         return toDto(seccion);
     }
 

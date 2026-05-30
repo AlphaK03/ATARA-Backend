@@ -15,6 +15,8 @@ public class AlertaTematicaResponseDto {
     private String estudianteNombreCompleto;
     private Long periodoId;
     private String periodoNombre;
+    private Long seccionId;
+    private String seccionNombre;
     private Integer ejeTemaaticoId;
     private String ejeNombre;
     private String ejeClave;

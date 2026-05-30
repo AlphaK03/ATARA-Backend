@@ -121,6 +121,19 @@
 			<groupId>net.sourceforge.tess4j</groupId>
 			<artifactId>tess4j</artifactId>
 			<version>5.11.0</version>
+			<!-- Excluir módulos de PDFBox no usados (3.0.1) que arrastra tess4j y quedan
+			     desalineados del pdfbox 3.0.3 directo. PiadServiceImpl solo usa el core
+			     (Loader, PDDocument, PDFRenderer, ImageType). Hallazgo B-13. -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.pdfbox</groupId>
+					<artifactId>pdfbox-tools</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.pdfbox</groupId>
+					<artifactId>pdfbox-debugger</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 

@@ -204,7 +204,13 @@ public class EvaluacionSaberServiceImpl implements EvaluacionSaberService {
         Periodo periodo = periodoRepository.findById(periodoId)
             .orElseThrow(() -> new NoSuchElementException("Periodo no encontrado con ID: " + periodoId));
 
-        List<DetalleEvaluacionSaber> detalles = detalleRepository.findByEstudianteAndPeriodo(estudianteId, periodoId);
+        // Endpoint a nivel de estudiante (sin sección): para un DOCENTE se acota a SUS
+        // secciones, de modo que nunca agrega evaluaciones hechas por otro docente sobre
+        // el mismo estudiante (Bug 2). ADMIN/COORDINADOR conservan visión global.
+        List<DetalleEvaluacionSaber> detalles = contexto.esAdmin()
+            ? detalleRepository.findByEstudianteAndPeriodo(estudianteId, periodoId)
+            : detalleRepository.findByEstudiantePeriodoYSecciones(
+                estudianteId, periodoId, contexto.seccionIds());
 
         return construirResumenPromedios(estudiante, periodo, detalles);
     }
@@ -218,13 +224,17 @@ public class EvaluacionSaberServiceImpl implements EvaluacionSaberService {
 
         List<Long> estudianteIds = matriculaRepository.findBySeccionId(seccionId).stream()
             .map(m -> m.getEstudiante().getId())
+            .distinct()
             .toList();
 
         List<ResumenPromediosEstudianteDto> resumenes = new ArrayList<>();
         for (Long estId : estudianteIds) {
             Estudiante est = estudianteRepository.findById(estId).orElse(null);
             if (est == null) continue;
-            List<DetalleEvaluacionSaber> detalles = detalleRepository.findByEstudianteAndPeriodo(estId, periodoId);
+            // ACOTADO por sección: solo las evaluaciones de esta sección cuentan para el
+            // resumen, evitando que se "cuelen" las de otra sección/docente (Bug 2).
+            List<DetalleEvaluacionSaber> detalles =
+                detalleRepository.findByEstudiantePeriodoYSeccion(estId, periodoId, seccionId);
             if (!detalles.isEmpty()) {
                 resumenes.add(construirResumenPromedios(est, periodo, detalles));
             }

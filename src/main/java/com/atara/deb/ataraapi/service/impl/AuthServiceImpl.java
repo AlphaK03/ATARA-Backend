@@ -9,6 +9,7 @@ import com.atara.deb.ataraapi.dto.auth.RefreshTokenResponseDto;
 import com.atara.deb.ataraapi.exception.TokenRefreshException;
 import com.atara.deb.ataraapi.model.TokenRefresh;
 import com.atara.deb.ataraapi.model.Usuario;
+import com.atara.deb.ataraapi.model.enums.EstadoUsuario;
 import com.atara.deb.ataraapi.repository.TokenRefreshRepository;
 import com.atara.deb.ataraapi.repository.UsuarioRepository;
 import com.atara.deb.ataraapi.security.JwtService;
@@ -114,6 +115,16 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Usuario usuario = tokenGuardado.getUsuario();
+
+        // Revalidar el estado de la cuenta (hallazgo A-07): un usuario desactivado no
+        // puede renovar su sesión. Se revoca el refresh token usado y se corta el flujo,
+        // de modo que la baja surte efecto sin esperar a que caduque el refresh (7 días).
+        if (usuario.getEstado() != EstadoUsuario.ACTIVO) {
+            tokenGuardado.setRevocado(true);
+            tokenGuardado.setRevocadoEn(OffsetDateTime.now());
+            tokenRefreshRepository.save(tokenGuardado);
+            throw new TokenRefreshException("La cuenta está inactiva. Inicia sesión nuevamente.");
+        }
 
         // Revocar el token usado (rotación de refresh token)
         tokenGuardado.setRevocado(true);

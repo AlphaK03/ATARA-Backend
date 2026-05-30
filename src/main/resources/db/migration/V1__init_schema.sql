@@ -141,6 +141,7 @@ CREATE TABLE public.alertas_tematicas (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     materia_id integer NOT NULL,
+    seccion_id bigint NOT NULL,
     CONSTRAINT chk_estado_alerta_tem CHECK (((estado)::text = ANY ((ARRAY['ACTIVA'::character varying, 'RESUELTA'::character varying, 'DESCARTADA'::character varying])::text[]))),
     CONSTRAINT chk_nivel_alerta_tem CHECK (((nivel_alerta)::text = ANY ((ARRAY['ALTA'::character varying, 'MEDIA'::character varying, 'SIN_ALERTA'::character varying])::text[])))
 );
@@ -1943,7 +1944,7 @@ ALTER TABLE ONLY public.tokens_refresh
 --
 
 ALTER TABLE ONLY public.alertas_tematicas
-    ADD CONSTRAINT uq_alerta_tematica UNIQUE (estudiante_id, periodo_id, eje_tematico_id, materia_id, nivel_alerta);
+    ADD CONSTRAINT uq_alerta_tematica UNIQUE (estudiante_id, periodo_id, eje_tematico_id, materia_id, seccion_id, nivel_alerta);
 
 
 --
@@ -2258,6 +2259,13 @@ CREATE INDEX idx_alerta_tem_nivel ON public.alertas_tematicas USING btree (nivel
 --
 
 CREATE INDEX idx_alerta_tem_periodo ON public.alertas_tematicas USING btree (periodo_id);
+
+
+--
+-- Name: idx_alerta_tem_seccion_periodo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_alerta_tem_seccion_periodo ON public.alertas_tematicas USING btree (seccion_id, periodo_id);
 
 
 --
@@ -2878,6 +2886,14 @@ ALTER TABLE ONLY public.alertas_tematicas
 
 ALTER TABLE ONLY public.alertas_tematicas
     ADD CONSTRAINT alertas_tematicas_periodo_id_fkey FOREIGN KEY (periodo_id) REFERENCES public.periodos(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: alertas_tematicas alertas_tematicas_seccion_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alertas_tematicas
+    ADD CONSTRAINT alertas_tematicas_seccion_id_fkey FOREIGN KEY (seccion_id) REFERENCES public.secciones(id) ON DELETE CASCADE;
 
 
 --

@@ -5,6 +5,7 @@ import com.atara.deb.ataraapi.dto.periodo.PeriodoResponseDto;
 import com.atara.deb.ataraapi.service.PeriodoService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,8 +20,9 @@ public class PeriodoController {
         this.periodoService = periodoService;
     }
 
-    /** POST /api/periodos — crea un nuevo periodo en el año lectivo indicado. */
+    /** POST /api/periodos — crea un nuevo periodo en el año lectivo indicado. Solo ADMIN. */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PeriodoResponseDto> crear(@Valid @RequestBody PeriodoRequestDto dto) {
         return ResponseEntity.ok(periodoService.crear(dto));
     }
@@ -41,22 +43,25 @@ public class PeriodoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /** PUT /api/periodos/{id} — actualiza nombre y fechas de un periodo. */
+    /** PUT /api/periodos/{id} — actualiza nombre y fechas de un periodo. Solo ADMIN. */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PeriodoResponseDto> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody PeriodoRequestDto dto) {
         return ResponseEntity.ok(periodoService.actualizar(id, dto));
     }
 
-    /** PUT /api/periodos/{id}/activar — activa un periodo (desactiva los demás del mismo año). */
+    /** PUT /api/periodos/{id}/activar — activa un periodo (desactiva los demás del mismo año). Solo ADMIN. */
     @PutMapping("/{id}/activar")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PeriodoResponseDto> activar(@PathVariable Long id) {
         return ResponseEntity.ok(periodoService.activar(id));
     }
 
-    /** DELETE /api/periodos/{id} — elimina el periodo y sus evaluaciones y alertas. */
+    /** DELETE /api/periodos/{id} — elimina el periodo y sus evaluaciones y alertas. Solo ADMIN. */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         periodoService.eliminar(id);
         return ResponseEntity.noContent().build();

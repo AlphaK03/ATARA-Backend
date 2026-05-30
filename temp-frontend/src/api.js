@@ -342,8 +342,10 @@ export const getPromediosSeccionSaber = (seccionId, periodoId) =>
   request('GET', `/evaluaciones-saber/promedios/seccion/${seccionId}/periodo/${periodoId}`)
 
 // ── Alertas Temáticas ─────────────────────────────────────────────────────
-export const generarAlertasTematicasEstudiante = (estudianteId, periodoId) =>
-  request('POST', `/alertas-tematicas/generar/estudiante/${estudianteId}/periodo/${periodoId}`)
+// La sección es obligatoria: la alerta pertenece al contexto de un docente y solo
+// se calcula sobre las evaluaciones de esa sección (evita la fuga de datos del Bug 2).
+export const generarAlertasTematicasEstudiante = (estudianteId, periodoId, seccionId) =>
+  request('POST', `/alertas-tematicas/generar/estudiante/${estudianteId}/periodo/${periodoId}?seccionId=${seccionId}`)
 export const generarAlertasTematicasSeccion = (seccionId, periodoId) =>
   request('POST', `/alertas-tematicas/generar/seccion/${seccionId}/periodo/${periodoId}`)
 export const getAlertasTematicasEstudiante = (estudianteId, periodoId) =>

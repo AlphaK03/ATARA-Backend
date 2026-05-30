@@ -87,15 +87,28 @@ public class AnioLectivoServiceImpl implements AnioLectivoService {
             return existente.get();
         }
 
-        // No existe: se crea, se le generan los 3 trimestres y se activa.
-        anioLectivoRepository.desactivarTodos();
-        AnioLectivo nuevo = anioLectivoRepository.save(AnioLectivo.builder()
-                .anio(anioActual)
-                .activo(true)
-                .build());
+        // Inserción idempotente (hallazgo B-05): bajo concurrencia (arranque +
+        // @Scheduled + endpoint) solo un proceso inserta el año; los demás reciben 0
+        // y reutilizan el existente sin fallar (evita el 500/WARN de la carrera).
+        int filas = anioLectivoRepository.insertarSiNoExiste(anioActual);
+        if (filas > 0) {
+            // Este proceso creó el año: activarlo (desactivando los demás) y generar
+            // sus 3 trimestres. desactivarTodos limpia el contexto, por lo que se
+            // recarga el año como entidad gestionada antes de modificarlo.
+            anioLectivoRepository.desactivarTodos();
+            AnioLectivo nuevo = anioLectivoRepository.findByAnio(anioActual)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "No se pudo asegurar el año lectivo " + anioActual));
+            nuevo.setActivo(true);
+            anioLectivoRepository.save(nuevo);
+            crearTrimestres(nuevo);
+            return nuevo;
+        }
 
-        crearTrimestres(nuevo);
-        return nuevo;
+        // Otro proceso lo creó en paralelo: se reutiliza.
+        return anioLectivoRepository.findByAnio(anioActual)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No se pudo asegurar el año lectivo " + anioActual));
     }
 
     private void crearTrimestres(AnioLectivo anio) {

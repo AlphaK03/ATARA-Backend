@@ -19,8 +19,11 @@ public class AlertaTematicaController {
 
     @PostMapping("/generar/estudiante/{estudianteId}/periodo/{periodoId}")
     public ResponseEntity<List<AlertaTematicaResponseDto>> generarPorEstudiante(
-            @PathVariable Long estudianteId, @PathVariable Long periodoId) {
-        return ResponseEntity.ok(alertaTematicaService.generarAlertasPorEstudiante(estudianteId, periodoId));
+            @PathVariable Long estudianteId,
+            @PathVariable Long periodoId,
+            @RequestParam Long seccionId) {
+        return ResponseEntity.ok(
+            alertaTematicaService.generarAlertasPorEstudiante(estudianteId, periodoId, seccionId));
     }
 
     @PostMapping("/generar/seccion/{seccionId}/periodo/{periodoId}")
