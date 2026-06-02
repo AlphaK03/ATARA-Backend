@@ -6,6 +6,7 @@ import com.atara.deb.ataraapi.dto.auth.LogoutRequestDto;
 import com.atara.deb.ataraapi.dto.auth.MeResponseDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenRequestDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenResponseDto;
+import com.atara.deb.ataraapi.dto.auth.RegistroRequestDto;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 
@@ -20,4 +21,6 @@ public interface AuthService {
     MeResponseDto me(Authentication authentication);
 
     void cambiarPassword(Authentication authentication, String passwordActual, String nuevaPassword);
+
+    void registro(RegistroRequestDto request);
 }

@@ -6,15 +6,19 @@ import com.atara.deb.ataraapi.dto.auth.LogoutRequestDto;
 import com.atara.deb.ataraapi.dto.auth.MeResponseDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenRequestDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenResponseDto;
+import com.atara.deb.ataraapi.dto.auth.RegistroRequestDto;
 import com.atara.deb.ataraapi.exception.TokenRefreshException;
+import com.atara.deb.ataraapi.model.Rol;
 import com.atara.deb.ataraapi.model.TokenRefresh;
 import com.atara.deb.ataraapi.model.Usuario;
 import com.atara.deb.ataraapi.model.enums.EstadoUsuario;
+import com.atara.deb.ataraapi.repository.RolRepository;
 import com.atara.deb.ataraapi.repository.TokenRefreshRepository;
 import com.atara.deb.ataraapi.repository.UsuarioRepository;
 import com.atara.deb.ataraapi.security.JwtService;
 import com.atara.deb.ataraapi.security.UsuarioPrincipal;
 import com.atara.deb.ataraapi.service.AuthService;
+import com.atara.deb.ataraapi.service.EmailTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,6 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -38,20 +44,34 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final TokenRefreshRepository tokenRefreshRepository;
     private final UsuarioRepository usuarioRepository;
+    private final RolRepository rolRepository;
+    private final EmailTokenService emailTokenService;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${jwt.refresh-expiration-days}")
     private long refreshExpirationDays;
 
+    /** Dominios institucionales permitidos para auto-registro (lista separada por comas). */
+    @Value("${app.dominios-permitidos:@una.ac.cr,@mep.go.cr,@est.una.ac.cr}")
+    private String dominiosPermitidos;
+
+    /** Correos que pueden registrarse aunque su dominio no esté en la lista. */
+    @Value("${app.correos-excepcion:ataranotificaciones@gmail.com}")
+    private String correosExcepcion;
+
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            JwtService jwtService,
                            TokenRefreshRepository tokenRefreshRepository,
                            UsuarioRepository usuarioRepository,
+                           RolRepository rolRepository,
+                           EmailTokenService emailTokenService,
                            PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.tokenRefreshRepository = tokenRefreshRepository;
         this.usuarioRepository = usuarioRepository;
+        this.rolRepository = rolRepository;
+        this.emailTokenService = emailTokenService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -203,6 +223,52 @@ public class AuthServiceImpl implements AuthService {
         response.setMateriaIds(usuarioRepository.findMateriaIdsByUsuarioId(usuario.getId()));
         response.setCentroIds(usuarioRepository.findCentroIdsByUsuarioId(usuario.getId()));
         return response;
+    }
+
+    /**
+     * Registra un nuevo usuario como DOCENTE.
+     * Solo se permiten correos de dominios institucionales configurados.
+     * Envía un correo de verificación tras el registro.
+     */
+    @Override
+    @Transactional
+    public void registro(RegistroRequestDto request) {
+        String correo = request.getCorreo().trim().toLowerCase();
+
+        List<String> dominios = Arrays.stream(dominiosPermitidos.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        List<String> excepciones = Arrays.stream(correosExcepcion.split(","))
+                .map(String::trim).map(String::toLowerCase).filter(s -> !s.isEmpty()).toList();
+
+        boolean dominioValido = excepciones.contains(correo)
+                || dominios.stream().anyMatch(correo::endsWith);
+
+        if (!dominioValido) {
+            throw new IllegalArgumentException(
+                    "El registro solo está disponible para correos institucionales " +
+                    "(@una.ac.cr, @mep.go.cr). Contacta al administrador si necesitas acceso.");
+        }
+
+        if (usuarioRepository.existsByCorreo(correo)) {
+            throw new IllegalArgumentException("Ya existe una cuenta registrada con ese correo.");
+        }
+
+        Rol rolDocente = rolRepository.findByNombre("DOCENTE")
+                .orElseThrow(() -> new RuntimeException("Rol DOCENTE no encontrado."));
+
+        Usuario usuario = Usuario.builder()
+                .nombre(request.getNombre().trim())
+                .apellidos(request.getApellidos().trim())
+                .correo(correo)
+                .password(passwordEncoder.encode(request.getPassword()))
+                .rol(rolDocente)
+                .estado(EstadoUsuario.ACTIVO)
+                .emailVerificado(false)
+                .debeCambiarPassword(false)
+                .build();
+
+        usuarioRepository.save(usuario);
+        emailTokenService.enviarVerificacionNuevoUsuario(usuario.getId());
     }
 
     // -------------------------------------------------------------------------

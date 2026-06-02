@@ -8,11 +8,13 @@ import com.atara.deb.ataraapi.dto.auth.LogoutRequestDto;
 import com.atara.deb.ataraapi.dto.auth.MeResponseDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenRequestDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenResponseDto;
+import com.atara.deb.ataraapi.dto.auth.RegistroRequestDto;
 import com.atara.deb.ataraapi.dto.auth.SolicitarResetRequestDto;
 import com.atara.deb.ataraapi.service.AuthService;
 import com.atara.deb.ataraapi.service.EmailTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -77,6 +79,17 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<MeResponseDto> me(Authentication authentication) {
         return ResponseEntity.ok(authService.me(authentication));
+    }
+
+    /**
+     * POST /api/auth/registro
+     * Auto-registro de docentes con correo institucional.
+     * Solo acepta dominios configurados en app.dominios-permitidos.
+     */
+    @PostMapping("/registro")
+    public ResponseEntity<Void> registro(@Valid @RequestBody RegistroRequestDto request) {
+        authService.registro(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     /**
