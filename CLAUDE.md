@@ -8,6 +8,29 @@ ATARA (Sistema de Alerta Temprana y Atención al Rendimiento Académico) is a Sp
 
 **Stack:** Spring Boot 4.0.3, Java 17, PostgreSQL, Flyway, Lombok, Jakarta Validation.
 
+**Frontend:** Repositorio separado — [AlphaK03/atara-frontend](https://github.com/AlphaK03/atara-frontend). Vite + Vanilla JS SPA. Corre en `localhost:3000` y hace proxy de `/api/*` al backend en `localhost:8081`.
+
+## Required Skills
+
+Before starting work on this project, verify these skills are installed (they live in `.agents/skills/` symlinked to Claude Code):
+
+```bash
+ls .agents/skills/
+```
+
+| Skill | Source | Comando |
+|---|---|---|
+| `frontend-design` | `anthropics/skills` | `npx skills add https://github.com/anthropics/skills --skill frontend-design` |
+| `superpowers` (14 skills) | `obra/superpowers` | `npx skills add https://github.com/obra/superpowers` |
+| Trail of Bits security (74 skills) | `trailofbits/skills` | `npx skills add https://github.com/trailofbits/skills` |
+| `gstack` | `garrytan/gstack` | `npx skills add https://github.com/garrytan/gstack` |
+| `claude-mem` | `thedotmack/claude-mem` | `npx claude-mem install` + `npx claude-mem start` |
+
+**Notas:**
+- `claude-mem` requiere levantar el worker manualmente en cada máquina nueva: `npx claude-mem start`
+- `gstack` tiene alertas de seguridad altas (27 alertas Socket) — es el skill de QA headless de Garry Tan, usarlo con precaución
+- Reiniciar Claude Code tras instalar cualquier skill para que se cargue en sesión
+
 ## Commands
 
 ```bash
@@ -41,9 +64,10 @@ com.atara.deb.ataraapi/
 ├── controller/       REST endpoints (/api/*)
 ├── service/          Interfaces + impl/ subdirectory for implementations
 ├── repository/       Spring Data JPA repos (all extend JpaRepository<Entity, Long>)
-├── model/            28 JPA entities + enums/ subdirectory (9 enums)
+├── model/            JPA entities + enums/ subdirectory
 ├── dto/              Request/Response DTOs organized by domain (alerta/, estudiante/, etc.)
-└── exception/        GlobalExceptionHandler (centralized HTTP error mapping)
+├── exception/        GlobalExceptionHandler + AccesoDenegadoException, TokenRefreshException
+└── security/         SecurityConfig, JwtService, JwtAuthenticationFilter, UserDetailsServiceImpl
 ```
 
 **Database schema is owned by Flyway** — `ddl-auto=none`, never let Hibernate manage schema. Migrations live in `src/main/resources/db/migration/`:
@@ -51,9 +75,17 @@ com.atara.deb.ataraapi/
 - `V2__sample_data.sql` — seed data (BCrypt password hashes need to be regenerated for auth testing)
 - `V3__queries_reference.sql` — 8 reporting views (`vw_criterios_completos`, `vw_rendimiento_periodo_activo`, etc.)
 - `V4__evaluacion_saberes_alertas_tematicas.sql` — 6 tables (tipos_saber, ejes_tematicos, niveles_desempeno, evaluaciones_saber, detalle_evaluacion_saber, alertas_tematicas) + 2 views + seed data
+- `V5__more_students.sql` — additional sample student data
 - `V6__materias_evaluaciones_multisaber.sql` — separación de ejes por materia (84 ejes: 21 × 4 materias)
+- `V7__alertas_tematicas_unique_por_materia.sql` — unique constraint on alertas_tematicas per materia
 - `V8__usuario_materias.sql` — tabla M:N para acceso de docentes a materias
+- `V9__usuario_docente_keylor.sql` — sample docente user seed data
+- `V10__avargas_materias_espanol_ciencias.sql` — sample data for docente avargas (Español/Ciencias)
+- `V11__fix_seccion_primero_d_docente.sql` — data fix for sección docente assignment
 - `V12__ejes_tematicos_por_nivel.sql` — tabla M:N `ejes_tematicos_niveles` que define qué ejes son evaluables en cada grado (currículo MEP CR Primaria). Vista de apoyo: `vw_ejes_por_materia_nivel`.
+- `V13__refinar_ejes_por_nivel.sql` — refinement of V12 seed: V12 was too permissive (all 21 ejes to all grades for Español/Ciencias/EESS); now matches actual MEP curriculum with grade-specific restrictions
+- `V14__email_verificacion_y_reset_password.sql` — email verification token system + 4-digit password reset codes; new users get verification email, password reset flow uses `email_tokens` table
+- `V15__email_tokens_intentos.sql` — brute-force protection: adds `intentos_fallidos` counter to `email_tokens`; after 5 failed attempts the token is invalidated (applies to RESET_PASSWORD tokens only, not UUID-based VERIFICACION_EMAIL)
 
 **Audit trail** is handled entirely at the database level via the `registro_auditoria` table (JSONB) and `fn_actualizar_updated_at` triggers — no application-level audit code needed.
 
@@ -140,13 +172,14 @@ com.atara.deb.ataraapi/
 - All JPA relationships use `FetchType.LAZY` — be mindful of N+1 query risks when adding new queries
 - BCrypt password hashes in `V2__sample_data.sql` are placeholders; regenerate with `new BCryptPasswordEncoder(12).encode("...")` to test auth flows
 
-## Implementation Status (as of 2026-04-01)
+## Implementation Status (as of 2026-05-26)
 
-These features are planned by the design rules below but **not yet implemented**:
+Planned by the design rules below but **not yet implemented**:
 
-- **Custom exceptions** (`RecursoNoEncontradoException`, `ReglaDeNegocioException`) do not exist. `GlobalExceptionHandler` currently maps `IllegalArgumentException → 400`, `NoSuchElementException → 404`, `UnsupportedOperationException → 501`, `RuntimeException → 500`. When adding new features, create the proper custom exception class and add a handler mapping to `GlobalExceptionHandler`.
-- **`ApiResponse<T>` wrapper** is not implemented. Controllers return DTOs directly instead of wrapping in `ApiResponse`. Needs to be created and applied across all controllers.
-- ~~**Spring Security / JWT is not implemented**~~. **Implemented** (as of 2026-03-31): `SecurityConfig`, `JwtService`, `JwtAuthenticationFilter`, `UserDetailsServiceImpl`, `AuthController` with login/refresh/logout/me. All endpoints require JWT except `/api/auth/*` and `/actuator/health`.
+- **Custom exceptions** (`RecursoNoEncontradoException`, `ReglaDeNegocioException`) do not exist. `GlobalExceptionHandler` maps `IllegalArgumentException → 400`, `NoSuchElementException → 404`, `UnsupportedOperationException → 501`, `RuntimeException → 500`. `AccesoDenegadoException` and `TokenRefreshException` do exist. When adding new features, throw `IllegalArgumentException` (400) or `NoSuchElementException` (404) from the service layer — or create a dedicated exception class and register it in `GlobalExceptionHandler`.
+- **`ApiResponse<T>` wrapper** is not implemented. Controllers return DTOs directly (success path) or rely on `GlobalExceptionHandler` returning `Map<String,Object>` with shape `{timestamp, status, error, message, path}`. The `ApiResponse<T>` format described in the Dev Rules below (`{success, message, data}`) is aspirational. Do not mix the two shapes — for now, keep returning DTOs directly and error handling through `GlobalExceptionHandler`.
+- **Spring Security / JWT**: Implemented. `SecurityConfig`, `JwtService`, `JwtAuthenticationFilter`, `UserDetailsServiceImpl`, `AuthController` (login/refresh/logout/me). All endpoints require JWT except `/api/auth/*` and `/actuator/health`.
+- **Email verification + password reset**: Implemented via `email_tokens` table (V14/V15). `AuthController` includes endpoints for triggering and confirming these flows.
 
 ## Features added (as of 2026-04-01)
 
@@ -173,6 +206,12 @@ These features are planned by the design rules below but **not yet implemented**
 - **Frontend: eliminación segura de sección para DOCENTE titular**: El botón "Eliminar" aparece para el docente titular cuando la sección está vacía (`totalEstudiantes === 0`). Llama a `deleteSeccionDocente` (endpoint backend ya existente); muestra una confirmación que explica la restricción.
 - **Frontend: páginas zombi eliminadas**: Se borraron `pages/matriculas.js`, `pages/evaluaciones.js`, `pages/alertas.js` — eran de la era anterior del proyecto (pedían IDs a mano y usaban el sistema viejo de evaluación). No estaban en ningún nav y representaban deuda técnica.
 - **Frontend: wizard de evaluación filtra ejes por grado**: `pages/evaluacionesSaber.js` ahora llama a `getEjesPorNivel(seccionSel.nivelId)` cuando se selecciona una sección. La grilla de estudiantes y el wizard solo muestran tipos de saber con ejes aplicables al grado. Si una combinación (materia + tipo de saber) tiene 0 ejes en ese grado, se omite del wizard y se marca como "Sin ejes en este grado" en la tarjeta del estudiante.
+
+## Features added (as of 2026-05-26)
+
+- **Refinamiento de ejes por nivel (V13)**: La semilla de V12 era demasiado permisiva — asignaba los 21 ejes de Español, Ciencias y Estudios Sociales a todos los grados. V13 corrige las asignaciones para reflejar el currículo MEP real, aplicando restricciones específicas por grado en todas las materias.
+- **Verificación de email y reset de contraseña (V14)**: Nueva tabla `email_tokens` (tipo enum: `VERIFICACION_EMAIL`, `RESET_PASSWORD`). Al crear un usuario, se puede enviar un token de verificación. Los usuarios de V2 quedan marcados como verificados. El reset usa un código de 4 dígitos enviado al correo del usuario.
+- **Protección brute-force en reset (V15)**: Contador `intentos_fallidos` en `email_tokens`. Tras 5 intentos fallidos el token se invalida automáticamente. Aplica solo a tokens `RESET_PASSWORD`; los de `VERIFICACION_EMAIL` son UUIDs y no son brute-forceables.
 
 ---
 
@@ -204,7 +243,7 @@ These features are planned by the design rules below but **not yet implemented**
 - Use Jakarta Bean Validation annotations (`@NotNull`, `@NotBlank`, `@Size`, `@Min`, `@Max`, `@Email`, etc.) on DTO fields.
 - Annotate controller method parameters with `@Valid` to trigger validation.
 - Never perform manual null-checks or format checks in controllers or services when a Jakarta annotation covers the case.
-- `GlobalExceptionHandler` must handle `MethodArgumentNotValidException` and return structured field-level errors (not yet implemented — add it when needed).
+- `GlobalExceptionHandler` handles `MethodArgumentNotValidException` and returns all field errors joined as a single string in the `message` field.
 
 ### API Response Structure
 
@@ -258,7 +297,7 @@ Never return raw objects, plain strings, or unwrapped lists directly from a cont
 ### Security
 
 - Never log passwords, tokens, or personally identifiable information (PII such as `cedula`, full names combined with grades).
-- JWT tokens (when implemented) must be validated in a filter, never in a controller or service.
+- JWT tokens are validated in `JwtAuthenticationFilter`, never in a controller or service.
 - Do not expose internal IDs or sequences in error messages.
 - Passwords must be hashed with `BCryptPasswordEncoder` (strength 12); never store or compare plain text.
 - Sanitize all user-supplied strings before using them in JPQL or native queries; prefer Spring Data method naming or `@Query` with named parameters over string concatenation.
