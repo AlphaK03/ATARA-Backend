@@ -160,7 +160,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * Valida la contraseña actual, actualiza a la nueva y limpia el flag debeCambiarPassword.
+     * Actualiza la contraseña y limpia el flag debeCambiarPassword.
+     * En flujo forzado (debeCambiarPassword=true) no se exige la contraseña actual —
+     * ya fue validada al autenticar. En cambio voluntario sí se requiere.
      */
     @Override
     @Transactional
@@ -168,8 +170,13 @@ public class AuthServiceImpl implements AuthService {
         UsuarioPrincipal principal = (UsuarioPrincipal) authentication.getPrincipal();
         Usuario usuario = principal.getUsuario();
 
-        if (!passwordEncoder.matches(passwordActual, usuario.getPassword())) {
-            throw new IllegalArgumentException("La contraseña actual es incorrecta.");
+        if (!Boolean.TRUE.equals(usuario.getDebeCambiarPassword())) {
+            if (passwordActual == null || passwordActual.isBlank()) {
+                throw new IllegalArgumentException("Debes ingresar tu contraseña actual.");
+            }
+            if (!passwordEncoder.matches(passwordActual, usuario.getPassword())) {
+                throw new IllegalArgumentException("La contraseña actual es incorrecta.");
+            }
         }
         usuario.setPassword(passwordEncoder.encode(nuevaPassword));
         usuario.setDebeCambiarPassword(false);

@@ -7,7 +7,7 @@ import lombok.Data;
 
 @Data
 public class CambiarPasswordRequestDto {
-    @NotBlank
+    // Opcional: requerido solo en cambio voluntario; null en flujo de primer login forzado
     private String passwordActual;
 
     @NotBlank
