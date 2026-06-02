@@ -8,10 +8,12 @@ import com.atara.deb.ataraapi.dto.auth.RefreshTokenRequestDto;
 import com.atara.deb.ataraapi.dto.auth.RefreshTokenResponseDto;
 import com.atara.deb.ataraapi.dto.auth.RegistroRequestDto;
 import com.atara.deb.ataraapi.exception.TokenRefreshException;
+import com.atara.deb.ataraapi.model.Materia;
 import com.atara.deb.ataraapi.model.Rol;
 import com.atara.deb.ataraapi.model.TokenRefresh;
 import com.atara.deb.ataraapi.model.Usuario;
 import com.atara.deb.ataraapi.model.enums.EstadoUsuario;
+import com.atara.deb.ataraapi.repository.MateriaRepository;
 import com.atara.deb.ataraapi.repository.RolRepository;
 import com.atara.deb.ataraapi.repository.TokenRefreshRepository;
 import com.atara.deb.ataraapi.repository.UsuarioRepository;
@@ -32,8 +34,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -47,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
     private final RolRepository rolRepository;
     private final EmailTokenService emailTokenService;
     private final PasswordEncoder passwordEncoder;
+    private final MateriaRepository materiaRepository;
 
     @Value("${jwt.refresh-expiration-days}")
     private long refreshExpirationDays;
@@ -65,7 +70,8 @@ public class AuthServiceImpl implements AuthService {
                            UsuarioRepository usuarioRepository,
                            RolRepository rolRepository,
                            EmailTokenService emailTokenService,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           MateriaRepository materiaRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.tokenRefreshRepository = tokenRefreshRepository;
@@ -73,6 +79,7 @@ public class AuthServiceImpl implements AuthService {
         this.rolRepository = rolRepository;
         this.emailTokenService = emailTokenService;
         this.passwordEncoder = passwordEncoder;
+        this.materiaRepository = materiaRepository;
     }
 
     /**
@@ -256,6 +263,11 @@ public class AuthServiceImpl implements AuthService {
         Rol rolDocente = rolRepository.findByNombre("DOCENTE")
                 .orElseThrow(() -> new RuntimeException("Rol DOCENTE no encontrado."));
 
+        List<Materia> materias = new ArrayList<>();
+        if (request.getMateriasIds() != null && !request.getMateriasIds().isEmpty()) {
+            materias = materiaRepository.findAllById(request.getMateriasIds());
+        }
+
         Usuario usuario = Usuario.builder()
                 .nombre(request.getNombre().trim())
                 .apellidos(request.getApellidos().trim())
@@ -265,10 +277,31 @@ public class AuthServiceImpl implements AuthService {
                 .estado(EstadoUsuario.ACTIVO)
                 .emailVerificado(false)
                 .debeCambiarPassword(false)
+                .materiasAsignadas(new ArrayList<>(materias))
                 .build();
 
         usuarioRepository.save(usuario);
         emailTokenService.enviarVerificacionNuevoUsuario(usuario.getId());
+    }
+
+    /**
+     * Actualiza las materias asignadas al usuario autenticado.
+     * Reemplaza completamente la lista existente con la nueva selección.
+     */
+    @Override
+    @Transactional
+    public void actualizarMisMaterias(Authentication authentication, List<Integer> materiasIds) {
+        UsuarioPrincipal principal = (UsuarioPrincipal) authentication.getPrincipal();
+        Usuario usuario = usuarioRepository.findById(principal.getUsuario().getId())
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado."));
+
+        List<Materia> materias = materiaRepository.findAllById(materiasIds);
+        if (materias.isEmpty()) {
+            throw new IllegalArgumentException("Las materias seleccionadas no son válidas.");
+        }
+        usuario.getMateriasAsignadas().clear();
+        usuario.getMateriasAsignadas().addAll(materias);
+        usuarioRepository.save(usuario);
     }
 
     // -------------------------------------------------------------------------

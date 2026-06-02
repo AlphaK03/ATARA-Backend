@@ -10,6 +10,8 @@ import com.atara.deb.ataraapi.dto.auth.RegistroRequestDto;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 
+import java.util.List;
+
 public interface AuthService {
 
     LoginResponseDto login(LoginRequestDto request, HttpServletRequest httpRequest);
@@ -23,4 +25,6 @@ public interface AuthService {
     void cambiarPassword(Authentication authentication, String passwordActual, String nuevaPassword);
 
     void registro(RegistroRequestDto request);
+
+    void actualizarMisMaterias(Authentication authentication, List<Integer> materiasIds);
 }

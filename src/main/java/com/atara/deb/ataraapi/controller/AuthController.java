@@ -1,5 +1,6 @@
 package com.atara.deb.ataraapi.controller;
 
+import com.atara.deb.ataraapi.dto.auth.ActualizarMateriasRequestDto;
 import com.atara.deb.ataraapi.dto.auth.CambiarPasswordRequestDto;
 import com.atara.deb.ataraapi.dto.auth.ConfirmarResetRequestDto;
 import com.atara.deb.ataraapi.dto.auth.LoginRequestDto;
@@ -133,6 +134,18 @@ public class AuthController {
             @Valid @RequestBody CambiarPasswordRequestDto request,
             Authentication authentication) {
         authService.cambiarPassword(authentication, request.getPasswordActual(), request.getNuevaPassword());
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * PUT /api/auth/mis-materias
+     * Actualiza las materias asignadas al usuario autenticado.
+     */
+    @PutMapping("/mis-materias")
+    public ResponseEntity<Void> actualizarMisMaterias(
+            @Valid @RequestBody ActualizarMateriasRequestDto request,
+            Authentication authentication) {
+        authService.actualizarMisMaterias(authentication, request.getMateriasIds());
         return ResponseEntity.ok().build();
     }
 }

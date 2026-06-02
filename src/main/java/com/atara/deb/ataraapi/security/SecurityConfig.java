@@ -61,7 +61,8 @@ public class SecurityConfig {
                                      "/api/auth/logout",
                                      "/api/auth/password-reset/solicitar",
                                      "/api/auth/password-reset/confirmar",
-                                     "/api/auth/email/verificar").permitAll()
+                                     "/api/auth/email/verificar",
+                                     "/api/catalogos/saberes/materias").permitAll()
                     .requestMatchers("/actuator/health").permitAll()
                     // El forward interno a /error NO debe exigir autenticación. Spring
                     // re-despacha aquí cualquier 404/500; como JwtAuthenticationFilter es
