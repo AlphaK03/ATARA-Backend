@@ -26,4 +26,12 @@ COPY --from=build /build/target/atara-api-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8081
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# -Xmx380m  : heap máximo — deja margen para Tesseract nativo (~140 MB) + metaspace
+# -Xms128m  : heap inicial — evita que el JVM reserve demasiado al arrancar
+# UseG1GC   : GC más agresivo liberando memoria rápido entre requests
+ENTRYPOINT ["java", \
+  "-Xmx380m", "-Xms128m", \
+  "-XX:MaxMetaspaceSize=120m", \
+  "-XX:+UseG1GC", \
+  "-XX:MaxGCPauseMillis=200", \
+  "-jar", "app.jar"]

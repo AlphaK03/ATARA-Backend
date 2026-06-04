@@ -14,8 +14,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
 import java.util.*;
 import java.util.regex.*;
 
@@ -25,11 +28,11 @@ public class PiadServiceImpl implements PiadService {
     private static final Logger log = LoggerFactory.getLogger(PiadServiceImpl.class);
 
     /**
-     * DPI para renderizado OCR. 200 DPI es suficiente para fuentes estándar de PIAD
-     * y reduce el uso de memoria ~26x respecto a 500 DPI RGB (104 MB → ~4 MB por página).
-     * Subir a 250-300 si se detectan errores de reconocimiento en fuentes muy pequeñas.
+     * DPI para renderizado OCR. 150 DPI es suficiente para texto impreso estándar en PIAD.
+     * Reduce memoria ~44% respecto a 200 DPI (2.5 MB vs 4.4 MB por página en GRAY).
+     * Subir a 200 solo si se detectan errores de reconocimiento en fuentes muy pequeñas.
      */
-    private static final int RENDER_DPI = 200;
+    private static final int RENDER_DPI = 150;
 
     /**
      * Máximo de páginas a procesar de una Lista PIAD.
@@ -63,14 +66,21 @@ public class PiadServiceImpl implements PiadService {
     @Value("${piad.tessdata.dir:}")
     private String tessdataDir;
 
+    private static final MemoryMXBean MEM = ManagementFactory.getMemoryMXBean();
+
+    private static String memMB() {
+        long heap    = MEM.getHeapMemoryUsage().getUsed()    / (1024 * 1024);
+        long nonHeap = MEM.getNonHeapMemoryUsage().getUsed() / (1024 * 1024);
+        return "heap=" + heap + "MB nonHeap=" + nonHeap + "MB";
+    }
+
     @Override
     public List<EstudiantePIADDto> extraerEstudiantes(MultipartFile archivo) throws Exception {
+        log.info("PIAD inicio — {}", memMB());
         byte[] bytes = archivo.getBytes();
         Tesseract tesseract = crearTesseract();
         List<EstudiantePIADDto> resultado = new ArrayList<>();
 
-        // Renderizar y procesar página a página dentro del try-with-resources:
-        // cada BufferedImage se libera al terminar su página, nunca se acumulan en memoria.
         try (PDDocument doc = Loader.loadPDF(bytes)) {
             int totalPaginas = doc.getNumberOfPages();
             if (totalPaginas > MAX_PAGINAS_PIAD) {
@@ -79,50 +89,54 @@ public class PiadServiceImpl implements PiadService {
             }
 
             PDFRenderer renderer = new PDFRenderer(doc);
-            log.info("PDF cargado: {} página(s). Renderizando a {} DPI (escala de grises)...",
-                    totalPaginas, RENDER_DPI);
+            log.info("PDF cargado: {} página(s) — {}", totalPaginas, memMB());
 
             for (int p = 0; p < totalPaginas; p++) {
-                // GRAY usa 1/3 de la memoria de RGB; suficiente para OCR de texto impreso.
+                // GRAY: 1/3 de memoria vs RGB. 150 DPI: ~2.5 MB/página para A4.
                 BufferedImage pagina = renderer.renderImageWithDPI(p, RENDER_DPI, ImageType.GRAY);
-                log.info("Procesando página {}/{} ({}x{} px)", p + 1, totalPaginas,
-                        pagina.getWidth(), pagina.getHeight());
-
+                log.info("Página {}/{} renderizada ({}×{} px) — {}",
+                        p + 1, totalPaginas, pagina.getWidth(), pagina.getHeight(), memMB());
                 try {
                     procesarPagina(pagina, tesseract, resultado);
                 } finally {
-                    // Liberar la imagen explícitamente antes de renderizar la siguiente.
                     pagina.flush();
+                    pagina = null;
                 }
+                log.info("Página {}/{} liberada — {}", p + 1, totalPaginas, memMB());
             }
         }
 
+        bytes = null;
         resultado.sort(Comparator.comparingInt(EstudiantePIADDto::getNumero));
-        log.info("Extracción completada: {} estudiante(s)", resultado.size());
+        log.info("Extracción completada: {} estudiante(s) — {}", resultado.size(), memMB());
         return resultado;
     }
 
     private void procesarPagina(BufferedImage pagina, Tesseract tesseract,
                                  List<EstudiantePIADDto> resultado) {
         List<int[]> filas = agruparBandas(detectarBandas(pagina));
+        int ancho = pagina.getWidth();
+        int alto  = pagina.getHeight();
 
         for (int[] fila : filas) {
             int yStart = fila[0];
             int yEnd   = fila[1];
-            int alto   = yEnd - yStart;
+            int h      = yEnd - yStart;
 
-            if (alto < 8 || alto > 150) continue;
+            if (h < 8 || h > 150) continue;
 
             int yStartPad = Math.max(0, yStart - BAND_PADDING);
-            int yEndPad   = Math.min(pagina.getHeight(), yEnd + BAND_PADDING);
-            BufferedImage recorte = pagina.getSubimage(0, yStartPad, pagina.getWidth(), yEndPad - yStartPad);
+            int yEndPad   = Math.min(alto, yEnd + BAND_PADDING);
 
-            int psm = (alto > 30) ? 6 : 7;
-            tesseract.setPageSegMode(psm);
+            // Pasamos Rectangle a doOCR en vez de crear una BufferedImage subimage:
+            // Tess4J extrae la región internamente sin allocar otro objeto Java.
+            Rectangle rect = new Rectangle(0, yStartPad, ancho, yEndPad - yStartPad);
+
+            tesseract.setPageSegMode(h > 30 ? 6 : 7);
 
             String textoFila;
             try {
-                textoFila = tesseract.doOCR(recorte).trim();
+                textoFila = tesseract.doOCR(pagina, rect).trim();
             } catch (TesseractException e) {
                 log.warn("OCR falló en y={}-{}: {}", yStart, yEnd, e.getMessage());
                 continue;
@@ -139,6 +153,7 @@ public class PiadServiceImpl implements PiadService {
                 resultado.add(est);
                 log.info("✓ Fila {} extraída", est.getNumero());
             }
+            textoFila = null;
         }
     }
 
