@@ -63,7 +63,8 @@ public class ImportacionPiadServiceImpl implements ImportacionPiadService {
 
         LocalDate fecha = request.getFechaMatricula() != null ? request.getFechaMatricula() : LocalDate.now();
 
-        int creados = 0, reutilizados = 0, matriculados = 0, yaMatriculados = 0, errores = 0;
+        int creados = 0, reutilizados = 0, matriculados = 0, yaMatriculados = 0,
+                yaEnOtraSeccion = 0, errores = 0;
         List<FilaImportacionResultadoDto> detalle = new ArrayList<>();
 
         for (EstudianteImportarDto fila : request.getEstudiantes()) {
@@ -75,6 +76,7 @@ public class ImportacionPiadServiceImpl implements ImportacionPiadService {
                     case ImportacionPiadFilaProcessor.CREADO_Y_MATRICULADO -> { creados++; matriculados++; }
                     case ImportacionPiadFilaProcessor.REUTILIZADO_Y_MATRICULADO -> { reutilizados++; matriculados++; }
                     case ImportacionPiadFilaProcessor.YA_MATRICULADO -> { reutilizados++; yaMatriculados++; }
+                    case ImportacionPiadFilaProcessor.YA_EN_OTRA_SECCION -> { reutilizados++; yaEnOtraSeccion++; }
                     default -> { /* no debería ocurrir */ }
                 }
             } catch (Exception e) {
@@ -98,6 +100,7 @@ public class ImportacionPiadServiceImpl implements ImportacionPiadService {
                 .reutilizados(reutilizados)
                 .matriculados(matriculados)
                 .yaMatriculados(yaMatriculados)
+                .yaEnOtraSeccion(yaEnOtraSeccion)
                 .errores(errores)
                 .detalle(detalle)
                 .build();

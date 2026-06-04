@@ -31,6 +31,9 @@ public class ImportarPiadResponseDto {
     /** Estudiantes que ya pertenecían a la sección (omitidos sin error). */
     private int yaMatriculados;
 
+    /** Estudiantes ya matriculados ACTIVO en otra sección del año (omitidos sin error). */
+    private int yaEnOtraSeccion;
+
     /** Filas con error inesperado (la importación no se detiene por ellas). */
     private int errores;
 

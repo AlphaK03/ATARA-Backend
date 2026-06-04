@@ -26,11 +26,36 @@ public interface MatriculaRepository extends JpaRepository<Matricula, Long> {
     boolean existsByEstudianteIdAndAnioLectivoId(Long estudianteId, Long anioLectivoId);
 
     /**
+     * Matrícula del estudiante en un año lectivo filtrada por estado. Se usa para
+     * hacer cumplir la regla "un estudiante = una sección ACTIVA por año": antes de
+     * matricular se busca si ya tiene una matrícula ACTIVO en ese año (en cualquier
+     * otra sección) y, de ser así, se rechaza.
+     */
+    Optional<Matricula> findByEstudianteIdAndAnioLectivoIdAndEstado(
+            Long estudianteId, Long anioLectivoId, EstadoMatricula estado);
+
+    /**
+     * IDs de estudiantes con matrícula en un estado dado para un año lectivo.
+     * Alimenta el filtro del catálogo del wizard: los que ya tienen matrícula ACTIVO
+     * en el año no se ofrecen para una sección nueva (salvo modo edición de su sección).
+     */
+    @Query("SELECT m.estudiante.id FROM Matricula m WHERE m.anioLectivo.id = :anioLectivoId AND m.estado = :estado")
+    List<Long> findEstudianteIdsByAnioLectivoIdAndEstado(
+            @Param("anioLectivoId") Long anioLectivoId, @Param("estado") EstadoMatricula estado);
+
+    /**
      * True si el estudiante ya está matriculado en esa sección concreta.
      * Guarda la unicidad (estudiante_id, seccion_id): un estudiante puede estar
      * en varias secciones del año, pero no dos veces en la misma.
      */
     boolean existsByEstudianteIdAndSeccionId(Long estudianteId, Long seccionId);
+
+    /**
+     * Matrícula existente (en cualquier estado) del estudiante en una sección.
+     * Permite reactivar una matrícula RETIRADO en vez de insertar una nueva fila,
+     * que chocaría con UNIQUE (estudiante_id, seccion_id).
+     */
+    Optional<Matricula> findByEstudianteIdAndSeccionId(Long estudianteId, Long seccionId);
 
     /** True si el estudiante tiene matrícula en alguna de las secciones indicadas. */
     boolean existsByEstudianteIdAndSeccionIdIn(Long estudianteId, java.util.Collection<Long> seccionIds);

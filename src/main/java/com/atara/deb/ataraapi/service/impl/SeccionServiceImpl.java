@@ -195,13 +195,16 @@ public class SeccionServiceImpl implements SeccionService {
         }
 
         // Matricular estudiantes solicitados (si vienen en el DTO).
-        // Un estudiante puede estar en varias secciones del año; aquí solo
-        // deduplicamos por si el id viene repetido en la lista de entrada.
+        // Regla de negocio: un estudiante solo puede tener UNA matrícula ACTIVO por
+        // año lectivo. Como esta sección es nueva, cualquier matrícula ACTIVO previa
+        // del estudiante en el mismo año (en otra sección) es un conflicto.
         if (dto.getEstudiantesIds() != null) {
             for (Long estudianteId : new java.util.LinkedHashSet<>(dto.getEstudiantesIds())) {
                 Estudiante estudiante = estudianteRepository.findById(estudianteId)
                         .orElseThrow(() -> new NoSuchElementException(
                                 "Estudiante no encontrado: " + estudianteId));
+
+                validarSinMatriculaActivaEnOtraSeccion(estudiante, anioLectivo.getId(), null);
 
                 Matricula matricula = Matricula.builder()
                         .estudiante(estudiante)
@@ -267,14 +270,12 @@ public class SeccionServiceImpl implements SeccionService {
      * (correcto para alertas/evaluaciones), pero al crear una sección nueva
      * todavía no hay matrículas con él y la búsqueda no encontraba a nadie.
      *
-     * Devuelve TODOS los estudiantes activos: un estudiante puede pertenecer a
-     * varias secciones del mismo año (una por docente/materia), así que ya no se
-     * excluye a los que estén matriculados en otras secciones. En modo edición el
-     * frontend pre-selecciona a los que ya están en la sección a partir de sus
-     * matrículas, por lo que basta con que el catálogo los incluya.
-     *
-     * Los parámetros {@code anioLectivoId} y {@code seccionId} se conservan por
-     * compatibilidad de la API, pero ya no filtran el resultado.
+     * Regla "un estudiante = una sección ACTIVA por año": si se pasa
+     * {@code anioLectivoId}, se excluyen los estudiantes que ya tienen una matrícula
+     * ACTIVO en ese año (no se pueden agregar a una sección nueva). En modo edición,
+     * si además se pasa {@code seccionId}, se re-incluye a los ya matriculados en ESA
+     * sección para que el frontend pueda pre-seleccionarlos. Sin {@code anioLectivoId}
+     * se preserva el comportamiento legado (devuelve todos los activos).
      */
     @Override
     public List<EstudianteCatalogoDto> listarEstudiantesDisponibles(Long anioLectivoId,
@@ -282,6 +283,22 @@ public class SeccionServiceImpl implements SeccionService {
         // El acceso ya está restringido a ADMIN/DOCENTE en el controller.
         List<Estudiante> estudiantes = estudianteRepository
                 .findByEstadoOrderByApellido1AscApellido2AscNombreAsc(EstadoEstudiante.ACTIVO);
+
+        if (anioLectivoId != null) {
+            // Ya matriculados ACTIVO en el año → no disponibles para otra sección...
+            Set<Long> noDisponibles = new HashSet<>(
+                    matriculaRepository.findEstudianteIdsByAnioLectivoIdAndEstado(
+                            anioLectivoId, EstadoMatricula.ACTIVO));
+            // ...salvo los que ya están en la sección que se edita (modo edición).
+            if (seccionId != null) {
+                matriculaRepository
+                        .findBySeccionIdAndEstado(seccionId, EstadoMatricula.ACTIVO)
+                        .forEach(m -> noDisponibles.remove(m.getEstudiante().getId()));
+            }
+            estudiantes = estudiantes.stream()
+                    .filter(e -> !noDisponibles.contains(e.getId()))
+                    .toList();
+        }
 
         return estudiantes.stream()
                 .map(e -> EstudianteCatalogoDto.builder()
@@ -433,6 +450,23 @@ public class SeccionServiceImpl implements SeccionService {
                     .orElseThrow(() -> new NoSuchElementException(
                             "Estudiante no encontrado: " + estudianteId));
 
+            // Regla "una sección ACTIVA por año": el estudiante no puede entrar a
+            // esta sección si ya está matriculado ACTIVO en otra del mismo año.
+            validarSinMatriculaActivaEnOtraSeccion(estudiante, anioLectivo.getId(), seccion.getId());
+
+            // Si ya hubo una matrícula en ESTA sección (p. ej. RETIRADO por una
+            // limpieza previa), se reactiva en vez de insertar otra fila —que
+            // chocaría con UNIQUE (estudiante_id, seccion_id).
+            Matricula existente = matriculaRepository
+                    .findByEstudianteIdAndSeccionId(estudianteId, seccion.getId())
+                    .orElse(null);
+            if (existente != null) {
+                existente.setEstado(EstadoMatricula.ACTIVO);
+                existente.setFechaMatricula(LocalDate.now());
+                matriculaRepository.save(existente);
+                continue;
+            }
+
             Matricula nueva = Matricula.builder()
                     .estudiante(estudiante)
                     .seccion(seccion)
@@ -449,6 +483,32 @@ public class SeccionServiceImpl implements SeccionService {
                 matriculaRepository.delete(m);
             }
         }
+    }
+
+    /**
+     * Hace cumplir la regla "un estudiante = una sección ACTIVA por año lectivo".
+     * Lanza {@link IllegalArgumentException} (→ 400) con un mensaje claro si el
+     * estudiante ya tiene una matrícula ACTIVO en otra sección del mismo año.
+     *
+     * @param seccionActualId id de la sección que se está creando/editando, para
+     *                        no contar su propia matrícula como conflicto (en
+     *                        creación va {@code null}). El índice único parcial de
+     *                        la BD (V16) respalda esta validación a nivel de datos.
+     */
+    private void validarSinMatriculaActivaEnOtraSeccion(Estudiante estudiante,
+                                                        Long anioLectivoId,
+                                                        Long seccionActualId) {
+        matriculaRepository
+                .findByEstudianteIdAndAnioLectivoIdAndEstado(
+                        estudiante.getId(), anioLectivoId, EstadoMatricula.ACTIVO)
+                .filter(m -> seccionActualId == null
+                        || !m.getSeccion().getId().equals(seccionActualId))
+                .ifPresent(m -> {
+                    throw new IllegalArgumentException(
+                            "El estudiante " + buildNombreCompleto(estudiante)
+                            + " ya está matriculado en otra sección de este año lectivo. "
+                            + "Un estudiante solo puede pertenecer a una sección por ciclo.");
+                });
     }
 
     @Override

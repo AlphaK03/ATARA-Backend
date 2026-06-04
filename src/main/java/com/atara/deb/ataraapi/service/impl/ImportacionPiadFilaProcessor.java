@@ -27,7 +27,12 @@ import java.time.LocalDate;
  * <p>Reglas idempotentes (no lanzan error ante duplicados):
  * <ol>
  *   <li>Estudiante: si ya existe por identificación se reutiliza; si no, se crea.</li>
- *   <li>Matrícula: se crea solo si el estudiante aún no pertenece a la sección.</li>
+ *   <li>Matrícula: se crea solo si el estudiante aún no pertenece a la sección. Si
+ *       tenía una matrícula RETIRADO en esa sección se reactiva (no se inserta otra,
+ *       que chocaría con UNIQUE estudiante+sección).</li>
+ *   <li>Regla "una sección ACTIVA por año": si el estudiante ya está ACTIVO en otra
+ *       sección del mismo año, la fila se omite con estado {@code YA_EN_OTRA_SECCION}
+ *       en vez de reventar contra el índice único de la BD.</li>
  * </ol>
  */
 @Component
@@ -36,6 +41,7 @@ public class ImportacionPiadFilaProcessor {
     public static final String CREADO_Y_MATRICULADO     = "CREADO_Y_MATRICULADO";
     public static final String REUTILIZADO_Y_MATRICULADO = "REUTILIZADO_Y_MATRICULADO";
     public static final String YA_MATRICULADO           = "YA_MATRICULADO";
+    public static final String YA_EN_OTRA_SECCION        = "YA_EN_OTRA_SECCION";
 
     private final EstudianteRepository estudianteRepository;
     private final MatriculaRepository matriculaRepository;
@@ -73,10 +79,24 @@ public class ImportacionPiadFilaProcessor {
             creado = true;
         }
 
-        // ── Paso 2: matricular en la sección solo si aún no lo está ───────────
+        // ── Paso 2: matricular en la sección ──────────────────────────────────
+        Matricula enEstaSeccion = matriculaRepository
+                .findByEstudianteIdAndSeccionId(estudiante.getId(), seccionId)
+                .orElse(null);
+
         String estado;
-        if (matriculaRepository.existsByEstudianteIdAndSeccionId(estudiante.getId(), seccionId)) {
+        if (enEstaSeccion != null && enEstaSeccion.getEstado() == EstadoMatricula.ACTIVO) {
+            // Ya pertenece (ACTIVO) a esta sección → omitir sin error.
             estado = YA_MATRICULADO;
+        } else if (tieneMatriculaActivaEnOtraSeccion(estudiante.getId(), anioLectivoId, seccionId)) {
+            // Regla "una sección ACTIVA por año": ya está activo en otra sección.
+            estado = YA_EN_OTRA_SECCION;
+        } else if (enEstaSeccion != null) {
+            // Existía RETIRADO en esta sección → reactivar (no insertar otra fila).
+            enEstaSeccion.setEstado(EstadoMatricula.ACTIVO);
+            enEstaSeccion.setFechaMatricula(fechaMatricula);
+            matriculaRepository.save(enEstaSeccion);
+            estado = creado ? CREADO_Y_MATRICULADO : REUTILIZADO_Y_MATRICULADO;
         } else {
             // getReferenceById: proxy por id, sin SELECT extra — solo se usa la FK.
             Seccion seccion = seccionRepository.getReferenceById(seccionId);
@@ -99,6 +119,21 @@ public class ImportacionPiadFilaProcessor {
                 .build();
     }
 
+    /**
+     * True si el estudiante ya tiene una matrícula ACTIVO en otra sección del mismo
+     * año lectivo (distinta a la que se está importando). El índice único parcial
+     * {@code uq_estudiante_anio_activo} (V16) garantiza a lo sumo una activa por año.
+     */
+    private boolean tieneMatriculaActivaEnOtraSeccion(Long estudianteId,
+                                                      Long anioLectivoId,
+                                                      Long seccionId) {
+        return matriculaRepository
+                .findByEstudianteIdAndAnioLectivoIdAndEstado(
+                        estudianteId, anioLectivoId, EstadoMatricula.ACTIVO)
+                .filter(m -> !m.getSeccion().getId().equals(seccionId))
+                .isPresent();
+    }
+
     private String normalizarOpcional(String s) {
         if (s == null) return null;
         String t = s.trim();
@@ -119,6 +154,7 @@ public class ImportacionPiadFilaProcessor {
             case CREADO_Y_MATRICULADO      -> "Estudiante nuevo: creado y matriculado.";
             case REUTILIZADO_Y_MATRICULADO -> "Ya existía: matriculado en la sección.";
             case YA_MATRICULADO            -> "Ya pertenecía a la sección: omitido.";
+            case YA_EN_OTRA_SECCION        -> "Ya matriculado en otra sección este año: omitido.";
             default                        -> "";
         };
     }

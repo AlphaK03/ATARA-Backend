@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
  *   <li>{@code CREADO_Y_MATRICULADO} — estudiante nuevo, creado y matriculado.</li>
  *   <li>{@code REUTILIZADO_Y_MATRICULADO} — ya existía; se matriculó en la sección.</li>
  *   <li>{@code YA_MATRICULADO} — ya pertenecía a la sección; se omitió.</li>
+ *   <li>{@code YA_EN_OTRA_SECCION} — ya está activo en otra sección del año; se omitió.</li>
  *   <li>{@code ERROR} — fallo inesperado en esa fila (resto no se detiene).</li>
  * </ul>
  */
