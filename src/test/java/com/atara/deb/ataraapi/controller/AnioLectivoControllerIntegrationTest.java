@@ -34,8 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * todos los cambios (incluida la creación del año en curso) se reviertan al final y
  * no contaminen la BD de desarrollo.
  *
- * <p>Se mockea el {@code JavaMailSender} para que el contexto arranque sin depender
- * de un servidor SMTP.
+ * <p>Se mockea {@code EmailService} para que el contexto arranque sin depender
+ * de la API de Brevo.
  */
 @SpringBootTest
 @Transactional
@@ -45,7 +45,7 @@ class AnioLectivoControllerIntegrationTest {
     @Autowired AnioLectivoRepository anioLectivoRepository;
     @Autowired PeriodoRepository periodoRepository;
 
-    @MockitoBean org.springframework.mail.javamail.JavaMailSender javaMailSender;
+    @MockitoBean com.atara.deb.ataraapi.service.EmailService emailService;
 
     private MockMvc mockMvc;
 

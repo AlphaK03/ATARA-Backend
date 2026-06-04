@@ -24,13 +24,16 @@ public class PiadServiceImpl implements PiadService {
 
     private static final Logger log = LoggerFactory.getLogger(PiadServiceImpl.class);
 
-    /** DPI para renderizado — 500 captura mejor letras delgadas ('i', 'l') en fuentes pequeñas. */
-    private static final int RENDER_DPI = 500;
+    /**
+     * DPI para renderizado OCR. 200 DPI es suficiente para fuentes estándar de PIAD
+     * y reduce el uso de memoria ~26x respecto a 500 DPI RGB (104 MB → ~4 MB por página).
+     * Subir a 250-300 si se detectan errores de reconocimiento en fuentes muy pequeñas.
+     */
+    private static final int RENDER_DPI = 200;
 
     /**
-     * Máximo de páginas a renderizar de una Lista PIAD. Cada página a 500 DPI ocupa
-     * decenas de MB en memoria; sin esta cota un PDF pequeño con cientos de páginas
-     * podría agotar el heap (DoS). Una lista real tiene unas pocas páginas.
+     * Máximo de páginas a procesar de una Lista PIAD.
+     * Sin esta cota un PDF manipulado podría agotar el heap (DoS).
      */
     private static final int MAX_PAGINAS_PIAD = 20;
 
@@ -63,50 +66,33 @@ public class PiadServiceImpl implements PiadService {
     @Override
     public List<EstudiantePIADDto> extraerEstudiantes(MultipartFile archivo) throws Exception {
         byte[] bytes = archivo.getBytes();
-        List<BufferedImage> paginas = renderizarPDF(bytes);
-
         Tesseract tesseract = crearTesseract();
         List<EstudiantePIADDto> resultado = new ArrayList<>();
 
-        for (int p = 0; p < paginas.size(); p++) {
-            BufferedImage pagina = paginas.get(p);
-            log.info("Procesando página {}/{} ({}x{} px)", p + 1, paginas.size(), pagina.getWidth(), pagina.getHeight());
+        // Renderizar y procesar página a página dentro del try-with-resources:
+        // cada BufferedImage se libera al terminar su página, nunca se acumulan en memoria.
+        try (PDDocument doc = Loader.loadPDF(bytes)) {
+            int totalPaginas = doc.getNumberOfPages();
+            if (totalPaginas > MAX_PAGINAS_PIAD) {
+                throw new IllegalArgumentException(
+                    "El PDF tiene " + totalPaginas + " páginas; el máximo permitido es " + MAX_PAGINAS_PIAD + ".");
+            }
 
-            List<int[]> filas = agruparBandas(detectarBandas(pagina));
+            PDFRenderer renderer = new PDFRenderer(doc);
+            log.info("PDF cargado: {} página(s). Renderizando a {} DPI (escala de grises)...",
+                    totalPaginas, RENDER_DPI);
 
-            for (int[] fila : filas) {
-                int yStart = fila[0];
-                int yEnd   = fila[1];
-                int alto   = yEnd - yStart;
+            for (int p = 0; p < totalPaginas; p++) {
+                // GRAY usa 1/3 de la memoria de RGB; suficiente para OCR de texto impreso.
+                BufferedImage pagina = renderer.renderImageWithDPI(p, RENDER_DPI, ImageType.GRAY);
+                log.info("Procesando página {}/{} ({}x{} px)", p + 1, totalPaginas,
+                        pagina.getWidth(), pagina.getHeight());
 
-                if (alto < 8 || alto > 150) continue;
-
-                int yStartPad = Math.max(0, yStart - BAND_PADDING);
-                int yEndPad   = Math.min(pagina.getHeight(), yEnd + BAND_PADDING);
-                BufferedImage recorte = pagina.getSubimage(0, yStartPad, pagina.getWidth(), yEndPad - yStartPad);
-
-                int psm = (alto > 30) ? 6 : 7;
-                tesseract.setPageSegMode(psm);
-
-                String textoFila;
                 try {
-                    textoFila = tesseract.doOCR(recorte).trim();
-                } catch (TesseractException e) {
-                    log.warn("OCR falló en y={}-{}: {}", yStart, yEnd, e.getMessage());
-                    continue;
-                }
-
-                textoFila = normalizarLineaOCR(textoFila);
-                if (textoFila.isEmpty()) continue;
-
-                Matcher cedulaMatcher = CEDULA.matcher(textoFila);
-                if (!cedulaMatcher.find()) continue;
-
-                EstudiantePIADDto est = parsearLinea(textoFila, cedulaMatcher);
-                if (est != null) {
-                    resultado.add(est);
-                    // No se registra cédula ni nombre (PII de menores): solo el número de fila.
-                    log.info("✓ Fila {} extraída", est.getNumero());
+                    procesarPagina(pagina, tesseract, resultado);
+                } finally {
+                    // Liberar la imagen explícitamente antes de renderizar la siguiente.
+                    pagina.flush();
                 }
             }
         }
@@ -116,25 +102,44 @@ public class PiadServiceImpl implements PiadService {
         return resultado;
     }
 
-    // ─── Renderizado PDF → imágenes ───────────────────────────────────────────
+    private void procesarPagina(BufferedImage pagina, Tesseract tesseract,
+                                 List<EstudiantePIADDto> resultado) {
+        List<int[]> filas = agruparBandas(detectarBandas(pagina));
 
-    private List<BufferedImage> renderizarPDF(byte[] bytes) throws Exception {
-        List<BufferedImage> paginas = new ArrayList<>();
-        try (PDDocument doc = Loader.loadPDF(bytes)) {
-            int totalPaginas = doc.getNumberOfPages();
-            // Cota de páginas para evitar agotar memoria con un PDF manipulado (DoS).
-            if (totalPaginas > MAX_PAGINAS_PIAD) {
-                throw new IllegalArgumentException(
-                    "El PDF tiene " + totalPaginas + " páginas; el máximo permitido para una Lista PIAD es "
-                    + MAX_PAGINAS_PIAD + ".");
+        for (int[] fila : filas) {
+            int yStart = fila[0];
+            int yEnd   = fila[1];
+            int alto   = yEnd - yStart;
+
+            if (alto < 8 || alto > 150) continue;
+
+            int yStartPad = Math.max(0, yStart - BAND_PADDING);
+            int yEndPad   = Math.min(pagina.getHeight(), yEnd + BAND_PADDING);
+            BufferedImage recorte = pagina.getSubimage(0, yStartPad, pagina.getWidth(), yEndPad - yStartPad);
+
+            int psm = (alto > 30) ? 6 : 7;
+            tesseract.setPageSegMode(psm);
+
+            String textoFila;
+            try {
+                textoFila = tesseract.doOCR(recorte).trim();
+            } catch (TesseractException e) {
+                log.warn("OCR falló en y={}-{}: {}", yStart, yEnd, e.getMessage());
+                continue;
             }
-            PDFRenderer renderer = new PDFRenderer(doc);
-            log.info("PDF cargado: {} página(s). Renderizando a {} DPI...", totalPaginas, RENDER_DPI);
-            for (int i = 0; i < totalPaginas; i++) {
-                paginas.add(renderer.renderImageWithDPI(i, RENDER_DPI, ImageType.RGB));
+
+            textoFila = normalizarLineaOCR(textoFila);
+            if (textoFila.isEmpty()) continue;
+
+            Matcher cedulaMatcher = CEDULA.matcher(textoFila);
+            if (!cedulaMatcher.find()) continue;
+
+            EstudiantePIADDto est = parsearLinea(textoFila, cedulaMatcher);
+            if (est != null) {
+                resultado.add(est);
+                log.info("✓ Fila {} extraída", est.getNumero());
             }
         }
-        return paginas;
     }
 
     // ─── Detección de bandas horizontales ────────────────────────────────────

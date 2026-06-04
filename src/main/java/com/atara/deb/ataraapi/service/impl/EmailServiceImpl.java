@@ -29,8 +29,8 @@ public class EmailServiceImpl implements EmailService {
     @Value("${brevo.from-name}")
     private String fromName;
 
-    public EmailServiceImpl(RestClient.Builder restClientBuilder) {
-        this.restClient = restClientBuilder.build();
+    public EmailServiceImpl() {
+        this.restClient = RestClient.create();
     }
 
     @Override
