@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.awt.Rectangle;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.lang.management.ManagementFactory;
@@ -26,232 +26,198 @@ import java.util.regex.*;
 public class PiadServiceImpl implements PiadService {
 
     private static final Logger log = LoggerFactory.getLogger(PiadServiceImpl.class);
+    private static final MemoryMXBean MEM = ManagementFactory.getMemoryMXBean();
 
     /**
-     * DPI para renderizado OCR. 150 DPI es suficiente para texto impreso estándar en PIAD.
-     * Reduce memoria ~44% respecto a 200 DPI (2.5 MB vs 4.4 MB por página en GRAY).
-     * Subir a 200 solo si se detectan errores de reconocimiento en fuentes muy pequeñas.
+     * 100 DPI: ~690×977 px en GRAY para A4 = ~0.67 MB por página.
+     * Suficiente para texto impreso de tamaño estándar en listas PIAD.
+     * Subir a 120 si hay errores de reconocimiento en cédulas pequeñas.
      */
-    private static final int RENDER_DPI = 150;
+    private static final int RENDER_DPI = 100;
 
-    /**
-     * Máximo de páginas a procesar de una Lista PIAD.
-     * Sin esta cota un PDF manipulado podría agotar el heap (DoS).
-     */
+    /** Porcentaje superior a ignorar (encabezado: logos, título, datos del centro). */
+    private static final double CROP_TOP    = 0.18;
+
+    /** Porcentaje inferior a ignorar (pie de página: firmas, leyendas). */
+    private static final double CROP_BOTTOM = 0.08;
+
     private static final int MAX_PAGINAS_PIAD = 20;
-
-    private static final int BRIGHTNESS_THRESHOLD = 245;
-    private static final int MIN_GAP_HEIGHT        = 2;
-    private static final int BAND_PADDING          = 4;
 
     private static final Pattern CEDULA = Pattern.compile(
         "(\\d-\\d{3,5}-[\\dU]{3,5}|[A-Z]{1,3}\\d{4,}-[\\d/|]+)"
     );
-
     private static final Pattern TIPO_ADECUACION = Pattern.compile(
         "(Si?n adecuaci[oó]n|Con adecuaci[oó]n|"
         + "Adecuaci[oó]n significativa|Adecuaci[oó]n no significativa|"
         + "Adecuaci[oó]n de acceso)",
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
     );
-
     private static final Pattern NIVEL = Pattern.compile(
         "([PF]r[a-záéíóúñ]{2,7}ro|Primero|Segundo|Tercero|Cuarto|Quinto|Sexto"
         + "|S[eé]timo|Octavo|Noveno|D[eé]cimo|Und[eé]cimo)",
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
     );
-
     private static final Pattern FECHA = Pattern.compile("(\\d{1,2}/\\d{1,2}/\\d{1,4})");
 
     @Value("${piad.tessdata.dir:}")
     private String tessdataDir;
 
-    private static final MemoryMXBean MEM = ManagementFactory.getMemoryMXBean();
-
-    private static String memMB() {
-        long heap    = MEM.getHeapMemoryUsage().getUsed()    / (1024 * 1024);
-        long nonHeap = MEM.getNonHeapMemoryUsage().getUsed() / (1024 * 1024);
-        return "heap=" + heap + "MB nonHeap=" + nonHeap + "MB";
-    }
+    // ── Entrada principal ────────────────────────────────────────────────────
 
     @Override
     public List<EstudiantePIADDto> extraerEstudiantes(MultipartFile archivo) throws Exception {
-        log.info("PIAD inicio — {}", memMB());
-        byte[] bytes = archivo.getBytes();
-        Tesseract tesseract = crearTesseract();
+        log.info("PIAD inicio — {}", mem());
+
+        // Transferir a archivo temporal para no cargar el PDF completo en heap Java.
+        File temp = File.createTempFile("piad_", ".pdf");
+        try {
+            archivo.transferTo(temp);
+            log.info("PDF en temp ({} KB) — {}", temp.length() / 1024, mem());
+            return procesarPDF(temp);
+        } finally {
+            temp.delete();
+        }
+    }
+
+    // ── Procesamiento del PDF ────────────────────────────────────────────────
+
+    private List<EstudiantePIADDto> procesarPDF(File pdfFile) throws Exception {
         List<EstudiantePIADDto> resultado = new ArrayList<>();
 
-        try (PDDocument doc = Loader.loadPDF(bytes)) {
+        log.info("Cargando PDF — {}", mem());
+        try (PDDocument doc = Loader.loadPDF(pdfFile)) {
             int totalPaginas = doc.getNumberOfPages();
             if (totalPaginas > MAX_PAGINAS_PIAD) {
                 throw new IllegalArgumentException(
-                    "El PDF tiene " + totalPaginas + " páginas; el máximo permitido es " + MAX_PAGINAS_PIAD + ".");
+                    "El PDF tiene " + totalPaginas + " páginas; el máximo permitido es "
+                    + MAX_PAGINAS_PIAD + ".");
             }
+            log.info("PDF cargado: {} página(s) — {}", totalPaginas, mem());
 
             PDFRenderer renderer = new PDFRenderer(doc);
-            log.info("PDF cargado: {} página(s) — {}", totalPaginas, memMB());
+            Tesseract tesseract = crearTesseract();
 
             for (int p = 0; p < totalPaginas; p++) {
-                // GRAY: 1/3 de memoria vs RGB. 150 DPI: ~2.5 MB/página para A4.
-                BufferedImage pagina = renderer.renderImageWithDPI(p, RENDER_DPI, ImageType.GRAY);
-                log.info("Página {}/{} renderizada ({}×{} px) — {}",
-                        p + 1, totalPaginas, pagina.getWidth(), pagina.getHeight(), memMB());
-                try {
-                    procesarPagina(pagina, tesseract, resultado);
-                } finally {
-                    pagina.flush();
-                    pagina = null;
-                }
-                log.info("Página {}/{} liberada — {}", p + 1, totalPaginas, memMB());
+                procesarPagina(renderer, tesseract, p, totalPaginas, resultado);
             }
         }
 
-        bytes = null;
         resultado.sort(Comparator.comparingInt(EstudiantePIADDto::getNumero));
-        log.info("Extracción completada: {} estudiante(s) — {}", resultado.size(), memMB());
+        log.info("Extracción completada: {} estudiante(s) — {}", resultado.size(), mem());
         return resultado;
     }
 
-    private void procesarPagina(BufferedImage pagina, Tesseract tesseract,
-                                 List<EstudiantePIADDto> resultado) {
-        List<int[]> filas = agruparBandas(detectarBandas(pagina));
-        int ancho = pagina.getWidth();
+    private void procesarPagina(PDFRenderer renderer, Tesseract tesseract,
+                                 int p, int total,
+                                 List<EstudiantePIADDto> resultado) throws Exception {
+        BufferedImage pagina = null;
+        BufferedImage tabla  = null;
+
+        try {
+            // 1. Renderizar página completa en escala de grises.
+            pagina = renderer.renderImageWithDPI(p, RENDER_DPI, ImageType.GRAY);
+            log.info("Página {}/{} renderizada ({}×{} px) — {}",
+                    p + 1, total, pagina.getWidth(), pagina.getHeight(), mem());
+
+            // 2. Recortar solo el área de la tabla (descartar encabezado y pie).
+            tabla = recortarAreaTabla(pagina);
+            log.info("Tabla recortada ({}×{} px) — {}", tabla.getWidth(), tabla.getHeight(), mem());
+
+            // 3. Liberar la página completa ANTES del OCR para reducir el pico.
+            pagina.flush();
+            pagina = null;
+            log.info("Página liberada — {}", mem());
+
+            // 4. Un solo OCR sobre el área de tabla (PSM 4: columna de texto).
+            log.info("Iniciando OCR — {}", mem());
+            String textoCompleto = tesseract.doOCR(tabla);
+            log.info("OCR completado — {}", mem());
+
+            // 5. Parsear el texto resultante línea por línea.
+            parsearTextoOCR(textoCompleto, resultado);
+            log.info("Parseo completado: {} estudiante(s) acumulados — {}",
+                    resultado.size(), mem());
+
+        } catch (TesseractException e) {
+            log.warn("OCR falló en página {}: {}", p + 1, e.getMessage());
+        } finally {
+            if (pagina != null) { pagina.flush(); pagina = null; }
+            if (tabla  != null) { tabla.flush();  tabla  = null; }
+        }
+    }
+
+    // ── Recorte de área de tabla ─────────────────────────────────────────────
+
+    /**
+     * Crea una copia independiente (no una subimage view) del área de la tabla,
+     * eliminando el encabezado y el pie de página. Al ser una copia independiente,
+     * la página original puede ser liberada antes de ejecutar el OCR.
+     */
+    private BufferedImage recortarAreaTabla(BufferedImage pagina) {
         int alto  = pagina.getHeight();
+        int ancho = pagina.getWidth();
 
-        for (int[] fila : filas) {
-            int yStart = fila[0];
-            int yEnd   = fila[1];
-            int h      = yEnd - yStart;
+        int yInicio = (int)(alto * CROP_TOP);
+        int yFin    = (int)(alto * (1.0 - CROP_BOTTOM));
+        int altoCrop = yFin - yInicio;
 
-            if (h < 8 || h > 150) continue;
+        // BufferedImage.TYPE_BYTE_GRAY para mantener escala de grises sin conversión.
+        BufferedImage copia = new BufferedImage(ancho, altoCrop, BufferedImage.TYPE_BYTE_GRAY);
+        Graphics2D g = copia.createGraphics();
+        try {
+            g.drawImage(pagina, 0, -yInicio, null);
+        } finally {
+            g.dispose();
+        }
+        return copia;
+    }
 
-            int yStartPad = Math.max(0, yStart - BAND_PADDING);
-            int yEndPad   = Math.min(alto, yEnd + BAND_PADDING);
+    // ── Parseo de texto OCR ──────────────────────────────────────────────────
 
-            // Pasamos Rectangle a doOCR en vez de crear una BufferedImage subimage:
-            // Tess4J extrae la región internamente sin allocar otro objeto Java.
-            Rectangle rect = new Rectangle(0, yStartPad, ancho, yEndPad - yStartPad);
+    /**
+     * Divide el texto OCR por líneas y aplica los mismos patrones de extracción
+     * que el parser original. No lanza excepción si una línea no coincide.
+     */
+    private void parsearTextoOCR(String textoCompleto, List<EstudiantePIADDto> resultado) {
+        if (textoCompleto == null || textoCompleto.isBlank()) return;
 
-            tesseract.setPageSegMode(h > 30 ? 6 : 7);
+        String[] lineas = textoCompleto.split("[\\r\\n]+");
+        for (String lineaRaw : lineas) {
+            String linea = normalizarLineaOCR(lineaRaw);
+            if (linea.isEmpty()) continue;
 
-            String textoFila;
-            try {
-                textoFila = tesseract.doOCR(pagina, rect).trim();
-            } catch (TesseractException e) {
-                log.warn("OCR falló en y={}-{}: {}", yStart, yEnd, e.getMessage());
-                continue;
-            }
-
-            textoFila = normalizarLineaOCR(textoFila);
-            if (textoFila.isEmpty()) continue;
-
-            Matcher cedulaMatcher = CEDULA.matcher(textoFila);
+            Matcher cedulaMatcher = CEDULA.matcher(linea);
             if (!cedulaMatcher.find()) continue;
 
-            EstudiantePIADDto est = parsearLinea(textoFila, cedulaMatcher);
+            EstudiantePIADDto est = parsearLinea(linea, cedulaMatcher);
             if (est != null) {
                 resultado.add(est);
                 log.info("✓ Fila {} extraída", est.getNumero());
             }
-            textoFila = null;
         }
     }
 
-    // ─── Detección de bandas horizontales ────────────────────────────────────
+    // ── Configuración Tesseract ──────────────────────────────────────────────
 
-    private List<int[]> detectarBandas(BufferedImage imagen) {
-        int ancho = imagen.getWidth();
-        int alto  = imagen.getHeight();
-        List<int[]> bandas = new ArrayList<>();
-
-        boolean enBanda    = false;
-        int     bandaStart = 0;
-        int     gapCount   = 0;
-
-        for (int y = 0; y < alto; y++) {
-            long sumaRGB = 0;
-            int  muestras = 0;
-            for (int x = 0; x < ancho; x += 4) {
-                int rgb = imagen.getRGB(x, y);
-                int r = (rgb >> 16) & 0xFF;
-                int g = (rgb >> 8)  & 0xFF;
-                int b = rgb & 0xFF;
-                sumaRGB += (r + g + b) / 3;
-                muestras++;
-            }
-            boolean filaVacia = ((double) sumaRGB / muestras) >= BRIGHTNESS_THRESHOLD;
-
-            if (!enBanda && !filaVacia) {
-                enBanda    = true;
-                bandaStart = y;
-                gapCount   = 0;
-            } else if (enBanda && filaVacia) {
-                gapCount++;
-                if (gapCount >= MIN_GAP_HEIGHT) {
-                    enBanda = false;
-                    bandas.add(new int[]{bandaStart, y - gapCount + 1});
-                    gapCount = 0;
-                }
-            } else if (enBanda) {
-                gapCount = 0;
-            }
-        }
-
-        if (enBanda) bandas.add(new int[]{bandaStart, alto});
-        return bandas;
-    }
-
-    private List<int[]> agruparBandas(List<int[]> bandas) {
-        final int MAX_INTRA_ROW_GAP = 12;
-        List<int[]> grupos = new ArrayList<>();
-        if (bandas.isEmpty()) return grupos;
-
-        int gStart = bandas.get(0)[0];
-        int gEnd   = bandas.get(0)[1];
-
-        for (int i = 1; i < bandas.size(); i++) {
-            int bStart = bandas.get(i)[0];
-            int bEnd   = bandas.get(i)[1];
-            if (bStart - gEnd <= MAX_INTRA_ROW_GAP) {
-                gEnd = bEnd;
-            } else {
-                grupos.add(new int[]{gStart, gEnd});
-                gStart = bStart;
-                gEnd   = bEnd;
-            }
-        }
-        grupos.add(new int[]{gStart, gEnd});
-        return grupos;
-    }
-
-    // ─── Configuración Tesseract ──────────────────────────────────────────────
+    private static final String OCR_LANG = "spa";
 
     private Tesseract crearTesseract() {
         Tesseract t = new Tesseract();
         t.setDatapath(resolverRutaTessdata());
         t.setLanguage(OCR_LANG);
-        t.setPageSegMode(7);
+        // PSM 4: columna de texto de tamaño variable — adecuado para tabla PIAD.
+        t.setPageSegMode(4);
         t.setOcrEngineMode(1);
+        // Evitar warnings de DPI en logs de Tesseract.
+        t.setTessVariable("user_defined_dpi", String.valueOf(RENDER_DPI));
         return t;
     }
 
-    /** Idioma usado por Tesseract; el modelo correspondiente debe existir como {LANG}.traineddata. */
-    private static final String OCR_LANG = "spa";
-
-    /**
-     * Resuelve la carpeta de tessdata que efectivamente contiene el modelo de
-     * idioma ({@code spa.traineddata}). Antes esta función devolvía el primer
-     * directorio existente aunque NO tuviera el modelo, lo que provocaba que
-     * Tesseract fallara fila por fila (excepción capturada y descartada) y la
-     * extracción terminara con 0 estudiantes sin explicación. Ahora exige que
-     * el modelo exista y, si no lo encuentra en ningún lado, falla de forma
-     * explícita con un mensaje accionable.
-     */
     private String resolverRutaTessdata() {
         List<String> candidatos = new ArrayList<>();
         if (tessdataDir != null && !tessdataDir.isBlank()) {
-            candidatos.add(tessdataDir);                                   // ruta configurada (puede ser relativa)
-            candidatos.add(new File(tessdataDir).getAbsolutePath());       // misma ruta resuelta a absoluta
+            candidatos.add(tessdataDir);
+            candidatos.add(new File(tessdataDir).getAbsolutePath());
         }
         String env = System.getenv("TESSDATA_PREFIX");
         if (env != null && !env.isBlank()) {
@@ -264,24 +230,19 @@ public class PiadServiceImpl implements PiadService {
         candidatos.add("/usr/local/share/tessdata");
 
         for (String path : candidatos) {
-            File dir = new File(path);
+            File dir    = new File(path);
             File modelo = new File(dir, OCR_LANG + ".traineddata");
             if (dir.isDirectory() && modelo.isFile()) {
-                log.info("Tessdata: {} (modelo {}.traineddata encontrado)", dir.getAbsolutePath(), OCR_LANG);
+                log.info("Tessdata: {} (spa.traineddata encontrado)", dir.getAbsolutePath());
                 return dir.getAbsolutePath();
             }
         }
-
-        String mensaje = "No se encontró el modelo de idioma '" + OCR_LANG + ".traineddata' para el OCR. "
-                + "Descárguelo de https://github.com/tesseract-ocr/tessdata/raw/main/" + OCR_LANG + ".traineddata "
-                + "y colóquelo en la carpeta configurada por 'piad.tessdata.dir' (actual: '" + tessdataDir + "'), "
-                + "o instale el paquete del sistema (tesseract-ocr-" + OCR_LANG + ") en el entorno de despliegue. "
-                + "Rutas revisadas: " + candidatos;
-        log.error(mensaje);
-        throw new IllegalStateException(mensaje);
+        String msg = "No se encontró spa.traineddata. Rutas revisadas: " + candidatos;
+        log.error(msg);
+        throw new IllegalStateException(msg);
     }
 
-    // ─── Parseo de línea OCR ──────────────────────────────────────────────────
+    // ── Parseo de línea individual ───────────────────────────────────────────
 
     private EstudiantePIADDto parsearLinea(String linea, Matcher cedulaMatcher) {
         try {
@@ -299,8 +260,7 @@ public class PiadServiceImpl implements PiadService {
 
             Matcher tipoMatcher = TIPO_ADECUACION.matcher(sufijo);
             if (!tipoMatcher.find()) {
-                // El texto OCR contiene PII (nombres): solo a DEBUG.
-                log.debug("Fila {}: tipo adecuación no encontrado en: {}", numero, sufijo);
+                log.debug("Fila {}: tipo adecuación no encontrado", numero);
                 return null;
             }
 
@@ -314,8 +274,7 @@ public class PiadServiceImpl implements PiadService {
                 if (!limpio.isEmpty()) tokens.add(limpio);
             }
             if (tokens.size() < 3) {
-                // antesDelTipo contiene los apellidos/nombre (PII): solo a DEBUG.
-                log.debug("Fila {}: tokens insuficientes para nombre ({})", numero, tokens.size());
+                log.debug("Fila {}: tokens insuficientes ({})", numero, tokens.size());
                 return null;
             }
 
@@ -325,7 +284,7 @@ public class PiadServiceImpl implements PiadService {
 
             Matcher nivelMatcher = NIVEL.matcher(despuesDelTipo);
             if (!nivelMatcher.find()) {
-                log.warn("Fila {}: nivel no encontrado en: {}", numero, despuesDelTipo);
+                log.warn("Fila {}: nivel no encontrado", numero);
                 return null;
             }
             String nivel           = nivelMatcher.group(1);
@@ -360,14 +319,18 @@ public class PiadServiceImpl implements PiadService {
                 .build();
 
         } catch (Exception e) {
-            // 'linea' contiene cédula y nombres (PII): el contenido solo a DEBUG.
-            log.warn("Error parseando una línea PIAD: {}", e.getMessage());
-            log.debug("Línea PIAD con error: {}", linea);
+            log.warn("Error parseando línea PIAD: {}", e.getMessage());
             return null;
         }
     }
 
-    // ─── Utilidades ───────────────────────────────────────────────────────────
+    // ── Utilidades ────────────────────────────────────────────────────────────
+
+    private static String mem() {
+        long heap    = MEM.getHeapMemoryUsage().getUsed()    / (1024 * 1024);
+        long nonHeap = MEM.getNonHeapMemoryUsage().getUsed() / (1024 * 1024);
+        return "heap=" + heap + "MB nonHeap=" + nonHeap + "MB";
+    }
 
     private int extraerNumeroFila(String prefijo) {
         if (prefijo.isEmpty()) return -1;
