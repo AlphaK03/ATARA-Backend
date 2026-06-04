@@ -1,0 +1,13 @@
+target/
+.git/
+.gitignore
+.agents/
+.claude/
+skills-lock.json
+*.md
+.env
+src/main/resources/application-local.properties
+
+# Del directorio scripts solo se necesita el tessdata
+scripts/
+!scripts/extractor-piad/tessdata/spa.traineddata

@@ -1,4 +1,7 @@
 services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  # Se levanta siempre: tanto en desarrollo local como en producción.
   postgres:
     image: postgres:17
     container_name: atara-postgres
@@ -6,9 +9,7 @@ services:
     environment:
       POSTGRES_DB: atara_db
       POSTGRES_USER: atara_user
-      # Valor tomado de la variable de entorno PGPASSWORD.
-      # En desarrollo local definirla en un archivo .env en la raíz del proyecto (gitignoreado).
-      POSTGRES_PASSWORD: ${PGPASSWORD:-atara_pass_123}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
     ports:
       - "5433:5432"
     volumes:
@@ -18,6 +19,37 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── Backend Spring Boot ────────────────────────────────────────────────────
+  # Solo se levanta en producción: docker-compose --profile prod up -d
+  # En desarrollo local usar: ./mvnw spring-boot:run
+  backend:
+    profiles: [prod]
+    build: .
+    container_name: atara-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # Base de datos — apunta al servicio postgres de esta red interna
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: atara_db
+      PGUSER: atara_user
+      PGPASSWORD: ${PGPASSWORD}
+      # Correo
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      # Seguridad
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      # Frontend
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # OCR — ruta dentro del contenedor donde se copió spa.traineddata
+      PIAD_TESSDATA_DIR: /usr/share/tessdata
+    ports:
+      - "${PORT:-8081}:8081"
 
 volumes:
   atara_postgres_data:
