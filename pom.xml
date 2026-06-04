@@ -103,12 +103,6 @@
 			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 
-		<!-- Envío de correos SMTP -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-mail</artifactId>
-		</dependency>
-
 		<!-- PDF → imagen (OCR de Lista PIAD) -->
 		<dependency>
 			<groupId>org.apache.pdfbox</groupId>
