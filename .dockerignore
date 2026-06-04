@@ -8,6 +8,9 @@ skills-lock.json
 .env
 src/main/resources/application-local.properties
 
-# Del directorio scripts solo se necesita el tessdata
-scripts/
-!scripts/extractor-piad/tessdata/spa.traineddata
+# Del directorio scripts solo se necesita tessdata/spa.traineddata
+scripts/extractor-piad/src/
+scripts/extractor-piad/pom.xml
+scripts/extractor-piad/ejecutar.bat
+scripts/extractor-piad/tessdata/INSTRUCCIONES.md
+scripts/extractor-piad/tessdata/.gitignore
