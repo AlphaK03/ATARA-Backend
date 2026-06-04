@@ -1,74 +1,92 @@
 package com.atara.deb.ataraapi.service.impl;
 
 import com.atara.deb.ataraapi.service.EmailService;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailServiceImpl implements EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailServiceImpl.class);
 
-    private final JavaMailSender mailSender;
+    private static final String BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 
-    @Value("${spring.mail.username}")
-    private String remitente;
+    private final RestClient restClient;
 
-    public EmailServiceImpl(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
+    @Value("${brevo.api-key}")
+    private String apiKey;
+
+    @Value("${brevo.from-email}")
+    private String fromEmail;
+
+    @Value("${brevo.from-name}")
+    private String fromName;
+
+    public EmailServiceImpl(RestClient.Builder restClientBuilder) {
+        this.restClient = restClientBuilder.build();
     }
 
     @Override
     public void enviarCodigoReset(String destinatario, String nombreUsuario, String codigo) {
-        enviar(destinatario, "ATARA — Código para restablecer tu contraseña", htmlReset(nombreUsuario, codigo));
+        enviar(destinatario, "ATARA — Código para restablecer tu contraseña",
+                htmlReset(nombreUsuario, codigo));
     }
 
     @Override
     public void enviarBienvenida(String destinatario, String nombreUsuario, String passwordTemporal) {
-        enviar(destinatario, "ATARA — Tu cuenta ha sido creada", htmlBienvenida(nombreUsuario, destinatario, passwordTemporal));
+        enviar(destinatario, "ATARA — Tu cuenta ha sido creada",
+                htmlBienvenida(nombreUsuario, destinatario, passwordTemporal));
     }
 
     @Override
     public void enviarVerificacionEmail(String destinatario, String nombreUsuario, String urlVerificacion) {
-        enviar(destinatario, "ATARA — Verifica tu correo electrónico", htmlVerificacion(nombreUsuario, urlVerificacion));
+        enviar(destinatario, "ATARA — Verifica tu correo electrónico",
+                htmlVerificacion(nombreUsuario, urlVerificacion));
     }
 
     @Override
     public void enviarPrueba(String destinatario) {
-        // Sin @Async ni try/catch: lanza la excepción para que el caller la reciba
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(remitente, "ATARA — Notificaciones");
-            helper.setTo(destinatario);
-            helper.setSubject("ATARA — Prueba de conexión SMTP");
-            helper.setText("<p>Correo de prueba enviado correctamente desde ATARA.</p>", true);
-            mailSender.send(message);
-        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
-            throw new RuntimeException("SMTP error: " + e.getMessage(), e);
-        }
+        // Síncrono y sin captura: lanza excepción si Brevo falla — solo para diagnóstico.
+        restClient.post()
+                .uri(BREVO_URL)
+                .header("api-key", apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(buildPayload(destinatario, "ATARA — Prueba de conexión",
+                        "<p>Correo de prueba enviado correctamente desde ATARA via Brevo.</p>"))
+                .retrieve()
+                .toBodilessEntity();
     }
+
+    // ── Envío interno ─────────────────────────────────────────────────────────
 
     private void enviar(String destinatario, String asunto, String html) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(remitente, "ATARA — Notificaciones");
-            helper.setTo(destinatario);
-            helper.setSubject(asunto);
-            helper.setText(html, true);
-            mailSender.send(message);
-        } catch (MessagingException | java.io.UnsupportedEncodingException | MailException e) {
-            // Por el framework de logging y sin volcar la dirección (PII): solo asunto + causa.
-            log.warn("Error al enviar correo (asunto='{}'): {}", asunto, e.getMessage());
+            restClient.post()
+                    .uri(BREVO_URL)
+                    .header("api-key", apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(buildPayload(destinatario, asunto, html))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.warn("Error al enviar correo via Brevo (asunto='{}'): {}", asunto, e.getMessage());
         }
+    }
+
+    private Map<String, Object> buildPayload(String destinatario, String asunto, String html) {
+        return Map.of(
+                "sender",      Map.of("name", fromName, "email", fromEmail),
+                "to",          List.of(Map.of("email", destinatario)),
+                "subject",     asunto,
+                "htmlContent", html
+        );
     }
 
     // ── Plantillas HTML ───────────────────────────────────────────────────────
@@ -139,14 +157,12 @@ public class EmailServiceImpl implements EmailService {
               <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px">
                 <tr><td align="center">
                   <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-                    <!-- Header -->
                     <tr>
                       <td style="background:#990000;padding:24px 32px">
                         <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.5px">ATARA</p>
                         <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7)">Sistema de Alerta Temprana y Atención al Rendimiento Académico</p>
                       </td>
                     </tr>
-                    <!-- Body -->
                     <tr>
                       <td style="padding:32px">
                         <p style="margin:0 0 12px;font-size:15px;color:#111827">Hola, <strong>%s</strong></p>
@@ -163,7 +179,6 @@ public class EmailServiceImpl implements EmailService {
                         </p>
                       </td>
                     </tr>
-                    <!-- Footer -->
                     <tr>
                       <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 32px">
                         <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center">
@@ -189,14 +204,12 @@ public class EmailServiceImpl implements EmailService {
               <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px">
                 <tr><td align="center">
                   <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-                    <!-- Header -->
                     <tr>
                       <td style="background:#990000;padding:24px 32px">
                         <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.5px">ATARA</p>
                         <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7)">Sistema de Alerta Temprana y Atención al Rendimiento Académico</p>
                       </td>
                     </tr>
-                    <!-- Body -->
                     <tr>
                       <td style="padding:32px">
                         <p style="margin:0 0 12px;font-size:15px;color:#111827">Hola, <strong>%s</strong></p>
@@ -216,7 +229,6 @@ public class EmailServiceImpl implements EmailService {
                         </p>
                       </td>
                     </tr>
-                    <!-- Footer -->
                     <tr>
                       <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 32px">
                         <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center">
