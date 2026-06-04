@@ -1,0 +1,10 @@
+# Plantilla para application-local.properties
+# Copia este archivo como application-local.properties (sin .example) y llena los valores.
+# application-local.properties está en .gitignore — nunca se commitea.
+
+# BD local (docker-compose usa la misma contraseña)
+spring.datasource.password=atara_pass_123
+
+# Gmail App Password (16 letras, distinto a la contraseña de la cuenta)
+# Genera uno en: https://myaccount.google.com -> Seguridad -> Contraseñas de aplicaciones
+spring.mail.password=xxxx xxxx xxxx xxxx
