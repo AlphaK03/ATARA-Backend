@@ -1,5 +1,5 @@
 -- =====================================================================
--- V16: Una matrícula ACTIVO por estudiante y año lectivo
+-- V4: Una matrícula ACTIVO por estudiante y año lectivo
 -- =====================================================================
 -- Problema: el esquema solo tenía UNIQUE (estudiante_id, seccion_id), que
 -- evita duplicar al estudiante en la MISMA sección pero permite que esté en

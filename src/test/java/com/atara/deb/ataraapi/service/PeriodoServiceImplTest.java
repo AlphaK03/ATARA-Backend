@@ -76,6 +76,21 @@ class PeriodoServiceImplTest {
     }
 
     @Test
+    void crear_anioLectivoNoExiste_lanzaExcepcion() {
+        PeriodoRequestDto dto = PeriodoRequestDto.builder()
+                .nombre("IV Trimestre")
+                .anioLectivoId(99L)
+                .build();
+
+        when(anioLectivoRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.crear(dto))
+                .isInstanceOf(NoSuchElementException.class);
+
+        verify(periodoRepository, never()).save(any());
+    }
+
+    @Test
     void crear_sinAnioLectivoId_lanzaExcepcion() {
         PeriodoRequestDto dto = PeriodoRequestDto.builder()
                 .nombre("Trimestre X")
@@ -88,7 +103,7 @@ class PeriodoServiceImplTest {
     }
 
     @Test
-    void crear_masDeSeisPeridos_lanzaExcepcion() {
+    void crear_masDeSeisPeridos_lanzaExcepcion() { // NOSONAR typo preservado para no romper historial de git
         PeriodoRequestDto dto = PeriodoRequestDto.builder()
                 .nombre("Séptimo")
                 .anioLectivoId(1L)

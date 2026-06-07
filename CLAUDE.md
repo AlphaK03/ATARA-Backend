@@ -68,24 +68,14 @@ com.atara.deb.ataraapi/
 ├── dto/              Request/Response DTOs organized by domain (alerta/, estudiante/, etc.)
 ├── exception/        GlobalExceptionHandler + AccesoDenegadoException, TokenRefreshException
 └── security/         SecurityConfig, JwtService, JwtAuthenticationFilter, UserDetailsServiceImpl
+                      ContextoUsuario, ContextoUsuarioService, UsuarioPrincipal
 ```
 
 **Database schema is owned by Flyway** — `ddl-auto=none`, never let Hibernate manage schema. Migrations live in `src/main/resources/db/migration/`:
-- `V1__init_schema.sql` — 20 tables, 40+ indices, 13 audit triggers
-- `V2__sample_data.sql` — seed data (BCrypt password hashes need to be regenerated for auth testing)
-- `V3__queries_reference.sql` — 8 reporting views (`vw_criterios_completos`, `vw_rendimiento_periodo_activo`, etc.)
-- `V4__evaluacion_saberes_alertas_tematicas.sql` — 6 tables (tipos_saber, ejes_tematicos, niveles_desempeno, evaluaciones_saber, detalle_evaluacion_saber, alertas_tematicas) + 2 views + seed data
-- `V5__more_students.sql` — additional sample student data
-- `V6__materias_evaluaciones_multisaber.sql` — separación de ejes por materia (84 ejes: 21 × 4 materias)
-- `V7__alertas_tematicas_unique_por_materia.sql` — unique constraint on alertas_tematicas per materia
-- `V8__usuario_materias.sql` — tabla M:N para acceso de docentes a materias
-- `V9__usuario_docente_keylor.sql` — sample docente user seed data
-- `V10__avargas_materias_espanol_ciencias.sql` — sample data for docente avargas (Español/Ciencias)
-- `V11__fix_seccion_primero_d_docente.sql` — data fix for sección docente assignment
-- `V12__ejes_tematicos_por_nivel.sql` — tabla M:N `ejes_tematicos_niveles` que define qué ejes son evaluables en cada grado (currículo MEP CR Primaria). Vista de apoyo: `vw_ejes_por_materia_nivel`.
-- `V13__refinar_ejes_por_nivel.sql` — refinement of V12 seed: V12 was too permissive (all 21 ejes to all grades for Español/Ciencias/EESS); now matches actual MEP curriculum with grade-specific restrictions
-- `V14__email_verificacion_y_reset_password.sql` — email verification token system + 4-digit password reset codes; new users get verification email, password reset flow uses `email_tokens` table
-- `V15__email_tokens_intentos.sql` — brute-force protection: adds `intentos_fallidos` counter to `email_tokens`; after 5 failed attempts the token is invalidated (applies to RESET_PASSWORD tokens only, not UUID-based VERIFICACION_EMAIL)
+- `V1__init_schema.sql` — consolidated dump of original V1–V26: full schema (tables, indexes, FK, constraints, triggers, functions, views, seed data). **This is a pg_dump snapshot — do not apply on a DB that already ran the original migrations.**
+- `V2__datos_base.sql` — base seed data (roles, escalas, dimensiones, etc.)
+- `V3__centros_educativos.sql` — seed data for educational centers
+- `V16__matricula_unica_por_anio.sql` — partial unique index `uq_estudiante_anio_activo` on `matriculas(estudiante_id, anio_lectivo_id) WHERE estado = 'ACTIVO'`; enforces one active enrollment per student per academic year at the DB level
 
 **Audit trail** is handled entirely at the database level via the `registro_auditoria` table (JSONB) and `fn_actualizar_updated_at` triggers — no application-level audit code needed.
 
@@ -94,17 +84,40 @@ com.atara.deb.ataraapi/
 - **Escala de valoración (original)**: 4-point scale — Insuficiente (1), Básico (2), Satisfactorio (3), Destacado (4)
 - **Escala de desempeño por saberes**: 5-point scale — Inicial (1), En desarrollo (2), Intermedio (3), Logrado (4), Avanzado (5)
 - **Dimensiones de evaluación**: 5 dimensions including Rendimiento Académico, Participación, Hábitos de Estudio, Factores Socioemocionales
-- **Tipos de saber**: Conceptual, Procedimental, Actitudinal — each with 7 ejes temáticos por materia
-- **Ejes por nivel** (V12+): cada eje se asocia a uno o más grados vía `ejes_tematicos_niveles`. Ejemplos: "Álgebra y patrones" (Matemáticas) → 4°-6°; "Fracciones, decimales y porcentajes" → 3°-6°; "Estadística y probabilidad" → 3°-6°. El wizard de evaluación usa este filtro para no mostrar ejes que no aplican al grado del estudiante.
+- **Tipos de saber**: Conceptual, Procedimental, Actitudinal — each with 7 ejes temáticos per materia
+- **Ejes por nivel**: cada eje se asocia a uno o más grados vía `ejes_tematicos_niveles`. Ejemplos: "Álgebra y patrones" (Matemáticas) → 4°–6°; "Fracciones, decimales y porcentajes" → 3°–6°. El wizard de evaluación usa este filtro.
 - **Structure hierarchy**: Centro Educativo → Sección → Periodo → Evaluacion → DetalleEvaluacion
 - **Evaluaciones por saber**: EvaluacionSaber → DetalleEvaluacionSaber (multiple per student/period/tipo_saber)
-- **Alertas temáticas**: Generated from averages per eje temático — ALTA (≤2.0), MEDIA (2.1-3.0), SIN_ALERTA (>3.0)
+- **Alertas temáticas**: Generated from averages per eje temático — ALTA (≤2.0), MEDIA (2.1–3.0), SIN_ALERTA (>3.0)
 - **Unique constraint on evaluaciones**: `(estudiante_id, usuario_id, periodo_id)` — enforced at DB level
+- **One active enrollment per year**: `uq_estudiante_anio_activo` — a student can only have one ACTIVO matricula per anio_lectivo
 
 ## Current Endpoint Map
 
 | Controller | Method | Path |
 |---|---|---|
+| **AuthController** | POST | `/api/auth/login` |
+| | POST | `/api/auth/refresh` |
+| | POST | `/api/auth/logout` |
+| | GET | `/api/auth/me` |
+| | POST | `/api/auth/registro` (self-registration, institutional domain only) |
+| | POST | `/api/auth/password-reset/solicitar` |
+| | POST | `/api/auth/password-reset/confirmar` |
+| | GET | `/api/auth/email/verificar?token=` |
+| | PUT | `/api/auth/cambiar-password` |
+| | PUT | `/api/auth/mis-materias` |
+| **AdminController** | GET | `/api/admin/usuarios` (solo ADMIN) |
+| | POST | `/api/admin/usuarios` (solo ADMIN) |
+| | PUT | `/api/admin/usuarios/{id}` (solo ADMIN) |
+| | DELETE | `/api/admin/usuarios/{id}` (solo ADMIN) |
+| | PATCH | `/api/admin/usuarios/{id}/estado` (alterna ACTIVO ↔ INACTIVO) |
+| | GET | `/api/admin/test-mail` (envía correo de prueba al admin autenticado) |
+| | GET | `/api/admin/centros` (solo ADMIN) |
+| | GET | `/api/admin/centros/{id}` (solo ADMIN) |
+| | POST | `/api/admin/centros` (solo ADMIN) |
+| | PUT | `/api/admin/centros/{id}` (solo ADMIN) |
+| **PiadController** | POST | `/api/piad/extraer` (multipart PDF → OCR → List<EstudiantePIADDto>) |
+| | POST | `/api/piad/importar` (bulk import + enroll students from reviewed PIAD list) |
 | EstudianteController | POST | `/api/estudiantes` |
 | | GET | `/api/estudiantes` |
 | | GET | `/api/estudiantes/{id}` |
@@ -153,11 +166,7 @@ com.atara.deb.ataraapi/
 | | GET | `/api/secciones/catalogos/niveles` |
 | | GET | `/api/secciones/catalogos/centros` |
 | | GET | `/api/secciones/catalogos/docentes` |
-| | GET | `/api/secciones/catalogos/estudiantes?anioLectivoId=&seccionId=` (catálogo para wizard, excluye ya-matriculados) |
-| CentroEducativoController | GET | `/api/admin/centros` (solo ADMIN) |
-| | GET | `/api/admin/centros/{id}` (solo ADMIN) |
-| | POST | `/api/admin/centros` (solo ADMIN) |
-| | PUT | `/api/admin/centros/{id}` (solo ADMIN) |
+| | GET | `/api/secciones/catalogos/estudiantes?anioLectivoId=&seccionId=` |
 | PeriodoController | POST | `/api/periodos` |
 | | GET | `/api/periodos?anioLectivoId=` |
 | | GET | `/api/periodos/activo?anioLectivoId=` |
@@ -165,53 +174,51 @@ com.atara.deb.ataraapi/
 | | PUT | `/api/periodos/{id}/activar` |
 | | DELETE | `/api/periodos/{id}` |
 
+All endpoints require JWT Bearer token except `/api/auth/*` and `GET /actuator/health`.
+
 ## Configuration Notes
 
-- Credentials are in `application.properties` (db user: `atara_user`, pass: `atara_pass_123`)
-- `spring.jpa.show-sql=true` and `format_sql=true` are enabled — expected in dev, disable for production
+All secrets are externalized as environment variables — no defaults for production-critical values:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `PGHOST` | `localhost` | |
+| `PGPORT` | `5433` | Non-standard — Docker maps 5432→5433 |
+| `PGDATABASE` | `atara_db` | |
+| `PGUSER` | `atara_user` | |
+| `PGPASSWORD` | *(none)* | Required; set in `application-local.properties` for dev |
+| `JWT_SECRET` | *(ephemeral)* | If unset, JwtService generates a random key per boot (tokens don't survive restarts) |
+| `JWT_EXPIRATION_MS` | `1800000` | 30 min access token |
+| `JWT_REFRESH_EXPIRATION_DAYS` | `7` | |
+| `BREVO_API_KEY` | *(none)* | Required for email; Brevo panel → Configuración → Claves API |
+| `BREVO_FROM_EMAIL` | `ataranotificaciones@gmail.com` | Must be a verified sender in Brevo |
+| `FRONTEND_URL` | `http://localhost:3000` | Used in email verification links |
+| `PIAD_TESSDATA_DIR` | `scripts/extractor-piad/tessdata` | Must contain `spa.traineddata` |
+| `CORS_ALLOWED_ORIGINS` | `*` | In production, set to the exact frontend domain |
+| `PORT` | `8081` | Railway sets this automatically |
+| `SHOW_SQL` | `false` | Set to `true` in dev to log Hibernate SQL (includes PII — never in prod) |
+| `MAX_FILE_SIZE` | `25MB` | Multipart limit for PIAD PDF uploads |
+| `LOG_LEVEL_SECURITY` | `INFO` | Set to `DEBUG` to trace JWT auth failures |
+
+Local dev secrets go in `application-local.properties` (gitignored). See `application-local.properties.example`.
+
 - All JPA relationships use `FetchType.LAZY` — be mindful of N+1 query risks when adding new queries
-- BCrypt password hashes in `V2__sample_data.sql` are placeholders; regenerate with `new BCryptPasswordEncoder(12).encode("...")` to test auth flows
+- BCrypt password hashes in seed data are placeholders; regenerate with `new BCryptPasswordEncoder(12).encode("...")` to test auth flows
 
-## Implementation Status (as of 2026-05-26)
+## Implementation Status
 
-Planned by the design rules below but **not yet implemented**:
+**Not yet implemented** (aspirational in design rules):
+- **Custom exceptions** (`RecursoNoEncontradoException`, `ReglaDeNegocioException`) do not exist. `GlobalExceptionHandler` maps `IllegalArgumentException → 400`, `NoSuchElementException → 404`, `UnsupportedOperationException → 501`, `RuntimeException → 500`. `AccesoDenegadoException` and `TokenRefreshException` do exist. When adding new features, throw `IllegalArgumentException` (400) or `NoSuchElementException` (404) from the service layer.
+- **`ApiResponse<T>` wrapper** is not implemented. Controllers return DTOs directly (success path). Error responses from `GlobalExceptionHandler` have shape `{timestamp, status, error, message, path}`. The `{success, message, data}` format in the Dev Rules below is aspirational — do not mix both shapes.
 
-- **Custom exceptions** (`RecursoNoEncontradoException`, `ReglaDeNegocioException`) do not exist. `GlobalExceptionHandler` maps `IllegalArgumentException → 400`, `NoSuchElementException → 404`, `UnsupportedOperationException → 501`, `RuntimeException → 500`. `AccesoDenegadoException` and `TokenRefreshException` do exist. When adding new features, throw `IllegalArgumentException` (400) or `NoSuchElementException` (404) from the service layer — or create a dedicated exception class and register it in `GlobalExceptionHandler`.
-- **`ApiResponse<T>` wrapper** is not implemented. Controllers return DTOs directly (success path) or rely on `GlobalExceptionHandler` returning `Map<String,Object>` with shape `{timestamp, status, error, message, path}`. The `ApiResponse<T>` format described in the Dev Rules below (`{success, message, data}`) is aspirational. Do not mix the two shapes — for now, keep returning DTOs directly and error handling through `GlobalExceptionHandler`.
-- **Spring Security / JWT**: Implemented. `SecurityConfig`, `JwtService`, `JwtAuthenticationFilter`, `UserDetailsServiceImpl`, `AuthController` (login/refresh/logout/me). All endpoints require JWT except `/api/auth/*` and `/actuator/health`.
-- **Email verification + password reset**: Implemented via `email_tokens` table (V14/V15). `AuthController` includes endpoints for triggering and confirming these flows.
-
-## Features added (as of 2026-04-01)
-
-- **Auto-creación de periodos**: Al crear un año lectivo, `AnioLectivoServiceImpl` genera automáticamente 3 trimestres (I, II, III) dividiendo el rango de fechas en partes iguales. El I Trimestre queda activo por defecto.
-- **Activar periodo**: `PUT /api/periodos/{id}/activar` desactiva todos los periodos del mismo año y activa el seleccionado.
-- **Crear sección**: `POST /api/secciones` con `SeccionRequestDto`. Catálogos de soporte: `GET /api/secciones/catalogos/niveles`, `/centros`, `/docentes`. Requiere `NivelRepository` y `CentroEducativoRepository`.
-- **Recalificación de evaluaciones por saber**: `PUT /api/evaluaciones-saber/{id}` reemplaza los detalles (scores) de una evaluación existente limpiando con `orphanRemoval` y re-insertando. El wizard del frontend muestra primero una pantalla de selección de saberes con alertas pre-marcadas, luego pre-rellena los valores anteriores.
-
-## Features added (as of 2026-05-14)
-
-- **CRUD de Centros Educativos (ADMIN)**: Nuevo `CentroEducativoController` bajo `/api/admin/centros` con operaciones GET (lista y por id), POST y PUT, todas protegidas con `@PreAuthorize("hasRole('ADMIN')")`. **No se expone DELETE** por política: los centros se conservan como histórico permanente para preservar la integridad referencial de secciones y matrículas. El servicio valida la unicidad del nombre (insensible a mayúsculas) y devuelve 400 ante duplicados.
-- **Visibilidad de secciones por rol**: `GET /api/secciones?anioLectivoId=` ahora filtra según el rol del usuario autenticado, leído del `SecurityContext` mediante `UsuarioPrincipal`. ADMIN ve todas las secciones del año lectivo. DOCENTE solo ve aquellas donde es titular (`secciones.docente_id`) o aparece en `usuarios_secciones`. Cualquier otro rol recibe 403 (`AccesoDenegadoException`). Se usa una consulta nativa combinada en `SeccionRepository.findByAnioLectivoIdAndAccesibleParaUsuario`.
-- **`GET /api/secciones/docente/{docenteId}` restringido a ADMIN**: Antes cualquier docente podía consultar las secciones de otro pasando un id distinto en la URL. Ahora está protegido con `@PreAuthorize("hasRole('ADMIN')")`. Para que un docente vea sus propias secciones debe usar `GET /api/secciones` (filtrado automático por su identidad).
-- **Crear sección con co-docentes y estudiantes en una sola operación**: `SeccionRequestDto` se extendió con dos listas opcionales: `docentesAdicionalesIds[]` y `estudiantesIds[]`. `POST /api/secciones` ahora acepta los roles ADMIN y DOCENTE (`@PreAuthorize("hasAnyRole('ADMIN','DOCENTE')")`). Si el creador es DOCENTE: queda automáticamente como titular y se autoincluye en `usuarios_secciones`; el campo `docenteId` del DTO se ignora para este rol. Los `docentesAdicionalesIds` se insertan en `usuarios_secciones`. Los `estudiantesIds` generan `Matricula` ACTIVAS en el año lectivo de la sección dentro de la misma transacción, respetando la regla "un estudiante una matrícula por año".
-- **Nuevo `UsuarioSeccionRepository`**: La tabla intermedia `usuarios_secciones` ya existía como entidad JPA pero sin repositorio. Se añadió con métodos `findBySeccionId`, `findByUsuarioId`, `existsByUsuarioIdAndSeccionId` y `deleteAllBySeccionId`. El método de borrado se integra al flujo de eliminación de sección (ADMIN) para evitar dejar referencias colgantes.
-- **Eliminación segura de secciones por DOCENTE titular**: Nuevo endpoint `DELETE /api/secciones/{id}/docente` (`@PreAuthorize("hasRole('DOCENTE')")`) que solo el titular (`secciones.docente_id = id usuario`) puede invocar. La operación rechaza con 400 si la sección tiene matrículas, evaluaciones o evaluaciones por saber asociadas — esto preserva el histórico. Si hay datos, solo ADMIN puede borrar con cascada vía `DELETE /api/secciones/{id}`. El método `SeccionServiceImpl.eliminarComoDocente` valida titularidad y dependencias antes de borrar las asignaciones M:N y la sección.
-
-## Features added (as of 2026-05-15)
-
-- **Ejes temáticos filtrados por nivel/grado (V12)**: Nueva tabla M:N `ejes_tematicos_niveles` que define qué ejes son evaluables en cada grado. Resuelve el problema de que el wizard de evaluación por saber mostraba los mismos 7 ejes para los 6 grados sin considerar el currículo MEP (por ejemplo: "Álgebra y patrones" aparecía evaluable en 1° de primaria). Semilla inicial basada en currículo MEP CR Primaria — Matemáticas: Números/Geometría/Resolución/Razonamiento en 1°-6°, Fracciones y Estadística en 3°-6°, Álgebra en 4°-6°. Español, Ciencias y Estudios Sociales mantienen sus 21 ejes en todos los grados. Endpoint actualizado: `GET /api/catalogos/saberes/ejes?nivelId=&materiaId=&tipoSaberId=`. Si se omite `nivelId`, se preserva el comportamiento legado.
-- **Endpoint dedicado de estudiantes para wizard de sección**: `GET /api/secciones/catalogos/estudiantes?anioLectivoId=&seccionId=` ahora está conectado al frontend. Devuelve `EstudianteCatalogoDto` con `nombre`, `apellido1`, `apellido2`, `fechaNacimiento`, `genero`, `estado` y `nombreCompleto`. Aplica exclusión inteligente: si se pasa `anioLectivoId`, excluye los estudiantes ya matriculados en ese año (respetando la regla "una matrícula por año"); si además se pasa `seccionId`, re-incluye los ya matriculados en esa sección (modo edición).
-- **Nueva entidad `EjeTematicoNivel`**: Wrapper JPA sobre la tabla puente, requerida para que las queries de filtrado por nivel funcionen vía JPQL en `EjeTemaaticoRepository.findByNivelOptMateriaOptTipoSaber`.
-- **Frontend: secciones accesibles a ADMIN**: Agregado el ítem "Secciones" al nav lateral del ADMIN. Antes la página existía y soportaba el rol, pero no había enlace para llegar — solo se accedía escribiendo `#secciones` en la URL.
-- **Frontend: eliminación segura de sección para DOCENTE titular**: El botón "Eliminar" aparece para el docente titular cuando la sección está vacía (`totalEstudiantes === 0`). Llama a `deleteSeccionDocente` (endpoint backend ya existente); muestra una confirmación que explica la restricción.
-- **Frontend: páginas zombi eliminadas**: Se borraron `pages/matriculas.js`, `pages/evaluaciones.js`, `pages/alertas.js` — eran de la era anterior del proyecto (pedían IDs a mano y usaban el sistema viejo de evaluación). No estaban en ningún nav y representaban deuda técnica.
-- **Frontend: wizard de evaluación filtra ejes por grado**: `pages/evaluacionesSaber.js` ahora llama a `getEjesPorNivel(seccionSel.nivelId)` cuando se selecciona una sección. La grilla de estudiantes y el wizard solo muestran tipos de saber con ejes aplicables al grado. Si una combinación (materia + tipo de saber) tiene 0 ejes en ese grado, se omite del wizard y se marca como "Sin ejes en este grado" en la tarjeta del estudiante.
-
-## Features added (as of 2026-05-26)
-
-- **Refinamiento de ejes por nivel (V13)**: La semilla de V12 era demasiado permisiva — asignaba los 21 ejes de Español, Ciencias y Estudios Sociales a todos los grados. V13 corrige las asignaciones para reflejar el currículo MEP real, aplicando restricciones específicas por grado en todas las materias.
-- **Verificación de email y reset de contraseña (V14)**: Nueva tabla `email_tokens` (tipo enum: `VERIFICACION_EMAIL`, `RESET_PASSWORD`). Al crear un usuario, se puede enviar un token de verificación. Los usuarios de V2 quedan marcados como verificados. El reset usa un código de 4 dígitos enviado al correo del usuario.
-- **Protección brute-force en reset (V15)**: Contador `intentos_fallidos` en `email_tokens`. Tras 5 intentos fallidos el token se invalida automáticamente. Aplica solo a tokens `RESET_PASSWORD`; los de `VERIFICACION_EMAIL` son UUIDs y no son brute-forceables.
+**Implemented:**
+- **Spring Security / JWT**: `SecurityConfig`, `JwtService`, `JwtAuthenticationFilter`, `UserDetailsServiceImpl`, full `AuthController`. Refresh token rotation. `ContextoUsuario`/`ContextoUsuarioService` helpers to read the authenticated user in service layer.
+- **Email via Brevo**: `EmailServiceImpl` uses Brevo HTTP API (not SMTP) to avoid cloud blocking. `EmailTokenServiceImpl` handles email verification (UUID token) and password reset (4-digit code, 5-attempt brute-force lockout).
+- **PIAD OCR**: `PiadServiceImpl` uses Tesseract to extract student data from MEP "Lista PIAD" PDFs. `ImportacionPiadServiceImpl` + `ImportacionPiadFilaProcessor` handle bulk import: idempotent (reuses existing students, skips already-enrolled).
+- **Admin user management**: `AdminController`/`AdminServiceImpl` for CRUD on users under `/api/admin/usuarios`.
+- **Auto-creation of periods**: Creating an `AnioLectivo` auto-generates 3 trimestres dividing the date range equally; I Trimestre is active by default.
+- **Role-filtered section visibility**: `GET /api/secciones` returns all sections to ADMIN, only owned/co-teacher sections to DOCENTE.
+- **Ejes filtrados por grado**: `GET /api/catalogos/saberes/ejes?nivelId=` filters by `ejes_tematicos_niveles` M:N table matching MEP curriculum.
 
 ---
 
@@ -292,7 +299,9 @@ Never return raw objects, plain strings, or unwrapped lists directly from a cont
 
 ### Flyway Migrations
 
-**Do not modify existing migration files** (`V1__`, `V2__`, `V3__`) under any circumstances — Flyway checksums will fail and the application will not start. To change the schema, always create a new versioned migration file (`V4__description.sql`, etc.). Only modify existing migrations if the user explicitly requests it and the database has been wiped.
+**Do not modify existing migration files** — Flyway checksums will fail and the application will not start. To change the schema, always create a new versioned migration file (next available `VN__description.sql`). Only modify existing migrations if the database has been wiped.
+
+The current migrations are a consolidated format: V1 is a full `pg_dump` snapshot (not incremental), V2/V3 are seed data, V16 adds a business-rule constraint. New migrations continue from V17 onward.
 
 ### Security
 

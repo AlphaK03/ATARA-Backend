@@ -12,6 +12,7 @@ public class LoginResponseDto {
     private String apellidos;
     private String rol;
     private boolean debeCambiarPassword;
+    private boolean primerIngreso;
 
     public LoginResponseDto() {}
 
@@ -44,4 +45,7 @@ public class LoginResponseDto {
 
     public boolean isDebeCambiarPassword() { return debeCambiarPassword; }
     public void setDebeCambiarPassword(boolean debeCambiarPassword) { this.debeCambiarPassword = debeCambiarPassword; }
+
+    public boolean isPrimerIngreso() { return primerIngreso; }
+    public void setPrimerIngreso(boolean primerIngreso) { this.primerIngreso = primerIngreso; }
 }

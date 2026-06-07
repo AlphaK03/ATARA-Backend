@@ -20,6 +20,8 @@ public class MeResponseDto {
     private Set<Integer> materiaIds;
     /** IDs de los centros educativos donde el usuario tiene secciones asignadas. */
     private Set<Long> centroIds;
+    private boolean debeCambiarPassword;
+    private boolean primerIngreso;
 
     public MeResponseDto() {}
 
@@ -46,4 +48,10 @@ public class MeResponseDto {
 
     public Set<Long> getCentroIds() { return centroIds; }
     public void setCentroIds(Set<Long> centroIds) { this.centroIds = centroIds; }
+
+    public boolean isDebeCambiarPassword() { return debeCambiarPassword; }
+    public void setDebeCambiarPassword(boolean debeCambiarPassword) { this.debeCambiarPassword = debeCambiarPassword; }
+
+    public boolean isPrimerIngreso() { return primerIngreso; }
+    public void setPrimerIngreso(boolean primerIngreso) { this.primerIngreso = primerIngreso; }
 }
