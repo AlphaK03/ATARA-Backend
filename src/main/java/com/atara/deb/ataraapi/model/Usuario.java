@@ -60,6 +60,10 @@ public class Usuario {
     @Builder.Default
     private Boolean debeCambiarPassword = false;
 
+    @Column(name = "primer_ingreso", nullable = false)
+    @Builder.Default
+    private Boolean primerIngreso = true;
+
     /** Secciones asignadas al usuario (tabla join: usuarios_secciones). */
     @Builder.Default
     @ManyToMany(fetch = FetchType.LAZY)
