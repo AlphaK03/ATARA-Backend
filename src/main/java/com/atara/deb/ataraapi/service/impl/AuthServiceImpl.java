@@ -96,8 +96,15 @@ public class AuthServiceImpl implements AuthService {
         UsuarioPrincipal principal = (UsuarioPrincipal) auth.getPrincipal();
         Usuario usuario = principal.getUsuario();
 
-        // Actualizar último acceso
+        // Capturar primerIngreso antes de limpiarlo: el valor se devuelve al frontend
+        // para que muestre el tutorial de bienvenida (auto-registro) en el primer acceso.
+        boolean esPrimerIngreso = Boolean.TRUE.equals(usuario.getPrimerIngreso());
+
+        // Actualizar último acceso y limpiar flag de primer ingreso en una sola escritura.
         usuario.setUltimoAcceso(OffsetDateTime.now());
+        if (esPrimerIngreso) {
+            usuario.setPrimerIngreso(false);
+        }
         usuarioRepository.save(usuario);
 
         String accessToken = jwtService.generarToken(usuario);
@@ -114,6 +121,7 @@ public class AuthServiceImpl implements AuthService {
         response.setApellidos(usuario.getApellidos());
         response.setRol(usuario.getRol().getNombre());
         response.setDebeCambiarPassword(Boolean.TRUE.equals(usuario.getDebeCambiarPassword()));
+        response.setPrimerIngreso(esPrimerIngreso);
         return response;
     }
 
@@ -229,6 +237,8 @@ public class AuthServiceImpl implements AuthService {
         response.setSeccionIds(usuarioRepository.findSeccionIdsByUsuarioId(usuario.getId()));
         response.setMateriaIds(usuarioRepository.findMateriaIdsByUsuarioId(usuario.getId()));
         response.setCentroIds(usuarioRepository.findCentroIdsByUsuarioId(usuario.getId()));
+        response.setDebeCambiarPassword(Boolean.TRUE.equals(usuario.getDebeCambiarPassword()));
+        response.setPrimerIngreso(Boolean.TRUE.equals(usuario.getPrimerIngreso()));
         return response;
     }
 
