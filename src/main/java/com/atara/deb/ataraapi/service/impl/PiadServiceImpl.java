@@ -233,10 +233,11 @@ public class PiadServiceImpl implements PiadService {
         t.setDatapath(resolverRutaTessdata());
         t.setLanguage(OCR_LANG);
 
-        // PSM 6 — bloque uniforme de texto: lee las filas de la tabla de izquierda
-        // a derecha sin intentar detectar columnas, preservando el orden natural de
-        // los campos de cada estudiante en una sola línea de salida.
-        t.setPageSegMode(6);
+        // PSM 4 — columna de texto de tamaño variable: funciona correctamente con
+        // la estructura de la tabla PIAD (una fila por estudiante, leída de izquierda
+        // a derecha). PSM 6 (bloque uniforme) producía líneas OCR con estructura
+        // diferente que rompía el parser para algunas filas.
+        t.setPageSegMode(4);
 
         // OEM 1 — motor LSTM (red neuronal): mejor reconocimiento de caracteres
         // impresos con diacríticos (tildes, ñ) que el modo legacy.
@@ -287,48 +288,25 @@ public class PiadServiceImpl implements PiadService {
     // ── Parseo de texto OCR ──────────────────────────────────────────────────
 
     /**
-     * Divide el texto OCR por líneas y ensambla filas de estudiantes.
+     * Divide el texto OCR por líneas y extrae un estudiante por línea.
      *
-     * <p>Estrategia tolerante: si una línea contiene cédula se intenta extraer
-     * el registro completo. Si falta algún campo opcional (tipo de adecuación,
-     * nivel, grupo, fecha) el registro se incluye igualmente con esos campos
-     * en null, para que el docente pueda corregirlos manualmente en la UI.
-     * Solo se descarta una fila si no hay número de fila o si no hay al menos
-     * un nombre/apellido identificable.
+     * <p>Solo procesa líneas que contienen una cédula. Los campos opcionales
+     * (tipo de adecuación, nivel, grupo, fecha) se extraen si están presentes
+     * pero su ausencia no descarta la fila.
      */
     private void parsearTextoOCR(String texto, List<EstudiantePIADDto> resultado) {
         if (texto == null || texto.isBlank()) return;
 
         String[] lineas = texto.split("[\\r\\n]+");
-        String lineaPendiente = "";  // acumula fragmentos de fila dividida por OCR
-
         for (String lineaRaw : lineas) {
             String linea = normalizarLineaOCR(lineaRaw);
-            if (linea.isEmpty()) {
-                lineaPendiente = "";
-                continue;
-            }
+            if (linea.isEmpty() || !CEDULA.matcher(linea).find()) continue;
 
-            // Intentar con la línea actual y también con la concatenación de
-            // la línea pendiente (por si OCR partió una fila en dos líneas).
-            String candidato = lineaPendiente.isEmpty() ? linea
-                                                        : lineaPendiente + " " + linea;
-
-            if (CEDULA.matcher(candidato).find()) {
-                EstudiantePIADDto est = parsearLinea(candidato);
-                if (est != null) {
-                    resultado.add(est);
-                    log.info("✓ Fila {} extraída: {} {}", est.getNumero(),
-                             est.getPrimerApellido(), est.getNombre());
-                    lineaPendiente = "";
-                } else {
-                    // La cédula existe pero el parseo falló: guardar como pendiente
-                    // por si la siguiente línea contiene el resto de los campos.
-                    lineaPendiente = candidato;
-                }
-            } else if (!lineaPendiente.isEmpty()) {
-                // Acumular fragmento adicional (sin cédula) junto al anterior.
-                lineaPendiente = candidato;
+            EstudiantePIADDto est = parsearLinea(linea);
+            if (est != null) {
+                resultado.add(est);
+                log.info("✓ Fila {} extraída: {} {}", est.getNumero(),
+                         est.getPrimerApellido(), est.getNombre());
             }
         }
     }
