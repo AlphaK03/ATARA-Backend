@@ -6,11 +6,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -22,7 +23,6 @@ import static org.mockito.Mockito.when;
  * adelanta unos segundos respecto al emisor.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class JwtServiceTest {
 
     private static final String SECRET = "clave-de-prueba-suficientemente-larga-para-hmac-sha256-2024-x";
@@ -84,5 +84,17 @@ class JwtServiceTest {
     @Test
     void tokenMalformadoEsInvalido() {
         assertThat(jwtService.esTokenValido("no-es-un-jwt", userDetails)).isFalse();
+    }
+
+    @Test
+    void tokenConPayloadAlteradoEsInvalido() {
+        String token = tokenConTtl(3_600_000L);
+        String[] partes = token.split("\\.");
+        // Reemplaza el payload con uno falsificado pero conserva la firma original.
+        // JJWT rechaza el token porque la firma no cubre el nuevo payload.
+        String payloadFalsificado = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString("{\"sub\":\"hacker@evil.com\"}".getBytes(StandardCharsets.UTF_8));
+        String tokenAlterado = partes[0] + "." + payloadFalsificado + "." + partes[2];
+        assertThat(jwtService.esTokenValido(tokenAlterado, userDetails)).isFalse();
     }
 }
