@@ -1,0 +1,789 @@
+% =====================================================================
+%  MANUAL DE USUARIO — ATARA
+%  Sistema de Alerta Temprana y Atención al Rendimiento Académico
+%  Dirigido a: Docentes de Educación Básica — MEP Costa Rica
+% =====================================================================
+\documentclass[12pt,a4paper,oneside]{article}
+
+% --------------------- Codificación e idioma ---------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% --------------------- Geometría y estilo ------------------------------
+\usepackage[a4paper,top=2.8cm,bottom=2.8cm,left=3.0cm,right=2.5cm,
+            headheight=25pt]{geometry}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\setlength{\parskip}{6pt}
+
+% --------------------- Títulos -----------------------------------------
+\usepackage[explicit]{titlesec}
+\usepackage{titletoc}
+
+% --------------------- Tablas y listas ---------------------------------
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{multirow}
+
+% --------------------- Colores, cajas, imágenes ------------------------
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{tikz}
+\usepackage{pifont}
+
+% --------------------- Paleta de colores ATARA -------------------------
+\definecolor{ataraAzul}{HTML}{1F3A93}
+\definecolor{ataraAzulClaro}{HTML}{4A6FBF}
+\definecolor{ataraAzulPale}{HTML}{EEF2FB}
+\definecolor{ataraVerde}{HTML}{1B7F3B}
+\definecolor{ataraVerdePale}{HTML}{EAF5EE}
+\definecolor{ataraNaranja}{HTML}{D97E1F}
+\definecolor{ataraNaranjaPale}{HTML}{FDF3E3}
+\definecolor{ataraRojo}{HTML}{B5292F}
+\definecolor{ataraRojoPale}{HTML}{FCEAEA}
+\definecolor{ataraGris}{HTML}{6B7280}
+\definecolor{ataraGrisPale}{HTML}{F3F4F6}
+\definecolor{ataraAmarillo}{HTML}{F59E0B}
+
+% --------------------- Hipervínculos -----------------------------------
+\usepackage[colorlinks=true,linkcolor=ataraAzul,urlcolor=ataraAzul]{hyperref}
+
+% --------------------- Estilo de títulos de sección -------------------
+\titleformat{\section}
+  {\color{ataraAzul}\Large\bfseries}{}{0em}
+  {\colorbox{ataraAzul}{\color{white}\makebox[\dimexpr\linewidth-2\fboxsep][l]
+   {\enspace\thesection\enspace\textbar\enspace #1\enspace}}}
+\titlespacing{\section}{0pt}{16pt}{8pt}
+
+\titleformat{\subsection}
+  {\color{ataraAzul}\large\bfseries}{\thesubsection.}{0.5em}{#1}
+  [\color{ataraAzulClaro}\rule{\linewidth}{0.5pt}]
+\titlespacing{\subsection}{0pt}{12pt}{4pt}
+
+\titleformat{\subsubsection}
+  {\color{ataraAzulClaro}\normalsize\bfseries}{\thesubsubsection.}{0.5em}{#1}
+\titlespacing{\subsubsection}{0pt}{8pt}{2pt}
+
+% --------------------- Encabezado y pie --------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{ataraAzul}\textbf{ATARA} \textcolor{ataraGris}{— Manual de Usuario}}
+\fancyhead[R]{\small\color{ataraGris}MEP Costa Rica}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{%
+  \hbox to\headwidth{\color{ataraAzul}\leaders\hrule height\headrulewidth\hfill}}
+
+% --------------------- Cajas de contenido -----------------------------
+\newtcolorbox{consejo}[1][]{%
+  colback=ataraVerdePale, colframe=ataraVerde!60,
+  arc=3mm, boxrule=0.6pt, left=6pt, right=6pt, top=4pt, bottom=4pt,
+  fonttitle=\bfseries\small\color{ataraVerde},
+  title={{\large\ding{51}}\enspace Consejo}, #1}
+
+\newtcolorbox{importante}[1][]{%
+  colback=ataraNaranjaPale, colframe=ataraNaranja!70,
+  arc=3mm, boxrule=0.6pt, left=6pt, right=6pt, top=4pt, bottom=4pt,
+  fonttitle=\bfseries\small\color{ataraNaranja},
+  title={{\large\textbf{!}}\enspace Importante}, #1}
+
+\newtcolorbox{aviso}[1][]{%
+  colback=ataraRojoPale, colframe=ataraRojo!60,
+  arc=3mm, boxrule=0.6pt, left=6pt, right=6pt, top=4pt, bottom=4pt,
+  fonttitle=\bfseries\small\color{ataraRojo},
+  title={{\large\ding{55}}\enspace Atención}, #1}
+
+\newtcolorbox{nota}[1][]{%
+  colback=ataraAzulPale, colframe=ataraAzul!50,
+  arc=3mm, boxrule=0.6pt, left=6pt, right=6pt, top=4pt, bottom=4pt,
+  fonttitle=\bfseries\small\color{ataraAzul},
+  title={{\large\textbf{i}}\enspace Nota}, #1}
+
+\newtcolorbox{pasos}[1][Pasos]{%
+  colback=ataraGrisPale, colframe=ataraAzulClaro!70,
+  arc=3mm, boxrule=0.8pt, left=8pt, right=6pt, top=4pt, bottom=6pt,
+  fonttitle=\bfseries\color{ataraAzul},
+  title=#1}
+
+% --------------------- Placeholder para imágenes ----------------------
+\newcommand{\imagen}[2][8cm]{%
+  \begin{center}
+  \begin{tikzpicture}
+    \draw[fill=ataraGrisPale, draw=ataraAzulClaro!60, dashed, line width=1pt,
+          rounded corners=4pt]
+      (0,0) rectangle (0.92\linewidth,#1);
+    \node[align=center, text=ataraGris, text width=0.82\linewidth] at (current bounding box.center) {%
+      \large\itshape #2};
+  \end{tikzpicture}
+  \end{center}}
+
+\newcommand{\imagenS}[1]{%
+  \begin{center}
+  \begin{tikzpicture}
+    \draw[fill=ataraGrisPale, draw=ataraAzulClaro!60, dashed, line width=1pt,
+          rounded corners=4pt]
+      (0,0) rectangle (0.75\linewidth,5.5cm);
+    \node[align=center, text=ataraGris, text width=0.65\linewidth] at (current bounding box.center) {%
+      \normalsize\itshape #1};
+  \end{tikzpicture}
+  \end{center}}
+
+% --------------------- Comandos utilitarios ----------------------------
+\newcommand{\boton}[1]{\fcolorbox{ataraAzulClaro}{ataraAzulPale}%
+  {\small\textbf{\color{ataraAzul} #1}}}
+\newcommand{\menu}[1]{\textbf{\color{ataraAzulClaro} #1}}
+\newcommand{\campo}[1]{\textit{«#1»}}
+
+\newenvironment{pasosnum}{%
+  \begin{enumerate}[leftmargin=1.6cm, label=\textbf{\color{ataraAzul}\arabic*.},
+                    itemsep=4pt, parsep=0pt]}
+  {\end{enumerate}}
+
+% =====================================================================
+%                              PORTADA
+% =====================================================================
+\begin{document}
+\pagenumbering{roman}
+\thispagestyle{empty}
+
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[ataraAzul] (current page.north west) rectangle
+    ([yshift=-7.5cm]current page.north east);
+\end{tikzpicture}
+
+\vspace*{1.8cm}
+
+\begin{center}
+  {\Huge\bfseries\color{white} ATARA}\\[0.5em]
+  {\large\color{white!85!ataraAzul}
+    Sistema de Alerta Temprana y Atención al Rendimiento Académico}\\[0.3em]
+  {\normalsize\color{white!70!ataraAzul}
+    División de Educación Básica — MEP Costa Rica}
+
+  \vspace{2.5cm}
+
+  {\Huge\bfseries\color{ataraAzul} Manual de Usuario}\\[0.6em]
+  {\Large\color{ataraGris} Guía para Docentes}
+
+  \vspace{1.5cm}
+
+  \begin{tcolorbox}[
+    width=0.80\linewidth,
+    colback=ataraAzulPale,
+    colframe=ataraAzul!40,
+    arc=4mm, boxrule=0.8pt,
+    halign=center]
+  {\normalsize Este manual le explica paso a paso cómo usar ATARA
+  para registrar evaluaciones por saber, generar alertas temáticas
+  y dar seguimiento al rendimiento de sus estudiantes.}
+  \end{tcolorbox}
+
+  \vspace{2.5cm}
+
+  \begin{tabular}{rl}
+  \textbf{Versión:}          & 1.1 \\[0.3em]
+  \textbf{Fecha:}            & Mayo 2026 \\[0.3em]
+  \textbf{Dirigido a:}       & Docentes de Educación Básica \\[0.3em]
+  \textbf{Acceso al sistema:}& \texttt{https://atara-backend.vercel.app} \\
+  \end{tabular}
+\end{center}
+
+\newpage
+
+% =====================================================================
+%                              ÍNDICE
+% =====================================================================
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+% =====================================================================
+\section{Bienvenida y descripción general}
+% =====================================================================
+
+Bienvenido a \textbf{ATARA}. Esta plataforma fue creada especialmente para que usted,
+como docente, pueda llevar un seguimiento detallado del aprendizaje de sus estudiantes
+y detectar de manera oportuna aquellos que necesitan apoyo adicional.
+
+\subsection{¿Para qué sirve ATARA?}
+
+Con ATARA usted puede:
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=4pt]
+  \item[\textbf{1.}] \textbf{Consultar sus secciones asignadas} — ver el listado de grupos
+        y estudiantes que tiene a su cargo durante el año lectivo.
+  \item[\textbf{2.}] \textbf{Registrar evaluaciones por saber} — valorar a cada estudiante
+        en los ejes temáticos de las materias que imparte (escala del 1 al 5).
+  \item[\textbf{3.}] \textbf{Ver alertas temáticas automáticas} — el sistema calcula
+        promedios y le avisa cuáles ejes presentan riesgo de bajo rendimiento.
+  \item[\textbf{4.}] \textbf{Consultar visualizaciones y reportes} — ver gráficas del
+        rendimiento de su sección y obtener reportes detallados por estudiante.
+\end{itemize}
+
+\subsection{Roles en el sistema}
+
+ATARA distingue tres tipos de usuarios. Como docente, su acceso está \textbf{limitado a las
+secciones y materias que le fueron asignadas} por el administrador.
+
+\begin{table}[H]
+\centering\renewcommand{\arraystretch}{1.3}\small
+\begin{tabularx}{\textwidth}{@{}p{3.2cm} X@{}}
+\toprule
+\textbf{Rol} & \textbf{¿Qué puede hacer?} \\
+\midrule
+\textbf{Docente}
+  & Consultar sus secciones, evaluar estudiantes, ver alertas,
+    visualizaciones y reportes de sus grupos asignados. \\
+\textbf{Coordinador}
+  & Las mismas funciones que el docente. \\
+\textbf{Administrador}
+  & Acceso total al sistema: gestión de usuarios, años lectivos,
+    secciones, estudiantes e importación de listas PIAD. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{nota}
+Si no puede ver una sección o materia que debería poder ver, comuníquese con el
+administrador del sistema para que le asigne el acceso correspondiente.
+\end{nota}
+
+% =====================================================================
+\section{Acceso al sistema}
+% =====================================================================
+
+\subsection{Cómo ingresar}
+
+\begin{pasosnum}
+  \item Abra su navegador web y vaya a la dirección:
+        \texttt{https://atara-backend.vercel.app}
+  \item Ingrese su \campo{correo institucional} y \campo{contraseña}.
+  \item Haga clic en \boton{Ingresar}.
+\end{pasosnum}
+
+\imagen[5.5cm]{[Captura de pantalla: Pantalla de inicio de sesión]}
+
+Al ingresar, el sistema lo llevará directamente a la sección de
+\textbf{Secciones}, donde verá los grupos que tiene asignados.
+
+\begin{consejo}
+Si es la primera vez que ingresa, utilice las credenciales que le proporcionó el
+administrador del sistema. Si tiene problemas para acceder, contáctelo directamente.
+\end{consejo}
+
+\subsection{Cómo cerrar sesión}
+
+Para salir del sistema de forma segura, haga clic en el \textbf{ícono con su inicial}
+ubicado en la esquina superior derecha de la pantalla. Se desplegará un menú con la
+opción \boton{Cerrar sesión}.
+
+\begin{aviso}
+No cierre el navegador directamente sin cerrar sesión, especialmente en computadoras de uso
+compartido.
+\end{aviso}
+
+\subsection{Navegación general}
+
+El sistema tiene un \textbf{menú lateral} en el lado izquierdo de la pantalla con acceso
+rápido a todas las secciones disponibles. Como docente verá únicamente las opciones
+que le corresponden.
+
+\imagen[6cm]{[Captura de pantalla: Menú lateral con las opciones del docente]}
+
+\begin{table}[H]
+\centering\renewcommand{\arraystretch}{1.3}\small
+\begin{tabularx}{\textwidth}{@{}p{4.5cm} X@{}}
+\toprule
+\textbf{Opción del menú} & \textbf{¿Para qué sirve?} \\
+\midrule
+\menu{Secciones}           & Ver sus grupos asignados y los estudiantes de cada uno \\
+\menu{Eval.\ por Saber}    & Registrar y consultar evaluaciones de sus estudiantes \\
+\menu{Alertas Tempranas}   & Ver alertas generadas por bajo rendimiento \\
+\menu{Visualizaciones}     & Ver gráficas del rendimiento por sección \\
+\menu{Reportes}            & Obtener reportes individuales por estudiante \\
+\menu{Mi sesión}           & Consultar la información de su cuenta activa \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\section{Mis Secciones}
+% =====================================================================
+
+La pantalla de \textbf{Secciones} es el punto de partida para el trabajo diario. Aquí
+verá todos los grupos de estudiantes que le han sido asignados para el año lectivo activo.
+
+\subsection{Cómo ver sus secciones}
+
+\begin{pasosnum}
+  \item En el menú lateral, haga clic en \menu{Secciones}.
+  \item Verá la lista de grupos asignados a usted (por ejemplo: «4°A», «5°B»).
+  \item Haga clic sobre una sección para ver la lista de estudiantes matriculados.
+\end{pasosnum}
+
+\imagenS{[Captura de pantalla: Lista de secciones asignadas al docente]}
+
+\begin{nota}
+Si una sección que imparte no aparece en su lista, comuníquese con el administrador
+del sistema para que le asigne ese grupo a su cuenta.
+\end{nota}
+
+% =====================================================================
+\section{Evaluaciones por Saber \textnormal{\small(Función principal)}}
+\label{sec:evalsaber}
+% =====================================================================
+
+Esta es la funcionalidad más importante de ATARA para el docente. Aquí usted registra,
+periodo a periodo, cómo va cada estudiante en cada \emph{eje temático} de la materia
+que imparte.
+
+\subsection{¿Qué es una evaluación por saber?}
+
+Cada evaluación corresponde a \textbf{un estudiante}, \textbf{una materia} y \textbf{un
+periodo lectivo}. Dentro de ella, usted asigna una valoración del \textbf{1 al 5} a cada
+eje temático según el tipo de saber que esté evaluando.
+
+\begin{table}[H]
+\centering\renewcommand{\arraystretch}{1.25}\small
+\begin{tabular}{@{}c l p{9cm}@{}}
+\toprule
+\textbf{Valor} & \textbf{Nivel} & \textbf{Significa\ldots} \\
+\midrule
+\textbf{1} & Inicial       & El estudiante no evidencia dominio del eje \\
+\textbf{2} & En desarrollo & Dominio parcial, necesita apoyo constante \\
+\textbf{3} & Intermedio    & Dominio básico, comete algunos errores \\
+\textbf{4} & Logrado       & Buen dominio, errores mínimos \\
+\textbf{5} & Avanzado      & Dominio pleno y puede transferir el conocimiento \\
+\bottomrule
+\end{tabular}
+\caption{Escala de valoración utilizada en las evaluaciones por saber.}
+\end{table}
+
+\subsection{Tipos de saber}
+
+Cada materia tiene ejes temáticos organizados en tres categorías:
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=3pt]
+  \item \textbf{Saber Conceptual} — lo que el estudiante \emph{sabe} (conocimientos teóricos).
+  \item \textbf{Saber Procedimental} — lo que el estudiante \emph{sabe hacer} (habilidades prácticas).
+  \item \textbf{Saber Actitudinal} — cómo el estudiante \emph{actúa y se relaciona} con el aprendizaje.
+\end{itemize}
+
+Puede evaluar a un mismo estudiante en los tres tipos de saber dentro del mismo periodo.
+Cada tipo genera una evaluación independiente.
+
+\subsection{Registrar una nueva evaluación}
+
+\begin{pasos}[Cómo registrar una evaluación por saber]
+\begin{pasosnum}
+  \item En el menú lateral, haga clic en \menu{Eval.\ por Saber}.
+  \item Seleccione la \campo{sección} de los estudiantes que desea evaluar.
+  \item Seleccione el \campo{periodo lectivo} activo.
+  \item Haga clic en \boton{+ Nueva evaluación}.
+  \item Seleccione el \campo{estudiante} y la \campo{materia}.
+  \item Elija el \campo{tipo de saber} (Conceptual, Procedimental o Actitudinal).
+  \item Asigne una valoración del 1 al 5 a cada eje temático mostrado.
+  \item Si todos los ejes tienen el mismo valor, use \boton{Aplicar nivel a todos los ejes}
+        para ahorrar tiempo.
+  \item Haga clic en \boton{Guardar}.
+\end{pasosnum}
+\end{pasos}
+
+\imagen[7cm]{[Captura de pantalla: Formulario de nueva evaluación por saber — selector de sección y período]}
+
+\imagen[7cm]{[Captura de pantalla: Wizard de evaluación — asignación de valores por eje temático]}
+
+\begin{importante}
+Si cierra el formulario con datos ingresados sin guardar, el sistema le pedirá
+confirmación antes de descartar los cambios. Esto evita pérdidas accidentales de información.
+\end{importante}
+
+\subsection{Consultar evaluaciones existentes}
+
+\begin{pasosnum}
+  \item En \menu{Eval.\ por Saber}, seleccione la sección y el periodo.
+  \item La lista mostrará todas las evaluaciones registradas para ese grupo.
+  \item Haga clic sobre una evaluación para ver sus detalles completos.
+\end{pasosnum}
+
+\imagen[6cm]{[Captura de pantalla: Lista de evaluaciones por saber de una sección]}
+
+\subsection{Modificar una evaluación (recalificación)}
+
+Si necesita corregir los valores de una evaluación ya guardada:
+
+\begin{pasosnum}
+  \item Localice la evaluación en la lista y haga clic en \boton{Editar}.
+  \item Modifique los valores de los ejes que desea corregir.
+  \item Haga clic en \boton{Guardar cambios}.
+\end{pasosnum}
+
+\begin{nota}
+Al editar una evaluación existente se reemplazan los valores anteriores. El sistema
+\textbf{no} crea una segunda evaluación; actualiza la existente. El historial de
+cambios queda registrado internamente.
+\end{nota}
+
+% =====================================================================
+\section{Alertas Temáticas \textnormal{\small(Función principal)}}
+% =====================================================================
+
+Las alertas temáticas son la herramienta más poderosa de ATARA. Una vez que usted ha
+registrado evaluaciones por saber, el sistema calcula automáticamente qué estudiantes
+presentan \textbf{riesgo de bajo rendimiento} en cada eje temático y le genera un aviso.
+
+\subsection{¿Qué es una alerta temática?}
+
+El sistema calcula el \textbf{promedio} de todas las valoraciones de un estudiante en
+cada eje temático y determina un nivel de alerta según ese promedio:
+
+\begin{table}[H]
+\centering\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}c p{3.4cm} p{7.2cm}@{}}
+\toprule
+\textbf{Promedio} & \textbf{Nivel} & \textbf{¿Qué significa?} \\
+\midrule
+$\leq 2{,}0$ &
+  \colorbox{ataraRojoPale}{\textbf{\color{ataraRojo}\quad ALTA \quad}} &
+  Riesgo crítico. Este estudiante requiere atención inmediata en ese eje. \\[0.4em]
+$2{,}1 - 3{,}0$ &
+  \colorbox{ataraNaranjaPale}{\textbf{\color{ataraNaranja}\quad MEDIA \quad}} &
+  Riesgo moderado. Se recomienda seguimiento cercano. \\[0.4em]
+$> 3{,}0$ &
+  \colorbox{ataraVerdePale}{\textbf{\color{ataraVerde}\ SIN ALERTA\ }} &
+  Desempeño aceptable. No se genera alerta para este eje. \\
+\bottomrule
+\end{tabular}
+\caption{Niveles de alerta temática y su interpretación pedagógica.}
+\end{table}
+
+\subsection{Generar alertas para un estudiante}
+
+\begin{pasos}[Cómo generar alertas para un estudiante]
+\begin{pasosnum}
+  \item En el menú lateral, haga clic en \menu{Alertas Tempranas}.
+  \item Seleccione la \campo{sección} y el \campo{periodo}.
+  \item Haga clic en el nombre del estudiante.
+  \item Haga clic en \boton{Generar alertas}.
+  \item El sistema analizará todas las evaluaciones registradas y mostrará las alertas
+        correspondientes por eje temático.
+\end{pasosnum}
+\end{pasos}
+
+\imagen[6.5cm]{[Captura de pantalla: Vista de Alertas Temáticas con lista de estudiantes]}
+
+\subsection{Generar alertas para toda la sección}
+
+Si desea analizar a todos los estudiantes de una sección a la vez:
+
+\begin{pasosnum}
+  \item Seleccione la \campo{sección} y el \campo{periodo}.
+  \item Haga clic en \boton{Generar alertas para la sección}.
+  \item El sistema procesará a cada estudiante matriculado automáticamente.
+\end{pasosnum}
+
+\begin{consejo}
+Genere las alertas al finalizar cada trimestre o cuando haya registrado varias
+evaluaciones nuevas. El proceso puede repetirse las veces que sea necesario; las
+alertas anteriores se actualizan con los datos más recientes.
+\end{consejo}
+
+\subsection{Consultar e imprimir las alertas}
+
+\begin{pasosnum}
+  \item En \menu{Alertas Tempranas}, seleccione la sección y el periodo.
+  \item Verá la lista de estudiantes con sus alertas activas, ordenadas por nivel de riesgo.
+  \item Para imprimir o guardar como PDF, haga clic en \boton{Imprimir}.
+\end{pasosnum}
+
+\imagen[7cm]{[Captura de pantalla: Lista de alertas temáticas por estudiante con colores por nivel (ALTA/MEDIA)]}
+
+\begin{importante}
+Los ejes con nivel \textbf{SIN ALERTA} no aparecen en la lista — el sistema muestra
+únicamente los casos que requieren su atención (ALTA y MEDIA), para que pueda
+enfocarse en lo que realmente importa.
+\end{importante}
+
+% =====================================================================
+\section{Visualizaciones}
+% =====================================================================
+
+Las visualizaciones le muestran de un vistazo cómo está rindiendo su sección
+completa en una materia y periodo determinados. Es ideal para identificar tendencias
+del grupo antes de planificar sus próximas clases.
+
+\subsection{Cómo acceder a las visualizaciones}
+
+\begin{pasosnum}
+  \item Haga clic en \menu{Visualizaciones} en el menú lateral.
+  \item Seleccione la \campo{sección}, la \campo{materia} y el \campo{periodo}.
+  \item El sistema mostrará una gráfica con la distribución de niveles de desempeño
+        de todos los estudiantes del grupo.
+\end{pasosnum}
+
+\imagen[7cm]{[Captura de pantalla: Gráfica de distribución de desempeño de una sección]}
+
+\subsection{¿Cómo interpretar la gráfica?}
+
+La gráfica muestra cuántos estudiantes de su sección se encuentran en cada nivel de
+desempeño (Inicial, En desarrollo, Intermedio, Logrado, Avanzado) para la materia
+seleccionada. Esto le permite identificar rápidamente si la mayor parte del grupo
+está progresando o si hay una concentración en los niveles más bajos que requiere
+atención.
+
+\begin{consejo}
+Use las visualizaciones al final de cada trimestre para preparar su informe de
+avance del grupo y planificar estrategias de apoyo diferenciadas para el siguiente periodo.
+\end{consejo}
+
+% =====================================================================
+\section{Reportes por estudiante}
+% =====================================================================
+
+Los reportes le permiten obtener un resumen completo del desempeño de un
+estudiante específico: sus promedios por eje temático, sus alertas activas y el
+historial de evaluaciones del periodo seleccionado.
+
+\subsection{Cómo generar un reporte}
+
+\begin{pasosnum}
+  \item Haga clic en \menu{Reportes} en el menú lateral.
+  \item Busque y seleccione el \campo{estudiante}.
+  \item Seleccione la \campo{materia} y el \campo{periodo}.
+  \item Haga clic en \boton{Generar reporte}.
+  \item El reporte se mostrará en pantalla. Puede imprimirlo con
+        \boton{Imprimir} o guardarlo como PDF desde su navegador
+        (Archivo → Imprimir → Guardar como PDF).
+\end{pasosnum}
+
+\imagen[6.5cm]{[Captura de pantalla: Reporte individual de un estudiante con promedios y alertas]}
+
+\begin{nota}
+El reporte incluye: promedios por tipo de saber, detalle de cada eje temático evaluado
+y las alertas activas del periodo seleccionado. Es especialmente útil para reuniones con
+madres y padres de familia o para el expediente del estudiante.
+\end{nota}
+
+% =====================================================================
+\section{Alertas Tempranas \textnormal{\small(Módulo complementario)}}
+% =====================================================================
+
+La sección de \textbf{Alertas Tempranas} es un módulo complementario que permite
+consultar un historial general de seguimiento académico por estudiante o sección,
+basado en una escala de cuatro puntos.
+
+\subsection{Escala del módulo de Alertas Tempranas}
+
+\begin{table}[H]
+\centering\renewcommand{\arraystretch}{1.2}\small
+\begin{tabular}{@{}c l@{}}
+\toprule
+\textbf{Valor} & \textbf{Nivel} \\
+\midrule
+1 & Insuficiente \\
+2 & Básico \\
+3 & Satisfactorio \\
+4 & Destacado \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Consultar alertas tempranas}
+
+\begin{pasosnum}
+  \item Haga clic en \menu{Alertas Tempranas} en el menú lateral.
+  \item Seleccione el \campo{estudiante} o la \campo{sección}.
+  \item Seleccione el \campo{periodo} de interés.
+  \item El sistema mostrará las alertas generadas con este modelo de evaluación.
+  \item Para imprimir, haga clic en \boton{Imprimir}.
+\end{pasosnum}
+
+\imagenS{[Captura de pantalla: Vista de Alertas Tempranas de un estudiante]}
+
+\begin{nota}
+Para el registro de nuevas evaluaciones, utilice preferentemente el módulo
+\textbf{Evaluaciones por Saber} (sección \ref{sec:evalsaber} de este manual),
+que corresponde al modelo pedagógico actualizado del MEP con la escala del 1 al 5.
+\end{nota}
+
+% =====================================================================
+\section{Importar lista PIAD \textnormal{\small(Solo administradores)}}
+% =====================================================================
+
+El módulo de importación PIAD permite cargar el PDF oficial de la lista de
+adecuaciones del MEP (\emph{Plan Individual de Adecuación}) para extraer
+automáticamente la lista de estudiantes con adecuaciones curriculares.
+
+\begin{importante}
+Esta función está disponible únicamente para usuarios con rol de
+\textbf{Administrador}. Si usted es docente y necesita registrar estudiantes con
+adecuaciones, comuníquese con el administrador del sistema.
+\end{importante}
+
+\subsection{¿Qué es el PIAD?}
+
+El PIAD es el documento oficial del MEP que lista a los estudiantes que tienen
+adecuaciones curriculares. ATARA puede leer ese PDF y extraer los nombres y cédulas
+de forma automática mediante reconocimiento de texto (OCR).
+
+\subsection{Cómo importar la lista PIAD}
+
+\begin{pasos}[Cómo cargar el PDF de la lista PIAD]
+\begin{pasosnum}
+  \item En el menú lateral, haga clic en \menu{Importar PIAD}.
+  \item Haga clic en \boton{Seleccionar archivo} y elija el PDF de la lista PIAD.
+  \item Haga clic en \boton{Extraer estudiantes}.
+  \item El sistema mostrará la lista de estudiantes encontrados en el PDF.
+  \item Revise la lista para confirmar que los datos son correctos.
+  \item Registre manualmente en \menu{Estudiantes} los que no figuren aún en el sistema.
+\end{pasosnum}
+\end{pasos}
+
+\imagen[6.5cm]{[Captura de pantalla: Módulo de importación PIAD con área de carga del PDF]}
+
+\imagen[5.5cm]{[Captura de pantalla: Lista de estudiantes extraídos del PDF]}
+
+\begin{aviso}
+El archivo debe ser el PDF oficial generado por el sistema SIGCE del MEP. PDFs
+editados o generados por otros programas pueden no ser reconocidos correctamente.
+\end{aviso}
+
+% =====================================================================
+\section{Gestión de estudiantes \textnormal{\small(Solo administradores)}}
+% =====================================================================
+
+En esta sección el administrador puede buscar, registrar y actualizar la información
+básica de los estudiantes del sistema.
+
+\begin{importante}
+Esta función está disponible únicamente para usuarios con rol de \textbf{Administrador}.
+Los docentes consultan a sus estudiantes directamente desde la sección \menu{Secciones}.
+\end{importante}
+
+\subsection{Buscar un estudiante}
+
+\begin{pasosnum}
+  \item Haga clic en \menu{Estudiantes} en el menú lateral.
+  \item Utilice el buscador para encontrar al estudiante por nombre o cédula.
+  \item Haga clic en el nombre del estudiante para ver su información.
+\end{pasosnum}
+
+\imagenS{[Captura de pantalla: Lista de estudiantes con buscador]}
+
+\subsection{Registrar un estudiante manualmente}
+
+\begin{pasosnum}
+  \item En \menu{Estudiantes}, haga clic en \boton{+ Nuevo estudiante}.
+  \item Complete los campos: nombre, apellidos, número de cédula y fecha de nacimiento.
+  \item Haga clic en \boton{Guardar}.
+\end{pasosnum}
+
+\begin{nota}
+Si un estudiante ya existe en el sistema con la misma cédula, \textbf{no se creará un
+duplicado}. El sistema lo reconoce y devuelve el registro existente automáticamente.
+\end{nota}
+
+% =====================================================================
+\section{Preguntas frecuentes}
+% =====================================================================
+
+\begin{description}[leftmargin=1cm, style=nextline, font=\bfseries\color{ataraAzul},
+                    itemsep=10pt]
+
+  \item[¿Qué hago si no veo mi sección en el sistema?]
+  Comuníquese con el administrador del sistema. Es posible que su cuenta aún no
+  tenga asignada esa sección o que el año lectivo no esté activo.
+
+  \item[¿Puedo evaluar a un estudiante en más de una materia?]
+  Sí, pero únicamente en las materias que le han sido asignadas por el administrador.
+  Si necesita acceso a una materia adicional, solicítelo directamente.
+
+  \item[¿Qué pasa si ingreso un valor equivocado en una evaluación?]
+  Puede editarla en cualquier momento. Vaya a \menu{Eval.\ por Saber}, busque la
+  evaluación correspondiente y haga clic en \boton{Editar}.
+
+  \item[¿Con qué frecuencia debo generar las alertas temáticas?]
+  Se recomienda generarlas al finalizar cada trimestre o cada vez que haya
+  registrado evaluaciones nuevas para un grupo. El proceso es rápido y puede
+  repetirse sin problema; los resultados se actualizan automáticamente.
+
+  \item[¿Puedo imprimir las alertas para llevarlas a una reunión?]
+  Sí. Tanto en \menu{Alertas Tempranas} como en \menu{Reportes} encontrará un
+  botón \boton{Imprimir} que genera una vista lista para impresora o para guardar
+  como PDF desde el navegador.
+
+  \item[No veo la opción «Importar PIAD» ni «Estudiantes» en mi menú. ¿Por qué?]
+  Estas opciones están disponibles únicamente para administradores del sistema.
+  Como docente, sus estudiantes ya están registrados por el administrador; usted
+  los consulta desde \menu{Secciones}.
+
+  \item[Olvidé mi contraseña. ¿Qué hago?]
+  Comuníquese con el administrador del sistema para que le restablezca el acceso.
+  ATARA no cuenta con recuperación de contraseña automática por correo electrónico
+  en esta versión.
+
+  \item[¿Mis evaluaciones se guardan automáticamente?]
+  No. Debe hacer clic en \boton{Guardar} para que queden registradas. Si cierra
+  el formulario sin guardar, el sistema le preguntará si desea descartar los cambios,
+  evitando pérdidas accidentales.
+
+\end{description}
+
+% =====================================================================
+\section{Glosario de términos}
+% =====================================================================
+
+\begin{description}[leftmargin=3.5cm, style=sameline, font=\bfseries\color{ataraAzul},
+                    labelwidth=3.2cm, itemsep=6pt]
+
+  \item[Eje temático]
+    Subdivisión de contenido dentro de una materia. Cada materia tiene
+    21 ejes temáticos (7 por tipo de saber). Ejemplo: «Álgebra y pensamiento
+    algebraico» es un eje de Matemáticas.
+
+  \item[Tipo de saber]
+    Categoría del aprendizaje: \emph{Conceptual} (saber), \emph{Procedimental}
+    (saber hacer) o \emph{Actitudinal} (saber ser).
+
+  \item[Materia]
+    Asignatura que se evalúa. En esta versión: Español, Matemáticas, Ciencias
+    y Estudios Sociales.
+
+  \item[Periodo]
+    Trimestre lectivo (I, II o III) dentro de un año lectivo.
+
+  \item[Sección]
+    Grupo de estudiantes a cargo de un docente. Ejemplo: «4°A».
+
+  \item[Alerta temática]
+    Aviso generado automáticamente cuando el promedio de un estudiante en un
+    eje temático está en riesgo (ALTA: promedio $\leq 2{,}0$; MEDIA: entre $2{,}1$ y $3{,}0$).
+
+  \item[PIAD]
+    Plan Individual de Adecuación. Documento oficial del MEP con la lista de
+    estudiantes que tienen adecuaciones curriculares.
+
+  \item[Evaluación por saber]
+    Registro del desempeño de un estudiante en los ejes temáticos de una
+    materia y periodo, con valoraciones del 1 al 5.
+
+\end{description}
+
+\vspace{1.5cm}
+
+\begin{tcolorbox}[
+  colback=ataraAzulPale, colframe=ataraAzul!50,
+  arc=4mm, boxrule=0.8pt, halign=center]
+{\large\bfseries\color{ataraAzul} ¿Necesita ayuda adicional?}\\[0.4em]
+Comuníquese con el coordinador de su institución o con el equipo técnico
+responsable del sistema ATARA en su circuito educativo.
+\end{tcolorbox}
+
+\end{document}

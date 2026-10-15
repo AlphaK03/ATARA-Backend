@@ -1,0 +1,1851 @@
+% =====================================================================
+%  MANUAL TÉCNICO — ATARA
+%  Sistema de Alerta Temprana y Atención al Rendimiento Académico
+%  División de Educación Básica — Ministerio de Educación Pública (MEP)
+%  Curso: EIF408 — Proyecto de Ingeniería de Software
+%  Fecha: Abril 2026
+% =====================================================================
+\documentclass[11pt,a4paper,oneside]{article}
+
+% --------------------- Codificación e idioma ---------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% --------------------- Geometría y estilo ------------------------------
+\usepackage[a4paper,margin=2.5cm,headheight=14pt]{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+
+% --------------------- Tablas y listas ---------------------------------
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{enumitem}
+
+% --------------------- Color, cajas, código ----------------------------
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{listings}
+
+% --------------------- URLs y rutas de API (quiebre en monospace) -----
+\usepackage[hyphens]{url}
+\def\UrlBreaks{\do\/\do\{\do\}\do\_\do\-\do\=\do\~\do\.}
+
+% --------------------- Diagramas ---------------------------------------
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
+
+% --------------------- Hipervínculos -----------------------------------
+\usepackage[hidelinks,colorlinks=true,linkcolor=ataraAzul,urlcolor=ataraAzul,citecolor=ataraAzul]{hyperref}
+
+% --------------------- Paleta de colores ATARA -------------------------
+\definecolor{ataraAzul}{HTML}{1F3A93}
+\definecolor{ataraAzulClaro}{HTML}{4A6FBF}
+\definecolor{ataraGris}{HTML}{F4F6F8}
+\definecolor{ataraGrisOscuro}{HTML}{4A4A4A}
+\definecolor{ataraVerde}{HTML}{1B7F3B}
+\definecolor{ataraNaranja}{HTML}{D97E1F}
+\definecolor{ataraRojo}{HTML}{B5292F}
+\definecolor{ataraFondoCodigo}{HTML}{F8F8F8}
+
+% --------------------- Estilo de títulos -------------------------------
+\titleformat{\section}
+  {\color{ataraAzul}\Large\bfseries}{\thesection.}{0.6em}{}[\vspace{-0.4em}\color{ataraAzul}\rule{\linewidth}{0.6pt}]
+\titleformat{\subsection}
+  {\color{ataraAzul}\large\bfseries}{\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}
+  {\color{ataraAzulClaro}\normalsize\bfseries}{\thesubsubsection.}{0.5em}{}
+
+% --------------------- Encabezado y pie --------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textbf{\color{ataraAzul}ATARA} \textcolor{ataraGrisOscuro}{— Manual Técnico}}
+\fancyhead[R]{\textcolor{ataraGrisOscuro}{EIF408 \textperiodcentered{} 2026}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{ataraAzul}\leaders\hrule height \headrulewidth\hfill}}
+
+% --------------------- Configuración de listings -----------------------
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{ataraFondoCodigo},
+  frame=single,
+  rulecolor=\color{ataraAzulClaro!40},
+  framesep=4pt,
+  xleftmargin=8pt,
+  xrightmargin=4pt,
+  numbers=none,
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=false,
+  keywordstyle=\color{ataraAzul}\bfseries,
+  commentstyle=\color{ataraGrisOscuro}\itshape,
+  stringstyle=\color{ataraVerde},
+  captionpos=b,
+  literate=
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'\i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {Ü}{{\"U}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+\lstdefinestyle{json}{language=Java,morekeywords={true,false,null}}
+\lstdefinestyle{sql}{language=SQL}
+\lstdefinestyle{java}{language=Java}
+\lstdefinestyle{bash}{language=bash,morekeywords={mvnw,docker,docker-compose,curl}}
+
+% --------------------- Cajas tcolorbox ---------------------------------
+\newtcolorbox{ataracaja}[1][]{%
+  colback=ataraAzul!4,
+  colframe=ataraAzul!50,
+  arc=2mm,
+  boxrule=0.6pt,
+  fonttitle=\bfseries,
+  coltitle=ataraAzul,
+  #1
+}
+
+\newtcolorbox{ataraInfo}{
+  colback=ataraAzul!4, colframe=ataraAzul!40,
+  arc=2mm, boxrule=0.6pt
+}
+\newtcolorbox{ataraAlerta}{
+  colback=ataraRojo!5, colframe=ataraRojo!60,
+  arc=2mm, boxrule=0.6pt
+}
+\newtcolorbox{ataraNota}{
+  colback=ataraNaranja!8, colframe=ataraNaranja!60,
+  arc=2mm, boxrule=0.6pt
+}
+\newtcolorbox{ataraExito}{
+  colback=ataraVerde!7, colframe=ataraVerde!60,
+  arc=2mm, boxrule=0.6pt
+}
+
+% --------------------- Comandos utilitarios ----------------------------
+\newcommand{\code}[1]{\texttt{\small #1}}
+% \ruta usa \path (paquete url) -> quiebra lineas en / { } _ = sin escapar
+\newcommand{\ruta}[1]{\small\path{#1}}
+\newcommand{\pass}{\textbf{\color{ataraVerde}PASS}}
+\newcommand{\fail}{\textbf{\color{ataraRojo}FAIL}}
+
+% =====================================================================
+%                                 PORTADA
+% =====================================================================
+\begin{document}
+\pagenumbering{roman}
+\thispagestyle{empty}
+
+\begin{center}
+\vspace*{1.5cm}
+
+{\Huge\bfseries\color{ataraAzul} ATARA}\\[0.5em]
+{\Large Sistema de Alerta Temprana y Atención al Rendimiento Académico}\\[0.4em]
+{\normalsize\itshape División de Educación Básica — MEP, Costa Rica}
+
+\vspace{2.2cm}
+\rule{0.85\linewidth}{1.5pt}
+
+\vspace{0.7cm}
+{\Huge\bfseries Manual Técnico}\\[0.4em]
+{\Large de la Plataforma Completa}\\[0.4em]
+{\large\itshape Backend REST API + Frontend Vite}
+
+\vspace{0.5cm}
+\rule{0.85\linewidth}{1.5pt}
+
+\vspace{2.5cm}
+
+\begin{tabular}{rl}
+\textbf{Curso:}              & EIF408 — Proyecto de Ingeniería de Software \\[0.2em]
+\textbf{Versión del API:}    & 0.0.1-SNAPSHOT \\[0.2em]
+\textbf{Fecha de emisión:}   & Abril 2026 \\[0.2em]
+\textbf{Stack principal:}    & Spring Boot 4.0.3 \textperiodcentered{} Java 17 \textperiodcentered{} PostgreSQL 17 \\[0.2em]
+\textbf{Stack frontend:}     & Vite 5 \textperiodcentered{} JavaScript Vanilla \textperiodcentered{} Chart.js 4 \\[0.2em]
+\textbf{Puerto API local:}   & \code{localhost:8081} \\[0.2em]
+\textbf{Puerto frontend:}    & \code{localhost:3000} \\[0.2em]
+\textbf{Repositorio:}        & ATARA-Backend (rama \code{main}) \\
+\end{tabular}
+
+\vspace{1.5cm}
+
+\begin{ataracaja}[title=Alcance del documento]
+Este manual cubre la \textbf{plataforma completa} de ATARA hasta abril 2026: arquitectura,
+modelo de datos, los \textbf{14 controladores REST}, los \textbf{7 módulos funcionales},
+el frontend Vite, la infraestructura de pruebas funcionales y la configuración de despliegue
+en producción. Reemplaza al borrador previo y se mantiene como documento técnico de referencia.
+\end{ataracaja}
+
+\end{center}
+\newpage
+
+% =====================================================================
+%                                 ÍNDICE
+% =====================================================================
+\tableofcontents
+\newpage
+
+\pagenumbering{arabic}
+
+% =====================================================================
+\section{Introducción}
+% =====================================================================
+
+\subsection{Propósito del sistema}
+
+ATARA (\emph{Sistema de Alerta Temprana y Atención al Rendimiento Académico}) es una plataforma
+web diseñada para la \textbf{División de Educación Básica del Ministerio de Educación Pública
+de Costa Rica} (MEP). Su objetivo es detectar, de manera temprana y automatizada, dificultades
+académicas en estudiantes de primaria mediante un modelo de evaluación por saberes
+(Conceptual, Procedimental, Actitudinal) y la generación de \textbf{alertas temáticas} cuando
+el desempeño promedio de un estudiante en un eje temático cae por debajo del umbral esperado.
+
+\subsection{Audiencia}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Equipo de desarrollo y mantenimiento} — para entender la arquitectura,
+        integrar nuevas funcionalidades y depurar incidencias.
+  \item \textbf{Equipo de despliegue / DevOps} — para configurar entornos, gestionar
+        variables de entorno, ejecutar migraciones y monitorear el sistema.
+  \item \textbf{Coordinadores académicos del MEP} — como referencia formal del modelo
+        funcional implementado.
+  \item \textbf{Auditores y revisores docentes} — para validar el cumplimiento del modelo
+        pedagógico y del control de acceso.
+\end{itemize}
+
+\subsection{Convenciones del documento}
+
+\begin{itemize}[leftmargin=*]
+  \item \code{Código en monoespaciado} indica nombres de clases, archivos, endpoints, variables
+        de entorno, identificadores de configuración o cuerpos JSON.
+  \item Los \textbf{verbos HTTP} (GET, POST, PUT, DELETE) se escriben en mayúscula seguidos de
+        la ruta.
+  \item Las cajas con borde azul son \emph{informativas}; con borde naranja son \emph{notas
+        de implementación}; con borde rojo son \emph{advertencias}; con borde verde son
+        \emph{evidencias o confirmaciones}.
+\end{itemize}
+
+% =====================================================================
+\section{Visión general del sistema}
+% =====================================================================
+
+\subsection{Stack tecnológico}
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{4.0cm} p{6.0cm} p{4.0cm}@{}}
+\toprule
+\textbf{Componente} & \textbf{Tecnología} & \textbf{Versión} \\
+\midrule
+Framework backend       & Spring Boot                    & 4.0.3 \\
+Lenguaje backend        & Java                           & 17 (LTS) \\
+Base de datos           & PostgreSQL                     & 17 (Docker) / 15-alpine (tests) \\
+Migraciones de esquema  & Flyway (PostgreSQL)            & integrado con Spring Boot \\
+Seguridad               & Spring Security + JJWT         & 0.12.6 \\
+Validación              & Jakarta Bean Validation        & integrada \\
+Persistencia            & Spring Data JPA + Hibernate    & integrada \\
+OCR                     & Apache PDFBox + Tess4j         & 3.0.3 / 5.11.0 \\
+Pruebas funcionales     & JUnit 5 + Testcontainers       & 1.20.4 \\
+Aserciones              & AssertJ                        & integrada \\
+Cliente HTTP de pruebas & Spring \code{RestTemplate}     & integrada \\
+Build tool              & Apache Maven Wrapper           & \code{mvnw} \\
+Frontend                & Vite + Vanilla JS              & Vite 5 \\
+Gráficas frontend       & Chart.js                       & 4.5.1 \\
+Contenedor de BD        & Docker Compose                 & \code{docker-compose.yml} \\
+\bottomrule
+\end{tabular}
+\caption{Componentes del stack tecnológico oficial de ATARA.}
+\end{table}
+
+\subsection{Arquitectura en capas}
+
+El backend sigue una arquitectura clásica en capas con separación estricta de
+responsabilidades. Las flechas representan la dirección permitida de las dependencias.
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=0.6cm and 1.0cm,
+  capa/.style={rectangle, rounded corners=2pt, draw=ataraAzul!60, fill=ataraAzul!8,
+               minimum width=3.5cm, minimum height=1.05cm, align=center, font=\small\bfseries},
+  flecha/.style={-{Stealth[length=2.5mm]}, thick, ataraAzul!70},
+  rol/.style={font=\scriptsize\itshape, ataraGrisOscuro, align=center}
+]
+\node[capa] (cli) {Cliente / Frontend\\\scriptsize Vite + Vanilla JS};
+\node[capa, right=of cli] (ctrl) {Controller\\\scriptsize @Valid, DTO};
+\node[capa, right=of ctrl] (svc) {Service\\\scriptsize Reglas de negocio};
+\node[capa, right=of svc] (repo) {Repository\\\scriptsize Spring Data JPA};
+\node[capa, right=of repo] (db) {Modelo / BD\\\scriptsize Hibernate $\to$ PostgreSQL};
+
+\draw[flecha] (cli) -- (ctrl) node[midway, above, rol] {HTTPS\\JSON};
+\draw[flecha] (ctrl) -- (svc) node[midway, above, rol] {DTO};
+\draw[flecha] (svc) -- (repo) node[midway, above, rol] {Entidades};
+\draw[flecha] (repo) -- (db) node[midway, above, rol] {SQL};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Responsabilidades por capa:}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Controller} — recibe peticiones HTTP, aplica \code{@Valid} sobre los DTO
+        de entrada, delega al servicio y responde con \code{ResponseEntity<ApiResponse<T>>}.
+        \emph{Nunca} contiene lógica de negocio ni accede a repositorios.
+  \item \textbf{Service} — implementa toda la lógica de negocio, validaciones de reglas,
+        transformación entidad$\leftrightarrow$DTO y verificaciones de control de acceso
+        a través del \code{ContextoUsuario}.
+  \item \textbf{Repository} — extiende \code{JpaRepository<Entity, Long>} (Spring Data JPA).
+        Solo realiza consultas a la base de datos.
+  \item \textbf{Modelo (entidades JPA)} — todas las relaciones se declaran con
+        \code{FetchType.LAZY} para evitar materialización de grafos innecesarios.
+  \item \textbf{Seguridad} — el filtro \code{JwtAuthenticationFilter} valida el token en cada
+        request; el \code{ContextoUsuarioService} construye un \code{ContextoUsuario} inmutable
+        para cada request a partir del usuario autenticado.
+\end{itemize}
+
+\subsection{Estructura de paquetes Java}
+
+\begin{lstlisting}[style=bash,caption={Distribución del código Java}]
+com.atara.deb.ataraapi
+|-- controller/   14 controladores REST
+|-- service/      Interfaces de servicio
+|   `-- impl/     Implementaciones (Impl)
+|-- repository/   Repositorios Spring Data JPA
+|-- model/        27 entidades JPA
+|   `-- enums/    Enumeraciones del dominio
+|-- dto/          DTOs por dominio
+|   |-- alerta/   |-- estudiante/  |-- piad/
+|   |-- auth/     |-- evaluacion/  |-- reporte/
+|   |-- saber/    |-- matricula/   |-- usuario/
+|   `-- visualizacion/
+|-- security/     SecurityConfig, JwtService,
+|                 JwtAuthenticationFilter,
+|                 ContextoUsuario, ContextoUsuarioService
+|-- exception/    GlobalExceptionHandler,
+|                 AccesoDenegadoException,
+|                 TokenRefreshException
+`-- AtaraApiApplication.java
+\end{lstlisting}
+
+\subsection{Estructura del frontend}
+
+El frontend (\code{temp-frontend/}) es una aplicación Vite + JavaScript vanilla, sin framework
+SPA. Está pensada para integrarse con el backend mediante el cliente \code{api.js}, que
+auto-extrae el campo \code{.data} del envoltorio \code{ApiResponse<T>}.
+
+\begin{lstlisting}[style=bash,caption={Estructura del frontend Vite}]
+temp-frontend/
+|-- index.html              entrada principal (carga de pagina dinamica)
+|-- vite.config.js          puerto 3000, proxy /api -> :8081
+|-- package.json            dependencias (Chart.js)
+`-- src/
+    |-- main.js             ruteo por query params
+    |-- api.js              cliente HTTP, manejo de JWT, unwrap ApiResponse
+    |-- confirm.js          dialogos de confirmacion personalizados
+    |-- pedagogicaData.js   constantes pedagogicas estaticas
+    |-- style.css           estilos globales
+    `-- pages/
+        |-- aniosLectivos.js     |-- alertasTempranas.js
+        |-- estudiantes.js       |-- evaluacionesSaber.js
+        |-- matriculas.js        |-- visualizaciones.js
+        |-- evaluaciones.js      |-- reportes.js
+        |-- alertas.js           |-- importarPiad.js
+        |-- secciones.js         |-- sesion.js
+\end{lstlisting}
+
+% =====================================================================
+\section{Modelo de datos y migraciones}
+% =====================================================================
+
+\subsection{Gobierno del esquema}
+
+El esquema de base de datos es \textbf{propiedad exclusiva de Flyway}. Hibernate opera con
+\code{spring.jpa.hibernate.ddl-auto=none}: nunca se permite que la JPA modifique la estructura
+de la BD. La única vía válida para cambiar el esquema es crear una nueva migración versionada
+(\code{V12\_\_descripcion.sql}, \code{V13\_\_...}, etc.).
+
+\begin{ataraAlerta}
+\textbf{Restricción crítica:} las migraciones existentes son \emph{inmutables}. Modificarlas
+hace que Flyway falle con un \code{Validate failed: checksum mismatch} y la aplicación no arranca.
+Toda corrección de esquema o de datos debe ir en una migración nueva.
+\end{ataraAlerta}
+
+\subsection{Cronología de migraciones}
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{1.0cm} p{12.5cm}@{}}
+\toprule
+\textbf{Versión} & \textbf{Contenido} \\
+\midrule
+V1  & Esquema inicial: 20 tablas base, más de 40 índices, 13 \emph{triggers} de auditoría
+       (\code{registro\_auditoria} con cuerpo JSONB) y la función
+       \code{fn\_actualizar\_updated\_at}. \\
+V2  & Datos semilla: usuarios, centros educativos, niveles, secciones, estudiantes,
+       matrículas y configuración pedagógica básica. \\
+V3  & 8 vistas de consulta para reportería:
+       \code{vw\_criterios\_completos}, \code{vw\_rendimiento\_periodo\_activo},
+       entre otras. \\
+V4  & Módulo de saberes: tablas \code{tipos\_saber}, \code{ejes\_tematicos},
+       \code{niveles\_desempeno}, \code{evaluaciones\_saber},
+       \code{detalle\_evaluacion\_saber}, \code{alertas\_tematicas} y dos vistas. \\
+V5  & Estudiantes adicionales para enriquecer el set de pruebas. \\
+V6  & Soporte multi-materia: agrega \code{materia\_id} a \code{ejes\_tematicos},
+       \code{evaluaciones\_saber} y \code{alertas\_tematicas}; añade 63 ejes nuevos
+       (Matemáticas, Ciencias, Estudios Sociales) y actualiza las vistas. \\
+V7  & Restricción única en \code{alertas\_tematicas} por
+       \code{(estudiante\_id, periodo\_id, eje\_tematico\_id, materia\_id)}. \\
+V8  & Tabla \code{usuario\_materias}: relación N:M entre docentes y materias asignadas. \\
+V9  & Inserta el docente de prueba \code{kcortes@atara.mep.go.cr} (Keylor Cortés). \\
+V10 & Asignación de materias adicionales (Español y Ciencias) para el docente
+       \code{avargas@atara.mep.go.cr}. \\
+V11 & Corrección de la asignación del docente de la sección 1°D. \\
+\bottomrule
+\end{tabular}
+\caption{Cronología de migraciones Flyway aplicadas (V1–V11).}
+\end{table}
+
+\subsection{Diagrama lógico del modelo}
+
+\begin{center}
+\begin{tikzpicture}[
+  ent/.style={rectangle, rounded corners=1.5pt, draw=ataraAzul!50,
+              fill=ataraAzul!6, font=\scriptsize\bfseries,
+              minimum height=0.6cm, minimum width=2.0cm, align=center},
+  rel/.style={-{Stealth[length=1.6mm]}, thin, ataraAzul!60},
+  node distance=0.55cm and 0.7cm
+]
+\node[ent] (cu) {Centro\\Educativo};
+\node[ent, right=of cu] (al) {AnioLectivo};
+\node[ent, right=of al] (per) {Periodo};
+\node[ent, right=of per] (mat) {Materia};
+
+\node[ent, below=of cu] (sec) {Seccion};
+\node[ent, right=of sec] (us) {Usuario};
+\node[ent, right=of us] (ts) {TipoSaber};
+\node[ent, right=of ts] (et) {EjeTematico};
+
+\node[ent, below=of sec] (est) {Estudiante};
+\node[ent, right=of est] (mtr) {Matricula};
+\node[ent, right=of mtr] (es)  {EvaluacionSaber};
+\node[ent, right=of es]  (det) {DetalleEvalSaber};
+
+\node[ent, below=of est] (ev) {Evaluacion};
+\node[ent, right=of ev]  (de) {DetalleEval};
+\node[ent, right=of de]  (at) {AlertaTematica};
+\node[ent, right=of at]  (a)  {Alerta};
+
+% relaciones
+\draw[rel] (cu) -- (sec); \draw[rel] (al) -- (per); \draw[rel] (sec) -- (mtr);
+\draw[rel] (est) -- (mtr); \draw[rel] (us) -- (sec); \draw[rel] (mat) -- (et);
+\draw[rel] (ts) -- (et); \draw[rel] (et) -- (det); \draw[rel] (es) -- (det);
+\draw[rel] (est) -- (es); \draw[rel] (us) -- (es); \draw[rel] (per) -- (es);
+\draw[rel] (mat) -- (es); \draw[rel] (et) -- (at); \draw[rel] (mat) -- (at);
+\draw[rel] (per) -- (at); \draw[rel] (est) -- (at); \draw[rel] (est) -- (ev);
+\draw[rel] (per) -- (ev); \draw[rel] (us) -- (ev); \draw[rel] (ev) -- (de);
+\draw[rel] (est) -- (a);
+\end{tikzpicture}
+\end{center}
+
+\textbf{Entidades principales (27 totales):}
+\code{Usuario}, \code{Rol}, \code{TokenRefresh},
+\code{CentroEducativo}, \code{Nivel}, \code{Seccion}, \code{UsuarioSeccion},
+\code{AnioLectivo}, \code{Periodo}, \code{Materia},
+\code{Estudiante}, \code{Matricula},
+\code{Evaluacion}, \code{DetalleEvaluacion}, \code{DimensionEvaluacion},
+\code{CriterioIndicador}, \code{Contenido}, \code{EscalaValoracion},
+\code{TipoSaber}, \code{EjeTematico}, \code{NivelDesempeno},
+\code{EvaluacionSaber}, \code{DetalleEvaluacionSaber},
+\code{Alerta}, \code{AlertaTematica}, \code{ConfiguracionAlerta},
+\code{RegistroAuditoria}.
+
+\subsection{Auditoría a nivel de base de datos}
+
+Toda la auditoría está implementada \emph{exclusivamente en la BD}. La tabla
+\code{registro\_auditoria} almacena documentos JSONB con los cambios; los \emph{triggers}
+\code{fn\_actualizar\_updated\_at} mantienen las marcas temporales actualizadas. \textbf{No se
+requiere ni se permite código de auditoría a nivel de aplicación.}
+
+\subsection{Conjunto de datos semilla}
+
+Los datos sembrados por V2–V11 garantizan reproducibilidad de pruebas y demostraciones:
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}p{4.5cm} p{8.5cm}@{}}
+\toprule
+\textbf{Recurso} & \textbf{Identificadores semilla} \\
+\midrule
+Usuarios               & admin=1, mgarcia=2, kcortes=5 \\
+Roles                  & ADMIN, COORDINADOR, DOCENTE \\
+Secciones de prueba    & 1°A Bolívar = 1, 4°A Keylor = 4 \\
+Periodo                & I Trimestre = 1 \\
+Materias               & Matemáticas = 1, Español = 2, Ciencias = 3, Estudios Sociales = 4 \\
+Ejes Matemáticas Conc. & ids 22--28 (7 ejes Conceptuales) \\
+Ejes Español Conc.     & ids 1--7 \\
+Estudiantes 4°A Keylor & ids 31--33 \\
+Estudiantes 1°A María  & id 1 \\
+\bottomrule
+\end{tabular}
+\caption{Identificadores semilla utilizados por las pruebas funcionales.}
+\end{table}
+
+% =====================================================================
+\section{Módulo 1 — Autenticación y Seguridad (JWT)}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+Este módulo gestiona la autenticación de usuarios mediante \textbf{JSON Web Tokens (JWT)}.
+Implementa un esquema con \emph{access token} de corta duración y \emph{refresh token}
+rotativo, y protege todos los endpoints excepto los públicos y el \emph{health check}.
+
+\subsection{Endpoints}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.2}\small
+\begin{tabular}{@{}p{1.4cm} p{4.0cm} p{6.5cm} p{1.5cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} & \textbf{Auth} \\
+\midrule
+POST & \code{/api/auth/login}    & Autentica usuario; retorna access token + refresh token & No \\
+POST & \code{/api/auth/refresh}  & Renueva el access token (rota el refresh)               & No \\
+POST & \code{/api/auth/logout}   & Revoca el refresh token activo                          & No \\
+GET  & \code{/api/auth/me}       & Retorna los datos del usuario autenticado               & Sí \\
+\bottomrule
+\end{tabular}
+\caption{Endpoints expuestos por \code{AuthController}.}
+\end{table}
+
+\subsection{Contrato de la petición de \emph{login}}
+
+\begin{lstlisting}[style=json,caption={POST \code{/api/auth/login} — \emph{Request body}}]
+{
+  "correo":   "admin@atara.mep.go.cr",   // @NotBlank @Email
+  "password": "Admin1234!"               // @NotBlank
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=json,caption={POST \code{/api/auth/login} — \emph{Response body} (200 OK)}]
+{
+  "accessToken":  "<JWT>",
+  "refreshToken": "<UUID>",
+  "tokenType":    "Bearer",
+  "expiresIn":    3600,
+  "userId":       1,
+  "correo":       "admin@atara.mep.go.cr",
+  "nombre":       "Administrador",
+  "apellidos":    "Sistema",
+  "rol":          "ADMIN"
+}
+\end{lstlisting}
+
+\subsection{Reglas de seguridad}
+
+\begin{ataraInfo}
+\begin{itemize}[leftmargin=*]
+  \item Las contraseñas se almacenan con \textbf{BCryptPasswordEncoder} (\emph{strength} 12).
+        Nunca se exponen en texto plano ni se registran en logs.
+  \item El \emph{access token} se valida en \code{JwtAuthenticationFilter} en cada request,
+        nunca dentro de controladores ni servicios.
+  \item El \emph{refresh token} \textbf{rota} en cada uso: el anterior se revoca y se emite
+        uno nuevo.
+  \item Todos los endpoints exigen el header \code{Authorization: Bearer <token>}, excepto
+        \code{/api/auth/login}, \code{/api/auth/refresh}, \code{/api/auth/logout} y
+        \code{/actuator/health}.
+  \item La sesión es \textbf{stateless}: \code{SessionCreationPolicy.STATELESS}.
+  \item \emph{CSRF deshabilitado}, \emph{CORS configurable} mediante
+        \code{CORS\_ALLOWED\_ORIGINS}.
+\end{itemize}
+\end{ataraInfo}
+
+\subsection{Roles disponibles}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.2}\small
+\begin{tabular}{@{}p{2.8cm} p{4.5cm} p{6.2cm}@{}}
+\toprule
+\textbf{Rol} & \textbf{Descripción} & \textbf{Acceso} \\
+\midrule
+\code{ADMIN}        & Administrador del sistema   & Total (todas las secciones y materias) \\
+\code{COORDINADOR}  & Coordinador académico       & Total (equivalente a ADMIN) \\
+\code{DOCENTE}      & Docente de aula             & Filtrado por secciones y materias asignadas \\
+\bottomrule
+\end{tabular}
+\caption{Roles del sistema y alcance de su acceso.}
+\end{table}
+
+\subsection{Manejo de respuestas no autorizadas}
+
+\code{SecurityConfig} registra dos manejadores de error con cuerpo JSON consistente con el
+\code{ApiResponse} estándar:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{401 Unauthorized} — \code{authenticationEntryPoint}: \emph{“Token de acceso
+        requerido o inválido”}.
+  \item \textbf{403 Forbidden} — \code{accessDeniedHandler}: \emph{“No tiene permisos para
+        acceder a este recurso”}.
+\end{itemize}
+
+\subsection{Evidencia de pruebas funcionales}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}p{7.0cm} p{5.0cm} p{1.5cm}@{}}
+\toprule
+\textbf{Caso de prueba} & \textbf{Resultado esperado} & \textbf{Estado} \\
+\midrule
+Login con credenciales correctas (admin)    & 200 OK + accessToken presente    & \pass \\
+Login de docente                            & 200 OK + rol = DOCENTE           & \pass \\
+Contraseña incorrecta                       & 401 Unauthorized                 & \pass \\
+Correo inexistente                          & 401 Unauthorized                 & \pass \\
+Formato de correo inválido                  & 400 Bad Request                  & \pass \\
+Cuerpo vacío en login                       & 400 Bad Request                  & \pass \\
+Endpoint protegido sin token                & 401 Unauthorized                 & \pass \\
+Endpoint protegido con token inválido       & 401 Unauthorized                 & \pass \\
+GET \code{/api/auth/me} con token válido    & 200 OK + datos del usuario       & \pass \\
+GET \code{/api/auth/me} sin token           & 401 Unauthorized                 & \pass \\
+\midrule
+\textbf{Total}                              &                                  & \textbf{10 / 10} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Módulo 2 — Control de Acceso por Rol (\code{ContextoUsuario})}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+El control de acceso basado en rol se implementa mediante el patrón \textbf{ContextoUsuario}:
+un \code{record} inmutable que encapsula el alcance del usuario autenticado. Se construye
+\emph{una sola vez por request} en \code{ContextoUsuarioService} y se pasa como parámetro a
+los servicios que necesitan verificar permisos.
+
+\begin{ataraInfo}
+\textbf{Punto único de acceso:} \code{ContextoUsuarioService.obtenerContextoActual()} es la
+\textbf{única} clase que lee \code{SecurityContextHolder}. Los servicios de dominio nunca
+acceden directamente al contexto de seguridad de Spring.
+\end{ataraInfo}
+
+\subsection{Estructura del \code{ContextoUsuario}}
+
+\begin{lstlisting}[style=java,caption={\code{ContextoUsuario.java} — \emph{record} inmutable por request}]
+public record ContextoUsuario(
+    Long          usuarioId,
+    RolNombre     rol,
+    boolean       esAdmin,        // true para ADMIN y COORDINADOR
+    Set<Long>     seccionIds,     // IDs de secciones asignadas (solo docentes)
+    Set<Integer>  materiaIds      // IDs de materias asignadas (solo docentes)
+) {
+    // Lanza AccesoDenegadoException (-> HTTP 403) si no tiene acceso
+    public void verificarSeccion(Long seccionId)  { ... }
+    public void verificarMateria(Integer materiaId) { ... }
+    public boolean tieneSeccion(Long seccionId)   { ... }
+    public boolean tieneMateria(Integer materiaId){ ... }
+}
+\end{lstlisting}
+
+\subsection{Flujo de construcción del contexto}
+
+\begin{enumerate}[leftmargin=*]
+  \item \code{JwtAuthenticationFilter} valida el token y carga el \code{UserDetails} en el
+        \code{SecurityContextHolder}.
+  \item El controller llama a \code{ContextoUsuarioService.obtenerContextoActual()}.
+  \item El servicio lee \code{SecurityContextHolder}, consulta las tablas
+        \code{usuario\_secciones} y \code{usuario\_materias}, e instancia el
+        \code{ContextoUsuario}.
+  \item Los servicios de dominio reciben el contexto como parámetro y llaman a
+        \code{contexto.verificarSeccion(id)} / \code{contexto.verificarMateria(id)} antes de
+        operar.
+  \item Si la verificación falla, se lanza \code{AccesoDenegadoException} (mapeado a 403
+        por \code{GlobalExceptionHandler}).
+\end{enumerate}
+
+\subsection{Filtrado automático de catálogos por rol}
+
+El catálogo de materias (\code{GET /api/catalogos/saberes/materias}) aplica el filtro de
+manera automática:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{ADMIN / COORDINADOR}: devuelve las cinco materias del sistema.
+  \item \textbf{DOCENTE}: devuelve únicamente las materias contenidas en su \code{materiaIds}.
+\end{itemize}
+
+\subsection{Evidencia de pruebas funcionales}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}p{6.5cm} p{5.5cm} p{1.5cm}@{}}
+\toprule
+\textbf{Caso de prueba} & \textbf{Resultado esperado} & \textbf{Estado} \\
+\midrule
+Admin ve catálogo de materias               & 5 materias                       & \pass \\
+Docente Keylor ve materias                  & Solo Matemáticas (1 materia)     & \pass \\
+Coordinador ve materias                     & 5 materias (acceso total)        & \pass \\
+Catálogo de materias sin token              & 401 Unauthorized                 & \pass \\
+Catálogo de tipos de saber                  & 3 tipos (sin filtro por rol)     & \pass \\
+Catálogo de niveles de desempeño            & 5 niveles                        & \pass \\
+Ejes de Matemáticas Conceptual              & 7 ejes                           & \pass \\
+Ejes de Español Conceptual                  & 7 ejes                           & \pass \\
+Secciones del docente Keylor                & $\geq$ 1 sección (4°A)            & \pass \\
+Secciones de la docente María               & $\geq$ 2 secciones                & \pass \\
+\midrule
+\textbf{Total}                              &                                  & \textbf{10 / 10} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Módulo 3 — Gestión de Estudiantes y Matrículas}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+Este módulo administra el registro y modificación de estudiantes, así como la inscripción
+(matrícula) de cada estudiante en una sección y un año lectivo. Se diseñó pensando en la
+reutilización: la creación es \emph{idempotente} por número de cédula, lo que permite
+re-importar listas (por ejemplo, desde el módulo PIAD) sin generar conflictos de unicidad.
+
+\subsection{Endpoints}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}p{1.4cm} p{6.0cm} p{6.5cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+POST & \code{/api/estudiantes}                                  & Crea o recupera un estudiante (idempotente por cédula) \\
+GET  & \code{/api/estudiantes}                                  & Lista todos los estudiantes \\
+GET  & \code{/api/estudiantes/\{id\}}                           & Consulta por ID \\
+PUT  & \code{/api/estudiantes/\{id\}}                           & Actualiza datos del estudiante \\
+\midrule
+POST & \code{/api/matriculas}                                   & Registra matrícula \\
+GET  & \code{/api/matriculas/estudiante/\{estudianteId\}}       & Lista matrículas de un estudiante \\
+GET  & \code{/api/matriculas/seccion/\{seccionId\}}             & Lista matrículas de una sección \\
+\bottomrule
+\end{tabular}
+\caption{Endpoints de \code{EstudianteController} y \code{MatriculaController}.}
+\end{table}
+
+\subsection{Reglas de negocio}
+
+\begin{ataraInfo}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Idempotencia por cédula:} \code{POST /api/estudiantes} ya \emph{no} lanza
+        409 Conflict cuando la cédula ya existe; devuelve el estudiante existente.
+  \item \textbf{Validación:} la cédula debe cumplir el formato establecido por las
+        anotaciones \code{@NotBlank} y \code{@Pattern} en
+        \code{EstudianteRequestDto}.
+  \item \textbf{Restricciones de matrícula:} no se permite matrícula doble del mismo
+        estudiante en el mismo año lectivo y sección activa.
+\end{itemize}
+\end{ataraInfo}
+
+% =====================================================================
+\section{Módulo 4 — Años Lectivos y Periodos}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+Gestiona la estructura temporal del sistema: años lectivos y los periodos (trimestres)
+que contienen. Al crear un año lectivo, el servicio genera automáticamente tres trimestres
+dividiendo el rango de fechas en partes iguales y dejando el primero como activo.
+
+\subsection{Endpoints}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}p{1.4cm} p{6.5cm} p{6.0cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+POST   & \code{/api/anios-lectivos}                       & Crea un año lectivo y genera 3 trimestres \\
+GET    & \code{/api/anios-lectivos}                       & Lista todos los años \\
+GET    & \code{/api/anios-lectivos/activo}                & Año actualmente activo \\
+GET    & \code{/api/anios-lectivos/\{id\}}                & Consulta por ID \\
+PUT    & \code{/api/anios-lectivos/\{id\}}                & Actualiza un año \\
+PUT    & \code{/api/anios-lectivos/\{id\}/activar}        & Activa este año (desactiva el resto) \\
+DELETE & \code{/api/anios-lectivos/\{id\}}                & Elimina un año \\
+\midrule
+POST   & \code{/api/periodos}                             & Crea un periodo manualmente \\
+GET    & \code{/api/periodos?anioLectivoId=}              & Lista periodos del año \\
+GET    & \code{/api/periodos/activo?anioLectivoId=}       & Periodo activo del año \\
+PUT    & \code{/api/periodos/\{id\}}                      & Actualiza un periodo \\
+PUT    & \code{/api/periodos/\{id\}/activar}              & Activa el periodo (desactiva el resto del año) \\
+DELETE & \code{/api/periodos/\{id\}}                      & Elimina un periodo \\
+\bottomrule
+\end{tabular}
+\caption{Endpoints de \code{AnioLectivoController} y \code{PeriodoController}.}
+\end{table}
+
+\subsection{Reglas de negocio}
+
+\begin{ataraInfo}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Auto-creación de periodos:} \code{AnioLectivoServiceImpl.crearAnioLectivo()}
+        divide el rango \code{[fechaInicio, fechaFin]} en tres partes iguales y crea los
+        trimestres I, II y III. El I queda activo.
+  \item \textbf{Activación exclusiva:} activar un año o un periodo desactiva todos los demás
+        del mismo ámbito; el sistema garantiza que solo exista uno activo a la vez.
+  \item \textbf{Integridad referencial:} no se permite eliminar un año lectivo si tiene
+        matrículas o evaluaciones asociadas.
+\end{itemize}
+\end{ataraInfo}
+
+% =====================================================================
+\section{Módulo 5 — Secciones y Docentes}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+El módulo de secciones gestiona la estructura académica del sistema: agrupaciones de
+estudiantes asignadas a un docente para un año lectivo. Expone catálogos auxiliares
+(niveles, centros, docentes) que permiten al frontend construir formularios sin depender
+de datos codificados.
+
+\subsection{Endpoints}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}p{1.6cm} p{6.5cm} p{5.5cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+GET    & \code{/api/secciones?anioLectivoId=}             & Lista secciones del año (filtrada por rol) \\
+GET    & \code{/api/secciones/docente/\{docenteId\}}      & Secciones asignadas a un docente \\
+POST   & \code{/api/secciones}                            & Crea una nueva sección \\
+PUT    & \code{/api/secciones/\{id\}}                     & Actualiza una sección \\
+DELETE & \code{/api/secciones/\{id\}}                     & Elimina una sección \\
+GET    & \code{/api/secciones/catalogos/niveles}          & Catálogo de niveles educativos \\
+GET    & \code{/api/secciones/catalogos/centros}          & Catálogo de centros educativos \\
+GET    & \code{/api/secciones/catalogos/docentes}         & Catálogo de docentes disponibles \\
+\bottomrule
+\end{tabular}
+\caption{Endpoints de \code{SeccionController}.}
+\end{table}
+
+\subsection{Datos de control de acceso}
+
+La tabla \code{usuario\_secciones} relaciona docentes con sus secciones asignadas; la tabla
+\code{usuario\_materias} relaciona docentes con sus materias asignadas. Ambas son consultadas
+por \code{ContextoUsuarioService} al construir el \code{ContextoUsuario} de cada request.
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}p{4.7cm} p{2.8cm} p{6.0cm}@{}}
+\toprule
+\textbf{Usuario} & \textbf{Rol} & \textbf{Secciones / materias asignadas} \\
+\midrule
+\code{admin@atara.mep.go.cr}     & ADMIN        & Todas (sin restricción) \\
+\code{jperez@atara.mep.go.cr}    & COORDINADOR  & Todas (acceso total) \\
+\code{mgarcia@atara.mep.go.cr}   & DOCENTE      & Secciones 1 y 3; todas las materias \\
+\code{kcortes@atara.mep.go.cr}   & DOCENTE      & Sección 4; solo Matemáticas (id = 1) \\
+\code{avargas@atara.mep.go.cr}   & DOCENTE      & Materias adicionales: Español y Ciencias (V10) \\
+\bottomrule
+\end{tabular}
+\caption{Usuarios semilla y su alcance configurado.}
+\end{table}
+
+\begin{ataraInfo}
+Todas las contraseñas semilla son \code{Admin1234!}. En producción, los \emph{hashes} BCrypt
+de \code{V2\_\_sample\_data.sql} deben ser reemplazados por contraseñas reales generadas con
+\code{new BCryptPasswordEncoder(12).encode(...)}.
+\end{ataraInfo}
+
+% =====================================================================
+\section{Módulo 6 — Catálogos de Saberes}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+Los catálogos de saberes exponen la información de referencia que el frontend necesita para
+construir los formularios de evaluación: tipos de saber, materias filtradas por rol, ejes
+temáticos por materia y tipo, y niveles de desempeño.
+
+\subsection{Endpoints}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.2}\small
+\begin{tabular}{@{}p{1.4cm} p{6.5cm} p{6.0cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+GET & \code{/api/catalogos/saberes/tipos}                       & Lista los 3 tipos de saber \\
+GET & \code{/api/catalogos/saberes/materias}                    & Lista materias (filtradas por rol del usuario) \\
+GET & \code{/api/catalogos/saberes/ejes?materiaId=\&tipoSaberId=} & Lista ejes (parámetros opcionales) \\
+GET & \code{/api/catalogos/saberes/niveles-desempeno}           & Lista los 5 niveles de desempeño \\
+\bottomrule
+\end{tabular}
+\caption{Endpoints de \code{CatalogoSaberController}.}
+\end{table}
+
+\subsection{Datos de referencia}
+
+\textbf{Tipos de saber (3)}
+
+\begin{table}[h]\centering\small
+\begin{tabular}{@{}c l l@{}}
+\toprule
+\textbf{ID} & \textbf{Clave} & \textbf{Nombre} \\
+\midrule
+1 & \code{CONCEPTUAL}     & Saber Conceptual    \\
+2 & \code{PROCEDIMENTAL}  & Saber Procedimental \\
+3 & \code{ACTITUDINAL}    & Saber Actitudinal   \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Niveles de desempeño (5)}
+
+\begin{table}[h]\centering\small
+\begin{tabular}{@{}c l l@{}}
+\toprule
+\textbf{Valor} & \textbf{Nombre} & \textbf{Descripción breve} \\
+\midrule
+1 & Inicial       & No evidencia dominio \\
+2 & En desarrollo & Dominio parcial \\
+3 & Intermedio    & Dominio básico \\
+4 & Logrado       & Dominio sólido \\
+5 & Avanzado      & Dominio pleno con transferencia \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Materias y conteo de ejes}
+
+\begin{table}[h]\centering\small
+\begin{tabular}{@{}c l l@{}}
+\toprule
+\textbf{ID} & \textbf{Nombre} & \textbf{Ejes totales} \\
+\midrule
+1 & Español           & 21 (7 por tipo de saber) \\
+2 & Matemáticas       & 21 (7 por tipo de saber) \\
+3 & Ciencias          & 21 (7 por tipo de saber) \\
+4 & Estudios Sociales & 21 (7 por tipo de saber) \\
+5 & (adicional)       & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Módulo 7 — Evaluaciones por Saber}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+El módulo de \textbf{Evaluaciones por Saber} permite al docente registrar la valoración de
+un estudiante en cada eje temático de una materia, para un periodo lectivo específico.
+Cada evaluación cubre un \emph{tipo de saber} (Conceptual, Procedimental o Actitudinal) y
+contiene un detalle por cada eje seleccionado, en escala 1--5.
+
+\subsection{Endpoints}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabularx}{\textwidth}{@{}p{1.4cm} X p{3.8cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+POST & \ruta{/api/evaluaciones-saber}                                              & Registra nueva evaluación \\
+PUT  & \ruta{/api/evaluaciones-saber/{id}}                                         & Recalifica (reemplaza detalles) \\
+GET  & \ruta{/api/evaluaciones-saber/{id}}                                         & Consulta por ID \\
+GET  & \ruta{/api/evaluaciones-saber/estudiante/{eId}/periodo/{pId}}               & Lista por estudiante y periodo \\
+GET  & \ruta{/api/evaluaciones-saber/seccion/{sId}/periodo/{pId}}                  & Lista por sección y periodo \\
+GET  & \ruta{/api/evaluaciones-saber/promedios/estudiante/{eId}/periodo/{pId}}     & Promedios del estudiante \\
+GET  & \ruta{/api/evaluaciones-saber/promedios/seccion/{sId}/periodo/{pId}}        & Promedios de la sección \\
+\bottomrule
+\end{tabularx}
+\caption{Endpoints de \code{EvaluacionSaberController}.}
+\end{table}
+
+\subsection{Contrato de la petición}
+
+\begin{lstlisting}[style=json,caption={POST \code{/api/evaluaciones-saber} — \emph{Request body}}]
+{
+  "estudianteId":  31,
+  "periodoId":     1,
+  "usuarioId":     5,
+  "seccionId":     4,
+  "materiaId":     1,
+  "tipoSaberId":   1,
+  "fechaEvaluacion": "2026-04-15",   // opcional
+  "observacion":     "Observacion libre",   // opcional
+  "detalles": [
+    { "ejeTemaaticoId": 22, "valor": 3 },
+    { "ejeTemaaticoId": 23, "valor": 4 },
+    { "ejeTemaaticoId": 24, "valor": 3 }
+    // ... un objeto por eje evaluado
+  ]
+}
+\end{lstlisting}
+
+\begin{ataraNota}
+\textbf{Erratographic intencional:} el campo se llama \code{ejeTemaaticoId} (con doble «a»)
+en todo el sistema —DTO, generador JSON de \code{IntegrationTestBase} y frontend— y se
+mantiene de manera deliberada para no introducir cambios coordinados frágiles. \emph{Cualquier
+mantenimiento debe respetar la grafía existente.}
+\end{ataraNota}
+
+\begin{lstlisting}[style=json,caption={POST \code{/api/evaluaciones-saber} — \emph{Response body} (201 Created)}]
+{
+  "id":                      101,
+  "estudianteId":            31,
+  "estudianteNombreCompleto": "Andrea Mora Vega",
+  "periodoId":               1,
+  "periodoNombre":           "I Trimestre 2026",
+  "materiaId":               1,
+  "materiaNombre":           "Matematicas",
+  "tipoSaberId":             1,
+  "tipoSaberNombre":         "Saber Conceptual",
+  "seccionId":               4,
+  "seccionNombre":           "4 grado A",
+  "detalles": [
+    { "ejeTemaaticoId": 22, "ejeNombre": "...", "valor": 3 }
+  ],
+  "createdAt": "2026-04-15T09:00:00"
+}
+\end{lstlisting}
+
+\subsection{Escala de valoración por saber}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}c l p{8.5cm}@{}}
+\toprule
+\textbf{Valor} & \textbf{Nivel} & \textbf{Descripción} \\
+\midrule
+1 & Inicial       & No evidencia dominio del eje \\
+2 & En desarrollo & Dominio parcial, requiere apoyo constante \\
+3 & Intermedio    & Dominio básico con algunos errores \\
+4 & Logrado       & Dominio sólido con mínimos errores \\
+5 & Avanzado      & Dominio pleno y transferencia de conocimiento \\
+\bottomrule
+\end{tabular}
+\caption{Escala de 5 puntos aplicada a las evaluaciones por saber.}
+\end{table}
+
+\subsection{Reglas de negocio}
+
+\begin{ataraInfo}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Restricción de unicidad:} una sola evaluación por
+        \code{(estudiante\_id, usuario\_id, periodo\_id)} (definida a nivel de BD).
+  \item \textbf{Validaciones de entrada:} \code{detalles} debe tener al menos un elemento
+        (\code{@Size(min=1)}); \code{valor} debe estar entre 1 y 5
+        (\code{@Min(1)}, \code{@Max(5)}).
+  \item \textbf{Recalificación (PUT):} reemplaza todos los detalles existentes mediante
+        \code{orphanRemoval=true} y luego inserta los nuevos. \emph{No} crea una segunda
+        evaluación.
+  \item \textbf{Control de acceso:} el servicio verifica que el docente tenga acceso a la
+        sección y a la materia antes de registrar.
+\end{itemize}
+\end{ataraInfo}
+
+\subsection{Ejes temáticos por materia}
+
+Cada materia posee \textbf{21 ejes temáticos independientes} (7 por tipo de saber):
+
+\begin{table}[h]\centering\small
+\begin{tabular}{@{}l l c l@{}}
+\toprule
+\textbf{Materia} & \textbf{Tipo de saber} & \textbf{Ejes} & \textbf{IDs (ejemplo)} \\
+\midrule
+\multirow{3}{*}{Español}     & Conceptual    & 7 & 1--7   \\
+                             & Procedimental & 7 & 8--14  \\
+                             & Actitudinal   & 7 & 15--21 \\ \midrule
+\multirow{3}{*}{Matemáticas} & Conceptual    & 7 & 22--28 \\
+                             & Procedimental & 7 & 29--35 \\
+                             & Actitudinal   & 7 & 36--42 \\ \midrule
+Ciencias, Est. Sociales      & Cada uno 3 tipos & 7 c/u & (V6) \\
+\bottomrule
+\end{tabular}
+\caption{Distribución de ejes temáticos por materia.}
+\end{table}
+
+\subsection{Evidencia de pruebas funcionales}
+
+\begin{table}[h]\centering\small\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{6.5cm} p{5.5cm} p{1.4cm}@{}}
+\toprule
+\textbf{Caso de prueba} & \textbf{Resultado esperado} & \textbf{Estado} \\
+\midrule
+Registrar evaluación válida                       & 201 Created + ID generado                & \pass \\
+Registrar y recuperar por ID                      & Mismo ID y detalles coherentes           & \pass \\
+Registrar y consultar promedios                   & 200 OK + \code{promediosPorTipoSaber} presente & \pass \\
+Listar por estudiante y periodo                   & Lista con $\geq$ 1 evaluación             & \pass \\
+Registrar sin token                               & 401 Unauthorized                         & \pass \\
+Registrar con detalles vacíos                     & 400 Bad Request                          & \pass \\
+Registrar con valor fuera de rango (6)            & 400 Bad Request                          & \pass \\
+Buscar por ID inexistente (999999)                & 404 Not Found                            & \pass \\
+\midrule
+\textbf{Total}                                    &                                          & \textbf{8 / 8} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Módulo 8 — Alertas Temáticas}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+El módulo de \textbf{Alertas Temáticas} es el núcleo del sistema de alerta temprana. Analiza
+las evaluaciones registradas para un estudiante (o una sección completa) en un periodo,
+calcula el promedio por eje temático y genera automáticamente alertas para los ejes cuyo
+promedio no alcanza el umbral de desempeño esperado.
+
+\subsection{Endpoints}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabularx}{\textwidth}{@{}p{1.4cm} X p{4.0cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+POST & \ruta{/api/alertas-tematicas/generar/estudiante/{eId}/periodo/{pId}} & Genera alertas para un estudiante \\
+POST & \ruta{/api/alertas-tematicas/generar/seccion/{sId}/periodo/{pId}}    & Genera alertas para toda la sección \\
+GET  & \ruta{/api/alertas-tematicas/estudiante/{eId}/periodo/{pId}}         & Consulta alertas de un estudiante \\
+GET  & \ruta{/api/alertas-tematicas/seccion/{sId}/periodo/{pId}}            & Consulta alertas de una sección \\
+\bottomrule
+\end{tabularx}
+\caption{Endpoints de \code{AlertaTematicaController}.}
+\end{table}
+
+\subsection{Respuesta de alerta}
+
+\begin{lstlisting}[style=json,caption={Ejemplo de alerta generada (nivel ALTA)}]
+{
+  "id":                      15,
+  "estudianteId":            32,
+  "estudianteNombreCompleto":"Luis Perez Mora",
+  "periodoId":               1,
+  "periodoNombre":           "I Trimestre 2026",
+  "ejeTemaaticoId":          22,
+  "ejeNombre":               "Algebra y pensamiento algebraico",
+  "ejeClave":                "MAT_C_ALGEBRA",
+  "materiaId":               1,
+  "materiaNombre":           "Matematicas",
+  "tipoSaberId":             1,
+  "tipoSaberNombre":         "Saber Conceptual",
+  "promedio":                1.43,
+  "nivelAlerta":             "ALTA",
+  "motivo":                  "Luis Perez Mora presenta promedio 1.43 en Matematicas ...",
+  "estado":                  "ACTIVA",
+  "fechaGeneracion":         "2026-04-15T09:05:00"
+}
+\end{lstlisting}
+
+\subsection{Reglas de generación de alertas}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.2}\small
+\begin{tabular}{@{}c l p{8.3cm}@{}}
+\toprule
+\textbf{Promedio} & \textbf{Nivel} & \textbf{Interpretación} \\
+\midrule
+$\leq 2{,}0$         & {\color{ataraRojo}\textbf{ALTA}}        & Riesgo crítico. Requiere intervención inmediata. \\
+$2{,}1 - 3{,}0$      & {\color{ataraNaranja}\textbf{MEDIA}}    & Riesgo moderado. Requiere seguimiento. \\
+$> 3{,}0$            & (SIN\_ALERTA)                           & Desempeño aceptable. No se genera ni persiste alerta. \\
+\bottomrule
+\end{tabular}
+\caption{Niveles de alerta según el promedio de eje temático.}
+\end{table}
+
+\textbf{Reglas adicionales:}
+
+\begin{itemize}[leftmargin=*]
+  \item Las alertas con nivel \code{SIN\_ALERTA} \textbf{no se persisten} en la base de datos.
+  \item Si ya existe una alerta para la tupla \code{(estudiante, periodo, eje, materia)}, la
+        nueva generación la \textbf{reemplaza}.
+  \item El estado inicial de toda alerta generada es \code{ACTIVA}.
+  \item La generación por sección delega internamente en la generación por estudiante para
+        cada estudiante matriculado.
+\end{itemize}
+
+\subsection{Evidencia de pruebas funcionales}
+
+\begin{table}[h]\centering\small\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{6.5cm} p{5.5cm} p{1.4cm}@{}}
+\toprule
+\textbf{Caso de prueba} & \textbf{Resultado esperado} & \textbf{Estado} \\
+\midrule
+Valores 1 (promedio $\leq$ 2) generan alerta       & Nivel = ALTA                              & \pass \\
+Valores 5 (promedio $>$ 3) no generan alertas      & Lista vacía (\code{SIN\_ALERTA} no se persiste) & \pass \\
+Generar y consultar — cantidad coherente           & GET retorna misma cantidad que POST       & \pass \\
+Generar alertas sin token                          & 401 Unauthorized                          & \pass \\
+Estudiante sin evaluaciones                        & Lista vacía (200 OK)                      & \pass \\
+\midrule
+\textbf{Total}                                     &                                           & \textbf{5 / 5} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Módulo 9 — Evaluaciones (sistema 4-puntos) y Alertas Tempranas}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+El sistema mantiene además el modelo original de \emph{evaluaciones por dimensiones} (escala
+4-puntos) que precedió al modelo de saberes. Persiste para soportar los reportes históricos y
+las alertas tempranas (\code{AlertaController}).
+
+\subsection{Escala de valoración (original)}
+
+Escala de 4 puntos sobre 5 dimensiones de evaluación: Insuficiente (1), Básico (2),
+Satisfactorio (3), Destacado (4). Las dimensiones incluyen Rendimiento Académico,
+Participación, Hábitos de Estudio y Factores Socioemocionales.
+
+\subsection{Endpoints}
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabularx}{\textwidth}{@{}p{1.4cm} X p{4.2cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+POST & \ruta{/api/evaluaciones}                                                    & Crea evaluación 4-puntos \\
+POST & \ruta{/api/evaluaciones/{id}/detalles}                                      & Agrega detalles a evaluación \\
+GET  & \ruta{/api/evaluaciones/{id}}                                               & Consulta por ID \\
+GET  & \ruta{/api/evaluaciones/estudiante/{estudianteId}}                          & Lista por estudiante \\
+GET  & \ruta{/api/evaluaciones/estudiante/{estudianteId}/periodo/{periodoId}}      & Por estudiante y periodo \\
+GET  & \ruta{/api/evaluaciones/periodo/{periodoId}}                                & Lista del periodo \\
+\midrule
+GET  & \ruta{/api/alertas/estudiante/{studentId}?periodoId=}                       & Alertas tempranas de un estudiante \\
+GET  & \ruta{/api/alertas/seccion/{sectionId}?periodoId=}                          & Alertas tempranas de una sección \\
+\bottomrule
+\end{tabularx}
+\caption{Endpoints de \code{EvaluacionController} y \code{AlertaController}.}
+\end{table}
+
+\textbf{Restricción única:} \code{(estudiante\_id, usuario\_id, periodo\_id)} sobre
+\code{evaluaciones} (igual que en \code{evaluaciones\_saber}).
+
+% =====================================================================
+\section{Módulo 10 — Visualizaciones y Reportes}
+% =====================================================================
+
+\subsection{Visualizaciones}
+
+\code{VisualizacionController} expone agregaciones diseñadas para alimentar las gráficas
+de Chart.js en el frontend.
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabularx}{\textwidth}{@{}p{1.4cm} X p{4.0cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+GET & \ruta{/api/visualizaciones/seccion/{sectionId}/distribucion}
+    \newline\code{?materiaId=\&periodoId=}
+    & Distribución de niveles de desempeño en una sección, materia y periodo. \\
+\bottomrule
+\end{tabularx}
+\caption{Endpoints de \code{VisualizacionController}.}
+\end{table}
+
+DTOs principales: \code{DistribucionAlertasDto}, \code{GraficoValorDto}, \code{ProgresoSeccionDto}.
+
+\subsection{Reportes}
+
+\code{ReporteController} produce reportes consolidados por estudiante.
+
+\begin{table}[h]
+\centering\renewcommand{\arraystretch}{1.15}\small
+\begin{tabular}{@{}p{1.4cm} p{7.5cm} p{6.0cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+GET & \code{/api/reportes/estudiante/\{studentId\}?materiaId=\&periodoId=}
+    & Reporte completo del estudiante con detalles, promedios y alertas. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+DTOs principales: \code{ReporteEstudianteDto}, \code{ReporteSeccionDto},
+\code{DetalleContenidoReporteDto}.
+
+% =====================================================================
+\section{Módulo 11 — Extracción PIAD (OCR)}
+% =====================================================================
+
+\subsection{Descripción funcional}
+
+El módulo \textbf{PIAD} permite al docente cargar el PDF oficial de la Lista PIAD (\emph{Plan
+Individual de Adecuación}), que el sistema procesa mediante OCR para extraer automáticamente
+la nómina de estudiantes con adecuaciones. Esto elimina la necesidad de registrar manualmente
+a estos estudiantes y agiliza la importación al inicio del año lectivo.
+
+\subsection{Endpoint}
+
+\begin{table}[h]
+\centering\small\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{1.4cm} p{4.5cm} p{8.5cm}@{}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Descripción} \\
+\midrule
+POST & \code{/api/piad/extraer} & Recibe PDF \emph{multipart}, aplica OCR y retorna la lista
+                                  de estudiantes extraída en JSON. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Tecnología de procesamiento}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Apache PDFBox 3.0.3:} renderiza cada página del PDF a imagen \emph{raster}
+        a 500 DPI (mejor reconocimiento de fuentes pequeñas).
+  \item \textbf{Tess4j 5.11.0} (\emph{wrapper} de Tesseract): aplica OCR en español
+        (\code{spa}) sobre las imágenes con PSM 7 (línea única) y \code{OcrEngineMode = 1}
+        (LSTM, red neuronal).
+  \item \textbf{Detección de bandas horizontales:} preprocesamiento que segmenta filas de la
+        tabla por brillo medio, mejorando la precisión del OCR sobre tablas densas.
+  \item \textbf{Parser por expresiones regulares:} extrae nombres, cédulas y tipos de
+        adecuación a partir del texto crudo.
+\end{enumerate}
+
+\subsection{Estado de implementación}
+
+\begin{ataraNota}
+La extracción OCR está \textbf{implementada y operativa}. La \emph{persistencia} de los
+estudiantes extraídos en la base de datos \textbf{no está implementada} en esta versión
+(trabajo pendiente para V12). El endpoint retorna la lista como respuesta JSON pero no la
+guarda. La idempotencia del endpoint \code{POST /api/estudiantes} permite que el frontend
+re-importe la lista sin generar conflictos.
+\end{ataraNota}
+
+\subsection{Configuración requerida}
+
+\begin{itemize}[leftmargin=*]
+  \item Tesseract debe estar instalado con el paquete de idioma español (\code{spa}).
+  \item Configurar \code{piad.tessdata.dir} en \code{application.properties} o establecer la
+        variable de entorno \code{TESSDATA\_PREFIX}.
+  \item Si ninguna ruta es válida, el servicio prueba ubicaciones estándar de Linux:
+        \code{/usr/share/tesseract-ocr/5/tessdata}, \code{/usr/share/tesseract-ocr/4/tessdata},
+        \code{/usr/local/share/tessdata}.
+\end{itemize}
+
+\textbf{Limitaciones conocidas} (ver \code{docs/ocr-pdfbox-tess4j.md}):
+
+\begin{itemize}[leftmargin=*]
+  \item Renderizar A4 a 500 DPI genera imágenes de $\sim$\,4000$\times$5800 px ($\approx$\,70 MB
+        en RAM por página). Procesar página por página.
+  \item PDFs con texto vectorizado obligan al uso de OCR (no admiten extracción directa).
+  \item PDFs con texto embebido pueden procesarse más rápido con \code{PDFTextStripper} sin
+        Tesseract; el módulo actual asume el caso vectorizado.
+\end{itemize}
+
+% =====================================================================
+\section{Frontend (Vite + Vanilla JS)}
+% =====================================================================
+
+\subsection{Decisiones de diseño}
+
+El frontend se implementó en JavaScript vanilla sobre Vite, sin framework SPA. Esta decisión
+prioriza:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Cero dependencias de runtime} más allá de Chart.js.
+  \item \textbf{Curva de mantenimiento baja} para un proyecto académico.
+  \item \textbf{Tiempo de carga mínimo} y \emph{bundle} reducido.
+\end{itemize}
+
+\subsection{Cliente HTTP (\code{api.js})}
+
+\begin{itemize}[leftmargin=*]
+  \item Encapsula \code{fetch} con manejo de \code{Authorization: Bearer <token>}.
+  \item Persiste el access token y el refresh token en \code{localStorage}.
+  \item \textbf{Auto-desempaqueta} la propiedad \code{.data} del envoltorio
+        \code{ApiResponse<T>} para todas las respuestas de dominio. Las respuestas de
+        \code{/api/auth/*} no están envueltas y se devuelven tal cual.
+  \item Detecta 401 y dispara el flujo de \emph{refresh}.
+\end{itemize}
+
+\subsection{Páginas y permisos por rol}
+
+\begin{table}[h]\centering\small\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{4.6cm} p{2.0cm} p{6.5cm}@{}}
+\toprule
+\textbf{Página} & \textbf{Rol} & \textbf{Función} \\
+\midrule
+\code{aniosLectivos.js}      & ADMIN/COORD       & Gestión de años lectivos y trimestres \\
+\code{secciones.js}          & ADMIN/COORD       & Gestión de secciones y asignaciones \\
+\code{estudiantes.js}        & Todos             & Listado y CRUD de estudiantes \\
+\code{importarPiad.js}       & DOCENTE+          & Carga de PDF PIAD para extracción OCR \\
+\code{evaluaciones.js}       & DOCENTE+          & Evaluaciones 4-puntos (legado) \\
+\code{evaluacionesSaber.js}  & DOCENTE+          & Wizard de evaluación por saber \\
+\code{matriculas.js}         & DOCENTE+          & Matrícula de estudiantes en secciones \\
+\code{alertas.js}            & DOCENTE+          & Listado de alertas tempranas (legado) \\
+\code{alertasTempranas.js}   & DOCENTE+          & Alertas temáticas con botón de impresión \\
+\code{visualizaciones.js}    & DOCENTE+          & Gráficas Chart.js de distribución \\
+\code{reportes.js}           & DOCENTE+          & Reportes por estudiante \\
+\code{sesion.js}             & Todos             & Sección de sesión en el menú lateral \\
+\bottomrule
+\end{tabular}
+\caption{Páginas del frontend y rol mínimo requerido (ADMIN/COORD = ADMIN o COORDINADOR).}
+\end{table}
+
+\subsection{Mejoras de UX implementadas}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Confirmación al cerrar wizard} con datos sin guardar
+        (\code{evaluacionesSaber.js}).
+  \item \textbf{Botón “Aplicar nivel a todos los ejes”} en el wizard de saberes para
+        evaluación rápida cuando el desempeño es uniforme.
+  \item \textbf{Botón de impresión} en Alertas Tempranas que genera una vista lista para PDF.
+  \item \textbf{Menú lateral filtrado por rol:} los docentes solo ven Estudiantes, Importar
+        PIAD, Evaluaciones por Saber, Alertas Tempranas, Visualizaciones y Reportes.
+        Años Lectivos y Secciones aparecen únicamente para ADMIN/COORDINADOR.
+  \item \textbf{Inicio contextual por rol:} los docentes entran directamente a
+        \emph{Evaluaciones por Saber}; los administradores y coordinadores aterrizan en
+        \emph{Años Lectivos}.
+\end{itemize}
+
+% =====================================================================
+\section{Infraestructura de pruebas funcionales}
+% =====================================================================
+
+\subsection{Descripción}
+
+Las pruebas funcionales validan el sistema completo de extremo a extremo: desde la petición
+HTTP hasta la base de datos. \textbf{No usan \emph{mocks}}; ejecutan contra una instancia real
+de PostgreSQL levantada con \textbf{Testcontainers}.
+
+\subsection{Arquitectura de las pruebas}
+
+\begin{lstlisting}[style=bash,caption={Estructura de las clases de prueba funcional}]
+IntegrationTestBase (abstracta)
+   |-- AuthFuncionalTest             (10 tests)
+   |-- ControlAccesoFuncionalTest    (10 tests)
+   |-- EvaluacionSaberFuncionalTest  ( 8 tests)
+   `-- AlertaTematicaFuncionalTest   ( 5 tests)
+                                    -----
+                          Total:    33 tests
+\end{lstlisting}
+
+Adicionalmente existen pruebas unitarias clásicas a nivel de servicio (sin Docker):
+\code{EstudianteServiceImplTest} y \code{PeriodoServiceImplTest}.
+
+\subsection{Características técnicas}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Base de datos real:} \code{PostgreSQLContainer} con la imagen
+        \code{postgres:15-alpine}. Se aplica el patrón \emph{singleton container}: el
+        contenedor arranca una vez para toda la sesión JVM y se detiene al finalizar
+        (\emph{shutdown hook} automático de Testcontainers).
+  \item \textbf{Flyway automático:} Spring ejecuta las migraciones V1--V11 al levantar el
+        contexto, garantizando datos semilla consistentes en cada corrida.
+  \item \textbf{Sin \code{@Transactional}:} con \code{RANDOM\_PORT} el servidor corre en un
+        hilo separado y los \emph{commits} son reales. El aislamiento se logra con
+        \code{@AfterEach} que llama a \code{limpiarEvaluacionesSaber(long... estudianteIds)}
+        a través de \code{JdbcTemplate}.
+  \item \textbf{\code{RestTemplate} con \code{NoOpResponseErrorHandler}:} no lanza excepción
+        en respuestas 4xx/5xx, permitiendo verificar el código HTTP directamente.
+  \item \textbf{AssertJ:} aserciones fluidas sobre el estado HTTP y el cuerpo JSON.
+\end{itemize}
+
+\subsection{Resumen de resultados}
+
+\begin{table}[h]\centering\small\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}l c c c c@{}}
+\toprule
+\textbf{Clase de prueba} & \textbf{Tests} & \textbf{Pass} & \textbf{Fail} & \textbf{Error} \\
+\midrule
+\code{AuthFuncionalTest}            & 10  & 10  & 0 & 0 \\
+\code{ControlAccesoFuncionalTest}   & 10  & 10  & 0 & 0 \\
+\code{EvaluacionSaberFuncionalTest} &  8  &  8  & 0 & 0 \\
+\code{AlertaTematicaFuncionalTest}  &  5  &  5  & 0 & 0 \\
+\midrule
+\textbf{TOTAL}                      & \textbf{33} & \textbf{33} & \textbf{0} & \textbf{0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Salida observada del \emph{build}}
+
+\begin{ataraExito}
+\begin{lstlisting}[style=bash,basicstyle=\ttfamily\scriptsize]
+$ ./mvnw test -Dtest="*Funcional*"
+
+[INFO] Tests run:  5  Failures: 0  Errors: 0  Skipped: 0  (AlertaTematica)
+[INFO] Tests run: 10  Failures: 0  Errors: 0  Skipped: 0  (Autenticacion)
+[INFO] Tests run: 10  Failures: 0  Errors: 0  Skipped: 0  (ControlAcceso)
+[INFO] Tests run:  8  Failures: 0  Errors: 0  Skipped: 0  (EvaluacionSaber)
+[INFO] Tests run: 33  Failures: 0  Errors: 0  Skipped: 0
+
+[INFO] BUILD SUCCESS
+\end{lstlisting}
+\end{ataraExito}
+
+% =====================================================================
+\section{Configuración y despliegue}
+% =====================================================================
+
+\subsection{Comandos de desarrollo local}
+
+\begin{lstlisting}[style=bash,caption={Comandos esenciales}]
+# Levantar PostgreSQL (requerido antes de la app)
+docker-compose up -d
+
+# Ejecutar la aplicacion (puerto 8081)
+./mvnw spring-boot:run
+
+# Compilar
+./mvnw clean package
+
+# Ejecutar todas las pruebas (Docker requerido)
+./mvnw test
+
+# Una sola clase de prueba
+./mvnw test -Dtest=NombreClase
+
+# Un solo metodo
+./mvnw test -Dtest=NombreClase#nombreMetodo
+
+# Frontend de desarrollo (puerto 3000)
+cd temp-frontend && npm install && npm run dev
+\end{lstlisting}
+
+\subsection{Variables de entorno}
+
+\begin{table}[h]\centering\small\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{4.4cm} p{4.0cm} p{6.5cm}@{}}
+\toprule
+\textbf{Variable} & \textbf{Default (dev)} & \textbf{Descripción} \\
+\midrule
+\code{DB\_URL}                       & \code{jdbc:postgresql://localhost:5433/atara\_db} & URL de la base de datos \\
+\code{DB\_USERNAME}                  & \code{atara\_user}              & Usuario de la BD \\
+\code{DB\_PASSWORD}                  & \code{atara\_pass\_123}         & Contraseña de la BD \\
+\code{JWT\_SECRET}                   & cadena de desarrollo            & Clave JWT — \textbf{cambiar} en producción ($\geq$ 64 chars) \\
+\code{JWT\_EXPIRATION\_MS}           & \code{86400000} (1 día)          & Duración del access token \\
+\code{JWT\_REFRESH\_EXPIRATION\_DAYS}& \code{7}                         & Duración del refresh token \\
+\code{CORS\_ALLOWED\_ORIGINS}        & \code{*}                         & Origen(es) permitidos del frontend \\
+\code{SHOW\_SQL}                     & \code{true}                     & Logs de SQL — \code{false} en producción \\
+\code{SPRING\_PROFILES\_ACTIVE}      & ---                              & Establecer \code{prod} para activar \code{application-prod.properties} \\
+\code{TESSDATA\_PREFIX}              & ---                              & Ruta alterna a \code{tessdata} (PIAD/OCR) \\
+\bottomrule
+\end{tabular}
+\caption{Variables de entorno admitidas con \emph{fallback} para desarrollo local.}
+\end{table}
+
+\subsection{Perfil de producción}
+
+El archivo \code{application-prod.properties} se activa con
+\code{SPRING\_PROFILES\_ACTIVE=prod}. Sus diferencias respecto a desarrollo:
+
+\begin{itemize}[leftmargin=*]
+  \item \code{spring.jpa.show-sql=false} y \code{format\_sql=false} (sin logs de SQL).
+  \item Todas las propiedades sensibles se obtienen exclusivamente de variables de entorno.
+  \item Se exige \code{JWT\_SECRET} de al menos 64 caracteres aleatorios.
+  \item \code{CORS\_ALLOWED\_ORIGINS} debe apuntar al dominio real (por ejemplo
+        \code{https://atara.mep.go.cr}), nunca \code{*}.
+\end{itemize}
+
+\subsection{Despliegue con Docker (BD)}
+
+\begin{lstlisting}[style=bash,caption={\code{docker-compose.yml} de desarrollo}]
+services:
+  postgres:
+    image: postgres:17
+    container_name: atara-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: atara_db
+      POSTGRES_USER: atara_user
+      POSTGRES_PASSWORD: atara_pass_123
+    ports:
+      - "5433:5432"
+    volumes:
+      - atara_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atara_user -d atara_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  atara_postgres_data:
+\end{lstlisting}
+
+% =====================================================================
+\section{Mapa completo de endpoints}
+% =====================================================================
+
+\renewcommand{\arraystretch}{1.15}\small
+\begin{longtable}{@{}p{5.5cm} p{1.6cm} >{\raggedright\arraybackslash}p{8.5cm}@{}}
+\toprule
+\textbf{Controlador} & \textbf{Método} & \textbf{Ruta} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Controlador} & \textbf{Método} & \textbf{Ruta} \\
+\midrule
+\endhead
+
+\bottomrule
+\multicolumn{3}{r}{\itshape (continúa en la siguiente página)}
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+\code{AuthController}             & POST    & \ruta{/api/auth/login} \\
+                                  & POST    & \ruta{/api/auth/refresh} \\
+                                  & POST    & \ruta{/api/auth/logout} \\
+                                  & GET     & \ruta{/api/auth/me} \\
+\midrule
+\code{EstudianteController}       & POST    & \ruta{/api/estudiantes} \\
+                                  & GET     & \ruta{/api/estudiantes} \\
+                                  & GET     & \ruta{/api/estudiantes/{id}} \\
+                                  & PUT     & \ruta{/api/estudiantes/{id}} \\
+\midrule
+\code{MatriculaController}        & POST    & \ruta{/api/matriculas} \\
+                                  & GET     & \ruta{/api/matriculas/estudiante/{estudianteId}} \\
+                                  & GET     & \ruta{/api/matriculas/seccion/{seccionId}} \\
+\midrule
+\code{AnioLectivoController}      & POST    & \ruta{/api/anios-lectivos} \\
+                                  & GET     & \ruta{/api/anios-lectivos} \\
+                                  & GET     & \ruta{/api/anios-lectivos/activo} \\
+                                  & GET     & \ruta{/api/anios-lectivos/{id}} \\
+                                  & PUT     & \ruta{/api/anios-lectivos/{id}} \\
+                                  & PUT     & \ruta{/api/anios-lectivos/{id}/activar} \\
+                                  & DELETE  & \ruta{/api/anios-lectivos/{id}} \\
+\midrule
+\code{PeriodoController}          & POST    & \ruta{/api/periodos} \\
+                                  & GET     & \ruta{/api/periodos} \\
+                                  & GET     & \ruta{/api/periodos/activo} \\
+                                  & PUT     & \ruta{/api/periodos/{id}} \\
+                                  & PUT     & \ruta{/api/periodos/{id}/activar} \\
+                                  & DELETE  & \ruta{/api/periodos/{id}} \\
+\midrule
+\code{SeccionController}          & GET     & \ruta{/api/secciones} \\
+                                  & GET     & \ruta{/api/secciones/docente/{docenteId}} \\
+                                  & POST    & \ruta{/api/secciones} \\
+                                  & PUT     & \ruta{/api/secciones/{id}} \\
+                                  & DELETE  & \ruta{/api/secciones/{id}} \\
+                                  & GET     & \ruta{/api/secciones/catalogos/niveles} \\
+                                  & GET     & \ruta{/api/secciones/catalogos/centros} \\
+                                  & GET     & \ruta{/api/secciones/catalogos/docentes} \\
+\midrule
+\code{CatalogoSaberController}    & GET     & \ruta{/api/catalogos/saberes/tipos} \\
+                                  & GET     & \ruta{/api/catalogos/saberes/materias} \\
+                                  & GET     & \ruta{/api/catalogos/saberes/ejes} \\
+                                  & GET     & \ruta{/api/catalogos/saberes/niveles-desempeno} \\
+\midrule
+\code{EvaluacionSaberController}  & POST    & \ruta{/api/evaluaciones-saber} \\
+                                  & PUT     & \ruta{/api/evaluaciones-saber/{id}} \\
+                                  & GET     & \ruta{/api/evaluaciones-saber/{id}} \\
+                                  & GET     & \ruta{/api/evaluaciones-saber/estudiante/{eId}/periodo/{pId}} \\
+                                  & GET     & \ruta{/api/evaluaciones-saber/seccion/{sId}/periodo/{pId}} \\
+                                  & GET     & \ruta{/api/evaluaciones-saber/promedios/estudiante/{eId}/periodo/{pId}} \\
+                                  & GET     & \ruta{/api/evaluaciones-saber/promedios/seccion/{sId}/periodo/{pId}} \\
+\midrule
+\code{AlertaTematicaController}   & POST    & \ruta{/api/alertas-tematicas/generar/estudiante/{eId}/periodo/{pId}} \\
+                                  & POST    & \ruta{/api/alertas-tematicas/generar/seccion/{sId}/periodo/{pId}} \\
+                                  & GET     & \ruta{/api/alertas-tematicas/estudiante/{eId}/periodo/{pId}} \\
+                                  & GET     & \ruta{/api/alertas-tematicas/seccion/{sId}/periodo/{pId}} \\
+\midrule
+\code{EvaluacionController}       & POST    & \ruta{/api/evaluaciones} \\
+                                  & POST    & \ruta{/api/evaluaciones/{id}/detalles} \\
+                                  & GET     & \ruta{/api/evaluaciones/{id}} \\
+                                  & GET     & \ruta{/api/evaluaciones/estudiante/{estudianteId}} \\
+                                  & GET     & \ruta{/api/evaluaciones/estudiante/{estudianteId}/periodo/{periodoId}} \\
+                                  & GET     & \ruta{/api/evaluaciones/periodo/{periodoId}} \\
+\midrule
+\code{AlertaController}           & GET     & \ruta{/api/alertas/estudiante/{studentId}} \\
+                                  & GET     & \ruta{/api/alertas/seccion/{sectionId}} \\
+\midrule
+\code{ReporteController}          & GET     & \ruta{/api/reportes/estudiante/{studentId}} \\
+\midrule
+\code{VisualizacionController}    & GET     & \ruta{/api/visualizaciones/seccion/{sectionId}/distribucion} \\
+\midrule
+\code{PiadController}             & POST    & \ruta{/api/piad/extraer} \\
+
+\end{longtable}
+
+% =====================================================================
+\section{Convenciones de desarrollo}
+% =====================================================================
+
+\subsection{Fronteras entre capas}
+
+\textbf{Los controladores deben:}
+
+\begin{itemize}[leftmargin=*]
+  \item Recibir requests, delegar al servicio y retornar respuesta.
+  \item Declarar \code{@Valid} en el cuerpo de la petición.
+  \item Retornar \code{ResponseEntity<ApiResponse<T>>}.
+\end{itemize}
+
+\textbf{Los controladores nunca deben:}
+
+\begin{itemize}[leftmargin=*]
+  \item Contener lógica de negocio (\code{if/else}, cálculos, transformaciones).
+  \item Llamar repositorios directamente.
+  \item Retornar entidades JPA o tipos internos del modelo.
+\end{itemize}
+
+\subsection{DTOs obligatorios}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Nunca} retornar ni aceptar una entidad JPA en un controlador.
+  \item Los DTO se ubican en \code{dto/<dominio>/} (\code{EstudianteRequestDto.java},
+        \code{EstudianteResponseDto.java}, etc.).
+  \item Mapeo entidad$\leftrightarrow$DTO en la capa de servicio.
+  \item DTOs con Lombok: \code{@Data}, \code{@Builder}, \code{@NoArgsConstructor},
+        \code{@AllArgsConstructor}.
+\end{itemize}
+
+\subsection{Validación}
+
+\begin{itemize}[leftmargin=*]
+  \item Anotaciones de Jakarta Bean Validation: \code{@NotNull}, \code{@NotBlank}, \code{@Size},
+        \code{@Min}, \code{@Max}, \code{@Email}, \code{@Pattern}, etc.
+  \item \code{@Valid} en el parámetro del método controlador para activar la validación.
+  \item No se permite validación manual cuando una anotación cubre el caso.
+  \item \code{GlobalExceptionHandler} maneja \code{MethodArgumentNotValidException} y
+        retorna errores estructurados a nivel de campo (\code{campo: mensaje}).
+\end{itemize}
+
+\subsection{Estructura de respuesta API}
+
+Todos los endpoints retornan \code{ResponseEntity<ApiResponse<T>>} con la siguiente forma:
+
+\begin{lstlisting}[style=json,caption={Forma del envoltorio \code{ApiResponse} (éxito y error)}]
+// Éxito
+{ "success": true,  "message": "Descripcion breve", "data": { ... } }
+
+// Error
+{ "success": false, "message": "Descripcion del error", "data": null }
+\end{lstlisting}
+
+\subsection{Manejo centralizado de errores}
+
+\begin{itemize}[leftmargin=*]
+  \item Toda excepción pasa por \code{GlobalExceptionHandler}: prohibidos los \code{try/catch}
+        en controladores.
+  \item Mapeo:
+  \begin{itemize}
+    \item \code{NoSuchElementException} $\to$ 404 Not Found.
+    \item \code{IllegalArgumentException} $\to$ 400 Bad Request.
+    \item \code{AccesoDenegadoException} $\to$ 403 Forbidden.
+    \item \code{TokenRefreshException} $\to$ 401 Unauthorized.
+    \item \code{MethodArgumentNotValidException} $\to$ 400 con detalle por campo.
+    \item Otras $\to$ 500 Internal Server Error (sin exponer \emph{stacktrace}).
+  \end{itemize}
+\end{itemize}
+
+\subsection{Convenciones de nomenclatura}
+
+\begin{table}[h]\centering\small\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{4.6cm} p{4.0cm} p{4.5cm}@{}}
+\toprule
+\textbf{Elemento} & \textbf{Convención} & \textbf{Ejemplo} \\
+\midrule
+Clases                  & PascalCase           & \code{EstudianteServiceImpl} \\
+Métodos / variables     & camelCase            & \code{obtenerEstudiantePorId} \\
+Constantes              & UPPER\_SNAKE\_CASE   & \code{MAX\_INTENTOS\_LOGIN} \\
+Columnas BD             & snake\_case          & \code{fecha\_nacimiento} \\
+DTO                     & sufijo \code{RequestDto} / \code{ResponseDto} & \code{MatriculaRequestDto} \\
+Interfaz de servicio    & sin sufijo           & \code{EstudianteService} \\
+Implementación servicio & sufijo \code{Impl}   & \code{EstudianteServiceImpl} \\
+Rutas REST              & kebab-case, plural   & \code{/api/anios-lectivos} \\
+\bottomrule
+\end{tabular}
+\caption{Convenciones de nomenclatura adoptadas en el proyecto.}
+\end{table}
+
+\subsection{Reglas de seguridad para desarrolladores}
+
+\begin{ataraAlerta}
+\begin{itemize}[leftmargin=*]
+  \item Nunca registrar contraseñas, tokens ni PII en logs (cédulas, nombres con calificaciones).
+  \item Los tokens JWT \emph{solo} se validan en \code{JwtAuthenticationFilter}.
+  \item No exponer IDs internos ni mensajes técnicos en los errores cara al cliente.
+  \item Las contraseñas se almacenan con \code{BCryptPasswordEncoder} (\emph{strength} 12).
+  \item Sanitizar toda cadena del usuario antes de usarla en JPQL/SQL nativo; preferir
+        \emph{method names} de Spring Data o \code{@Query} con parámetros nombrados.
+  \item Los servicios de dominio deben recibir el \code{ContextoUsuario} como parámetro
+        explícito; está \textbf{prohibido} llamar a \code{SecurityContextHolder} directamente
+        fuera de \code{ContextoUsuarioService}.
+\end{itemize}
+\end{ataraAlerta}
+
+% =====================================================================
+\section{Glosario}
+% =====================================================================
+
+\begin{description}[leftmargin=2.0cm,style=nextline,labelwidth=*,font=\bfseries\color{ataraAzul}]
+  \item[ATARA] Sistema de Alerta Temprana y Atención al Rendimiento Académico.
+  \item[Eje temático] Subdivisión pedagógica de un \emph{tipo de saber} dentro de una materia.
+                      Cada materia tiene 21 ejes (7 por tipo de saber).
+  \item[Tipo de saber] Categoría pedagógica del aprendizaje: Conceptual, Procedimental o
+                       Actitudinal.
+  \item[Materia] Asignatura curricular: Español, Matemáticas, Ciencias o Estudios Sociales.
+  \item[Periodo] Trimestre lectivo (I, II, III) dentro de un \emph{año lectivo}.
+  \item[ContextoUsuario] \emph{Record} inmutable que encapsula la identidad y el alcance
+                         del usuario autenticado.
+  \item[Alerta temática] Registro generado automáticamente cuando el promedio de un eje
+                         temático cae bajo el umbral (ALTA $\leq 2{,}0$, MEDIA $2{,}1$--$3{,}0$).
+  \item[PIAD] Plan Individual de Adecuación: documento oficial del MEP que lista a los
+              estudiantes con adecuaciones curriculares.
+  \item[Flyway] Herramienta de migraciones de esquema usada para la gestión de la base de
+                datos.
+  \item[Testcontainers] Librería que arranca contenedores Docker como dependencia de pruebas
+                        JUnit.
+  \item[ApiResponse] Envoltorio uniforme \code{\{success, message, data\}} para todas las
+                     respuestas del API.
+\end{description}
+
+% =====================================================================
+\section{Conclusiones}
+% =====================================================================
+
+\begin{itemize}[leftmargin=*]
+  \item ATARA implementa una API REST estructurada en \textbf{14 controladores} y
+        \textbf{7 módulos funcionales principales}, siguiendo una arquitectura por capas
+        con separación estricta de responsabilidades y un cliente frontend independiente.
+  \item El sistema de \textbf{control de acceso por rol}, basado en el \code{ContextoUsuario},
+        garantiza que cada docente opera exclusivamente sobre sus secciones y materias
+        asignadas, sin requerir lógica condicional dispersa en cada endpoint.
+  \item El módulo de \textbf{alertas temáticas} automatiza la detección de riesgo académico:
+        un docente registra evaluaciones por saber y el sistema identifica los ejes que
+        requieren atención inmediata (ALTA), seguimiento (MEDIA) o ninguna acción.
+  \item La suite de \textbf{33 pruebas funcionales} se ejecuta contra una base de datos
+        PostgreSQL real (Testcontainers) con datos semilla completos, validando flujos de
+        negocio extremo a extremo con un \textbf{100\,\% de éxito}.
+  \item La \textbf{migración incremental con Flyway} (V1--V11) garantiza la reproducibilidad
+        del esquema en cualquier entorno (desarrollo, pruebas, producción) y mantiene un
+        historial auditable de cambios.
+  \item La \textbf{externalización de credenciales} a variables de entorno y el perfil
+        \code{prod} permiten un despliegue seguro sin modificar el código fuente.
+  \item El módulo \textbf{PIAD/OCR} demuestra integración avanzada (PDFBox + Tess4j) para
+        extraer datos de documentos vectorizados; la persistencia automática de la lista
+        extraída queda como trabajo futuro (V12).
+\end{itemize}
+
+\vspace{1em}
+
+\begin{ataracaja}[title=Trabajo futuro recomendado]
+\begin{itemize}[leftmargin=*]
+  \item \textbf{V12 — Persistencia PIAD:} guardar automáticamente los estudiantes extraídos
+        por OCR en \code{POST /api/piad/extraer}, reutilizando la idempotencia por cédula.
+  \item Ampliar la cobertura de pruebas funcionales a los módulos de \textbf{Reportes} y
+        \textbf{Visualizaciones}.
+  \item Añadir excepciones específicas \code{RecursoNoEncontradoException} y
+        \code{ReglaDeNegocioException} para reemplazar el uso genérico de
+        \code{NoSuchElementException} y \code{IllegalArgumentException}.
+  \item Implementar paginación (\code{Pageable}) en los listados largos
+        (\code{GET /api/estudiantes}, \code{GET /api/secciones}).
+  \item Migrar el frontend a un \emph{bundle} estable de producción servido por el mismo
+        proceso Spring (o desplegado como artefacto estático en CDN).
+\end{itemize}
+\end{ataracaja}
+
+\end{document}
